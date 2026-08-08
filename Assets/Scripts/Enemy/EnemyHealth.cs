@@ -1,94 +1,116 @@
-using System.Collections;
-using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
-public class EnemyHealth : MonoBehaviour
+[DisallowMultipleComponent]
+[RequireComponent(typeof(NetworkObject))]
+public sealed class EnemyHealth : NetworkBehaviour
 {
-    public EnemyHurtFlash hurtFlash;
-    public int enemyCurrentHealth;
-
-    [Header("血包预制体 / Health Pack Prefab")]
     public GameObject healthPackPrefab;
-    [Header("掉落概率 0~1 / Drop Chance (0=never, 1=always)")]
-    [Range(0f, 1f)] public float dropRate = 0.3f;
-
-    [Header("金币预制体 / Coin Prefab")]
+    [Range(0f, 1f)] public float healthPackDropChance = 0.2f;
     public GameObject coinPrefab;
-    [Range(0f,1f)] public float coinDropRate = 0.4f;
+    [Range(0f, 1f)] public float coinDropChance = 0.5f;
 
-    private void Start()
+    private readonly NetworkVariable<int> networkHealth = new(
+        1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<bool> networkDead = new(
+        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    private EnemyHurtFlash hurtFlash;
+    private int offlineHealth;
+    private bool offlineDead;
+
+    public int CurrentHealth => UseNetworkValues ? networkHealth.Value : offlineHealth;
+    public bool IsDead => UseNetworkValues ? networkDead.Value : offlineDead;
+    private bool UseNetworkValues => NetworkAuthority.IsNetworkActive && IsSpawned;
+
+    private void Awake()
     {
-        // 增加空值保护，防止StatsManager不存在报错
-        if (StatsManager.Instance != null)
+        if (GetComponent<NetworkObject>() == null && !NetworkAuthority.IsNetworkActive)
         {
-            enemyCurrentHealth = StatsManager.Instance.enemymaxHealth;
+            gameObject.AddComponent<NetworkObject>();
         }
 
         hurtFlash = GetComponent<EnemyHurtFlash>();
+        offlineHealth = GetConfiguredMaxHealth();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
+        {
+            networkHealth.Value = GetConfiguredMaxHealth();
+            networkDead.Value = false;
+        }
     }
 
     public void ChangeEnemyHealth(int amount)
     {
-        enemyCurrentHealth -= amount;
-
-        hurtFlash?.StartHurtFlash(); // 空值简化写法
-
-        // 血量超过上限修正，提前处理
-        if (StatsManager.Instance != null && enemyCurrentHealth > StatsManager.Instance.enemymaxHealth)
+        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || IsDead)
         {
-            enemyCurrentHealth = StatsManager.Instance.enemymaxHealth;
-        }    
-
-        // 受伤音效，区分死亡与普通受伤
-        if (SFXManager.Instance != null && enemyCurrentHealth > 0)
-        {
-            SFXManager.Instance.PlayAttackhunt();
+            return;
         }
 
-        // 死亡逻辑：先生成掉落，再销毁怪物
-        if(enemyCurrentHealth <= 0)
+        SetHealth(Mathf.Max(0, CurrentHealth - amount));
+        if (NetworkAuthority.IsNetworkActive)
         {
-            if (SFXManager.Instance != null)
-                SFXManager.Instance.PlayAttackdead();
-            TryDropPack();
-            Destroy(gameObject);
+            PlayHurtFeedbackRpc();
+        }
+        else
+        {
+            hurtFlash?.StartHurtFlash();
+        }
+
+        if (CurrentHealth <= 0)
+        {
+            ServerDie();
         }
     }
 
-    void Awake()
+    private void ServerDie()
     {
-        EnemyHurtFlash[] allFlash = GetComponents<EnemyHurtFlash>();
-        // 删掉除第一个以外所有重复脚本
-        for(int i = 1; i < allFlash.Length; i++)
+        if (IsDead || !NetworkAuthority.IsServerOrOffline(this))
         {
-            Destroy(allFlash[i]);
+            return;
         }
+
+        SetDead(true);
+        ServerTryDrop(healthPackPrefab, healthPackDropChance);
+        ServerTryDrop(coinPrefab, coinDropChance);
+        NetworkSpawnUtility.Despawn(gameObject);
     }
 
-    public void TryDropPack()
+    private void ServerTryDrop(GameObject prefab, float chance)
     {
-        // 生成血包
-        if (healthPackPrefab != null)
+        if (prefab == null || Random.value > chance)
         {
-            float randomValue = Random.Range(0f, 1f);
-            if (randomValue <= dropRate)
-            {
-                Vector2 randomOffset = new Vector2(Random.Range(-0.5f,0.5f), Random.Range(-0.5f,0.5f));
-                Vector2 spawnPos = (Vector2)transform.position + randomOffset;
-                Instantiate(healthPackPrefab, spawnPos, Quaternion.identity);
-            }
+            return;
         }
 
-        // 生成金币
-        if (coinPrefab != null)
-        {
-            float coinRandom = Random.Range(0f,1f);
-            if (coinRandom <= coinDropRate)
-            {
-                Vector2 randomOffset = new Vector2(Random.Range(-0.5f,0.5f), Random.Range(-0.5f,0.5f));
-                Vector2 spawnPos = (Vector2)transform.position + randomOffset;
-                Instantiate(coinPrefab, spawnPos, Quaternion.identity);
-            }
-        }
+        Vector2 offset = Random.insideUnitCircle * 0.5f;
+        Vector3 position = transform.position + new Vector3(offset.x, 0f, offset.y);
+        NetworkSpawnUtility.Spawn(prefab, position, Quaternion.identity);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void PlayHurtFeedbackRpc()
+    {
+        hurtFlash?.StartHurtFlash();
+    }
+
+    private void SetHealth(int value)
+    {
+        if (UseNetworkValues) networkHealth.Value = value;
+        else offlineHealth = value;
+    }
+
+    private void SetDead(bool value)
+    {
+        if (UseNetworkValues) networkDead.Value = value;
+        else offlineDead = value;
+    }
+
+    private static int GetConfiguredMaxHealth()
+    {
+        return Mathf.Max(1, StatsManager.Instance != null ? StatsManager.Instance.enemymaxHealth : 1);
     }
 }

@@ -1,5 +1,28 @@
-using UnityEngine;
 using System.Collections.Generic;
+using Unity.Netcode;
+using UnityEngine;
+
+public struct NetworkObstaclePlacement : INetworkSerializable, System.IEquatable<NetworkObstaclePlacement>
+{
+    public int PrefabIndex;
+    public Vector3 Position;
+    public Quaternion Rotation;
+    public Vector3 Scale;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref PrefabIndex);
+        serializer.SerializeValue(ref Position);
+        serializer.SerializeValue(ref Rotation);
+        serializer.SerializeValue(ref Scale);
+    }
+
+    public bool Equals(NetworkObstaclePlacement other) =>
+        PrefabIndex == other.PrefabIndex &&
+        Position == other.Position &&
+        Rotation == other.Rotation &&
+        Scale == other.Scale;
+}
 
 /// <summary>
 /// 运行时随机障碍生成器 / Runtime random obstacle generator
@@ -11,7 +34,9 @@ using System.Collections.Generic;
 /// 3. 不通就回滚,换另一个格子重试
 ///    If not reachable,rollback and try another cell
 /// </summary>
-public class LevelGenerator : MonoBehaviour
+[DisallowMultipleComponent]
+[RequireComponent(typeof(NetworkObject))]
+public class LevelGenerator : NetworkBehaviour
 {
     [Header("障碍 prefab 池 / Obstacle prefabs (random pick one each time)")]
     public GameObject[] obstaclePrefabs;
@@ -55,15 +80,37 @@ public class LevelGenerator : MonoBehaviour
     public Transform obstacleParent;
 
     private readonly List<GameObject> spawned = new List<GameObject>();
+    private NetworkList<NetworkObstaclePlacement> placements;
+
+    private void Awake()
+    {
+        placements = new NetworkList<NetworkObstaclePlacement>(
+            null,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+    }
 
     void Start()
     {
-        Generate();
+        if (!NetworkAuthority.IsNetworkActive) Generate();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        placements.OnListChanged += HandlePlacementChanged;
+        if (IsServer) Generate();
+        else RebuildFromPlacements();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        placements.OnListChanged -= HandlePlacementChanged;
     }
 
     [ContextMenu("重新生成 / Regenerate")]
     public void Regenerate()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         Clear();
         Generate();
     }
@@ -71,6 +118,7 @@ public class LevelGenerator : MonoBehaviour
     [ContextMenu("清空所有生成的障碍 / Clear all spawned obstacles")]
     public void Clear()
     {
+        if (Application.isPlaying && !NetworkAuthority.IsServerOrOffline()) return;
         foreach (var go in spawned)
         {
             if (go == null) continue;
@@ -78,16 +126,20 @@ public class LevelGenerator : MonoBehaviour
             else DestroyImmediate(go);
         }
         spawned.Clear();
+        if (NetworkAuthority.IsNetworkActive && IsSpawned && IsServer)
+            placements.Clear();
     }
 
     public void Generate()
     {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
+        if (NetworkAuthority.IsNetworkActive && !IsSpawned) return;
         if (obstaclePrefabs == null || obstaclePrefabs.Length == 0)
         {
             Debug.LogWarning("[LevelGenerator] obstaclePrefabs 为空,跳过生成 / obstaclePrefabs empty,skipping");
             return;
         }
-        if (flowField == null) flowField = FindObjectOfType<FlowFieldManager>();
+        if (flowField == null) flowField = FindFirstObjectByType<FlowFieldManager>();
         if (flowField == null)
         {
             Debug.LogError("[LevelGenerator] 场景里找不到 FlowFieldManager / FlowFieldManager not found in scene");
@@ -146,7 +198,8 @@ public class LevelGenerator : MonoBehaviour
                 continue;
             }
 
-            GameObject prefab = obstaclePrefabs[Random.Range(0, obstaclePrefabs.Length)];
+            int prefabIndex = Random.Range(0, obstaclePrefabs.Length);
+            GameObject prefab = obstaclePrefabs[prefabIndex];
             Quaternion rot = randomYRotation
                 ? Quaternion.Euler(0, Random.Range(0f, 360f), 0)
                 : prefab.transform.rotation;
@@ -161,6 +214,16 @@ public class LevelGenerator : MonoBehaviour
             if (fitToOneCell) FitToCell(go, cellSize);
 
             spawned.Add(go);
+            if (NetworkAuthority.IsNetworkActive)
+            {
+                placements.Add(new NetworkObstaclePlacement
+                {
+                    PrefabIndex = prefabIndex,
+                    Position = go.transform.position,
+                    Rotation = go.transform.rotation,
+                    Scale = go.transform.localScale
+                });
+            }
             placed++;
         }
 
@@ -169,6 +232,106 @@ public class LevelGenerator : MonoBehaviour
         Debug.Log("[LevelGenerator] 放置 " + placed + "/" + obstacleCount +
                   " 障碍 / placed,seed=" + actualSeed + ",attempts=" + attempts +
                   ",floorY=" + floorY);
+    }
+
+    private void HandlePlacementChanged(
+        NetworkListEvent<NetworkObstaclePlacement> change)
+    {
+        if (IsServer) return;
+        if (change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.Clear)
+        {
+            ClearClientObjects();
+            return;
+        }
+
+        if (change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.Add ||
+            change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.Insert ||
+            change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.Value)
+        {
+            if (change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.Value)
+                RebuildFromPlacements();
+            else
+                SpawnClientPlacement(change.Value);
+        }
+        else if (change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.Remove ||
+                 change.Type == NetworkListEvent<NetworkObstaclePlacement>.EventType.RemoveAt)
+        {
+            RemoveClientPlacement(change.Index);
+        }
+    }
+
+    private void RebuildFromPlacements()
+    {
+        ClearClientObjects();
+        foreach (NetworkObstaclePlacement placement in placements)
+            SpawnClientPlacement(placement);
+        flowField ??= FindFirstObjectByType<FlowFieldManager>();
+        flowField?.ForceRescan();
+    }
+
+    private void SpawnClientPlacement(NetworkObstaclePlacement placement)
+    {
+        if (obstaclePrefabs == null ||
+            placement.PrefabIndex < 0 ||
+            placement.PrefabIndex >= obstaclePrefabs.Length ||
+            obstaclePrefabs[placement.PrefabIndex] == null)
+            return;
+
+        if (obstacleParent == null) obstacleParent = transform;
+        GameObject go = Instantiate(
+            obstaclePrefabs[placement.PrefabIndex],
+            placement.Position,
+            placement.Rotation,
+            obstacleParent);
+        go.transform.localScale = placement.Scale;
+        SetLayerRecursively(go, 3);
+        spawned.Add(go);
+    }
+
+    private void ClearClientObjects()
+    {
+        foreach (GameObject go in spawned)
+            if (go != null) Destroy(go);
+        spawned.Clear();
+    }
+
+    private void RemoveClientPlacement(int index)
+    {
+        if (index < 0 || index >= spawned.Count) return;
+        if (spawned[index] != null) Destroy(spawned[index]);
+        spawned.RemoveAt(index);
+        flowField?.ForceRescan();
+    }
+
+    public void RemoveObstaclesNear(Vector3 center, float radius)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
+        float radiusSquared = Mathf.Max(0f, radius) * Mathf.Max(0f, radius);
+
+        if (NetworkAuthority.IsNetworkActive)
+        {
+            if (!IsSpawned || !IsServer) return;
+            for (int i = placements.Count - 1; i >= 0; i--)
+            {
+                if ((placements[i].Position - center).sqrMagnitude > radiusSquared) continue;
+                if (i < spawned.Count && spawned[i] != null) Destroy(spawned[i]);
+                if (i < spawned.Count) spawned.RemoveAt(i);
+                placements.RemoveAt(i);
+            }
+        }
+        else
+        {
+            for (int i = spawned.Count - 1; i >= 0; i--)
+            {
+                if (spawned[i] == null ||
+                    (spawned[i].transform.position - center).sqrMagnitude <= radiusSquared)
+                {
+                    if (spawned[i] != null) Destroy(spawned[i]);
+                    spawned.RemoveAt(i);
+                }
+            }
+        }
+        flowField?.ForceRescan();
     }
 
     // 从地板中心高空往下打射线,命中点就是地板表面 Y

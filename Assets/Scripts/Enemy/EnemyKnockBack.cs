@@ -15,8 +15,11 @@ public class EnemyKnockBack : MonoBehaviour
 
     public void EnemyKnockback(Transform playerTransform, float knockbackForce, float Stuntime, float knockbackTime)
     {
+        if (!NetworkAuthority.IsServerOrOffline() || playerTransform == null)
+            return;
+
         if (Enemymovement != null)
-            Enemymovement.ChangeState(EnemyState.Knockback);
+            Enemymovement.EnterKnockbackState();
         if (gameObject.activeSelf)
         {
             StartCoroutine(StunTime(Stuntime, knockbackTime));

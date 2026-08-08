@@ -1,122 +1,91 @@
 using System.Collections;
+using Unity.Netcode;
 using UnityEngine;
 
-public class FlowFieldEnemy : MonoBehaviour
+[DisallowMultipleComponent]
+[RequireComponent(typeof(NetworkObject))]
+public sealed class FlowFieldEnemy : NetworkBehaviour
 {
     [Header("流场寻路参数 / Flow Field Pathfinding")]
     public float turnSmooth = 6f;
     public float dirBlendSpeed = 7f;
-    [Header("丢失目标减速参数 / Lost-target Deceleration")]
     public float slowDeceleration = 3f;
 
     private FlowFieldManager flowField;
     private Vector3 smoothDirection;
     private EnemyState enemyState;
-    private Rigidbody rb;
-    private Animator anim;
-    private Transform player;
+    private Rigidbody body;
+    private Animator animator;
+    private PlayerNetworkState targetPlayer;
     private Coroutine slowCoroutine;
-    private float attackCooldownTimer; // 每只小怪自己的攻击冷却计时器(上限由StatsManager.enemyattaCooldown统一管理)
+    private float attackCooldownTimer;
 
-    void Start()
+    public Transform CurrentTarget => targetPlayer != null ? targetPlayer.transform : null;
+    public EnemyState State => enemyState;
+
+    private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
-        anim = GetComponent<Animator>();
-        ChangeState(EnemyState.Idle);
-        flowField = FindObjectOfType<FlowFieldManager>();
+        if (GetComponent<NetworkObject>() == null && !NetworkAuthority.IsNetworkActive)
+        {
+            gameObject.AddComponent<NetworkObject>();
+        }
+
+        body = GetComponent<Rigidbody>();
+        animator = GetComponent<Animator>();
+        flowField = FindFirstObjectByType<FlowFieldManager>();
         smoothDirection = Vector3.forward;
+        ChangeState(EnemyState.Idle);
     }
 
-    void Update()
+    public override void OnNetworkSpawn()
     {
-        if (enemyState != EnemyState.Knockback)
+        if (!IsServer && body != null)
         {
-            CheckForPlayer();
-
-            if (attackCooldownTimer > 0)
-            {
-                attackCooldownTimer -= Time.deltaTime;
-            }
-
-            if (enemyState == EnemyState.isChasing)
-            {
-                Chase();
-            }
-            else if (enemyState == EnemyState.isAttacking)
-            {
-                rb.linearVelocity = Vector3.zero;
-            }
-            else if(enemyState == EnemyState.Idle)
-            {
-                rb.linearVelocity = Vector3.zero;
-            }
+            body.isKinematic = true;
         }
+    }
+
+    private void Update()
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || enemyState == EnemyState.Knockback)
+            return;
+
+        ResolveTargetAndState();
+        attackCooldownTimer = Mathf.Max(0f, attackCooldownTimer - Time.deltaTime);
+
+        if (enemyState == EnemyState.isChasing) Chase();
+        else if (enemyState == EnemyState.isAttacking || enemyState == EnemyState.Idle) SetVelocity(Vector3.zero);
     }
 
     public void ChangeState(EnemyState newState)
     {
-        if (enemyState == EnemyState.Idle)
-            anim.SetBool("isIdle", false);
-        else if (enemyState == EnemyState.isChasing)
-            anim.SetBool("isChasing", false);
-        else if (enemyState == EnemyState.isAttacking)
-            anim.SetBool("isAttacking", false);
-
-        enemyState = newState;
-
-        if (enemyState == EnemyState.Idle)
-            anim.SetBool("isIdle", true);
-        else if (enemyState == EnemyState.isChasing)
-            anim.SetBool("isChasing", true);
-        else if (enemyState == EnemyState.isAttacking)
-            anim.SetBool("isAttacking", true);
-    }
-
-    private void Chase()
-    {
-        if (flowField == null)
-        {
-            flowField = FindObjectOfType<FlowFieldManager>();
+        if (!NetworkAuthority.IsServerOrOffline(this))
             return;
-        }
 
-        Vector3 rawDir = flowField.GetFlowDirection(transform.position);
-        if (rawDir.magnitude < 0.01f && player != null)
-            rawDir = (player.position - transform.position).normalized;
-
-        smoothDirection = Vector3.Lerp(smoothDirection, rawDir.normalized, Time.deltaTime * dirBlendSpeed);
-        rb.linearVelocity = smoothDirection * StatsManager.Instance.enemyspeed;
-
-        if (smoothDirection.magnitude > 0.01f)
+        if (animator != null)
         {
-            Vector3 flatDir = Vector3.ProjectOnPlane(smoothDirection, Vector3.up);
-            Quaternion targetRot = Quaternion.LookRotation(flatDir);
-            transform.rotation = Quaternion.Lerp(transform.rotation, targetRot, Time.deltaTime * turnSmooth);
+            animator.SetBool("isIdle", newState == EnemyState.Idle);
+            animator.SetBool("isChasing", newState == EnemyState.isChasing);
+            animator.SetBool("isAttacking", newState == EnemyState.isAttacking);
         }
-
-        FacePlayer();
+        enemyState = newState;
     }
 
-    void FacePlayer()
-    {
-        if (player == null) return;
+    public void EnterKnockbackState() => ChangeState(EnemyState.Knockback);
 
-        Vector3 lookDir = player.position - transform.position;
-        lookDir.y = 0; // 只水平转向，不上下仰头
-        if(lookDir.magnitude > 0.01f)
+    private void ResolveTargetAndState()
+    {
+        if (targetPlayer == null || !targetPlayer.IsAlive)
         {
-            Quaternion targetRot = Quaternion.LookRotation(lookDir);
-            transform.rotation = Quaternion.Lerp(transform.rotation, targetRot, Time.deltaTime * turnSmooth);
+            targetPlayer = NetworkPlayerRegistry.GetClosestAlive(transform.position);
         }
-    }
 
+        if (targetPlayer == null && flowField != null && flowField.player != null)
+        {
+            targetPlayer = flowField.player.GetComponentInParent<PlayerNetworkState>();
+        }
 
-    private void CheckForPlayer()
-    {
-        if (flowField == null) return;
-        player = flowField.player;
-
-        if (player == null)
+        if (targetPlayer == null)
         {
             if (enemyState != EnemyState.Idle)
             {
@@ -126,90 +95,110 @@ public class FlowFieldEnemy : MonoBehaviour
             return;
         }
 
-        float distance = Vector3.Distance(transform.position, player.position);
-
-        // 玩家在攻击范围内
-        if (distance <= StatsManager.Instance.enemyAttackRange)
+        float attackRange = StatsManager.Instance != null ? StatsManager.Instance.enemyAttackRange : 1f;
+        float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
+        if (distance <= attackRange)
         {
-            // CD就绪 → 攻击
-            if (attackCooldownTimer <= 0)
+            if (attackCooldownTimer <= 0f)
             {
-                Stop();
+                StopMovement();
                 ChangeState(EnemyState.isAttacking);
-                attackCooldownTimer = StatsManager.Instance.enemyattaCooldown;
+                attackCooldownTimer = StatsManager.Instance != null
+                    ? StatsManager.Instance.enemyattaCooldown
+                    : 1f;
             }
-            // CD没就绪 → 切Idle待机，不再追击
-            else
+            else if (enemyState != EnemyState.isAttacking)
             {
-                if(enemyState != EnemyState.isAttacking)
-                {
-                    ChangeState(EnemyState.Idle);
-                    Stop();
-                }
+                ChangeState(EnemyState.Idle);
+                StopMovement();
             }
         }
-        // 玩家超出攻击范围 → 持续追逐
-        else
+        else if (enemyState != EnemyState.isAttacking && enemyState != EnemyState.isChasing)
         {
-            if (enemyState != EnemyState.isAttacking && enemyState != EnemyState.isChasing)
-            {
-                ChangeState(EnemyState.isChasing);
-                if (slowCoroutine != null)
-                {
-                    StopCoroutine(slowCoroutine);
-                    slowCoroutine = null;
-                }
-            }
+            ChangeState(EnemyState.isChasing);
+            CancelSlowStop();
         }
     }
 
-    // 攻击动画帧事件调用：攻击动作播放完毕
+    private void Chase()
+    {
+        if (targetPlayer == null)
+            return;
+
+        Vector3 rawDirection = flowField != null
+            ? flowField.GetFlowDirection(transform.position, targetPlayer.transform)
+            : targetPlayer.transform.position - transform.position;
+        rawDirection.y = 0f;
+        if (rawDirection.sqrMagnitude < 0.0001f)
+        {
+            rawDirection = targetPlayer.transform.position - transform.position;
+            rawDirection.y = 0f;
+        }
+
+        smoothDirection = Vector3.Lerp(
+            smoothDirection,
+            rawDirection.normalized,
+            Time.deltaTime * dirBlendSpeed);
+        float speed = StatsManager.Instance != null ? StatsManager.Instance.enemyspeed : 1f;
+        SetVelocity(smoothDirection.normalized * speed);
+
+        if (smoothDirection.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(smoothDirection, Vector3.up);
+            transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSmooth);
+        }
+    }
+
     public void FinishAttack()
     {
-        if (player == null)
+        if (!NetworkAuthority.IsServerOrOffline(this))
+            return;
+
+        if (targetPlayer == null || !targetPlayer.IsAlive)
         {
             ChangeState(EnemyState.Idle);
-            StartSlowStop();
             return;
         }
 
-        float distance = Vector3.Distance(transform.position, player.position);
-        // 攻击结束，如果玩家还在圈内 → 保持Idle等待CD
-        if (distance <= StatsManager.Instance.enemyAttackRange)
-        {
-            ChangeState(EnemyState.Idle);
-        }
-        // 玩家跑出攻击范围 → 继续追
-        else
-        {
-            ChangeState(EnemyState.isChasing);
-        }
+        float range = StatsManager.Instance != null ? StatsManager.Instance.enemyAttackRange : 1f;
+        ChangeState(Vector3.Distance(transform.position, targetPlayer.transform.position) <= range
+            ? EnemyState.Idle
+            : EnemyState.isChasing);
     }
 
-    void StartSlowStop()
+    private void StartSlowStop()
     {
-        if (slowCoroutine != null)
-            StopCoroutine(slowCoroutine);
+        CancelSlowStop();
         slowCoroutine = StartCoroutine(SlowStop());
     }
-    IEnumerator SlowStop()
+
+    private IEnumerator SlowStop()
     {
-        Vector3 vel = rb.linearVelocity;
-        while (vel.magnitude > 0.05f)
+        Vector3 velocity = body != null ? body.linearVelocity : Vector3.zero;
+        while (velocity.magnitude > 0.05f)
         {
-            vel = Vector3.MoveTowards(vel, Vector3.zero, slowDeceleration * Time.deltaTime);
-            rb.linearVelocity = vel;
+            velocity = Vector3.MoveTowards(velocity, Vector3.zero, slowDeceleration * Time.deltaTime);
+            SetVelocity(velocity);
             yield return null;
         }
-        rb.linearVelocity = Vector3.zero;
+        SetVelocity(Vector3.zero);
         slowCoroutine = null;
     }
 
-    void Stop()
+    private void StopMovement() => StartSlowStop();
+
+    private void CancelSlowStop()
     {
-        if (slowCoroutine != null)
-            StopCoroutine(slowCoroutine);
-        slowCoroutine = StartCoroutine(SlowStop());
+        if (slowCoroutine == null)
+            return;
+        StopCoroutine(slowCoroutine);
+        slowCoroutine = null;
+    }
+
+    private void SetVelocity(Vector3 velocity)
+    {
+        if (body != null)
+            body.linearVelocity = velocity;
     }
 }
 

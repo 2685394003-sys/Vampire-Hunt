@@ -28,6 +28,8 @@ public class MonsterSpawnPoint : MonoBehaviour
     [Header("生成规则 (Rules)")]
     [Tooltip("生成点进入玩家镜头时跳过本波(设计:生成点不进镜头)")]
     public bool skipIfVisibleOnScreen = true;
+    [Tooltip("Dedicated Server 没有摄像机；使用与所有玩家的最小距离替代屏幕判断")]
+    [Min(0f)] public float minSpawnDistanceFromPlayers = 12f;
     [Tooltip("格子被流场识别为障碍时跳过本波,防止怪卡进障碍")]
     public bool requireWalkableCell = true;
     [Tooltip("生成高度偏移,加在点位世界坐标 Y 上")]
@@ -63,6 +65,7 @@ public class MonsterSpawnPoint : MonoBehaviour
 
     private void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (bossGone) return; // boss 已死:永久停止刷新
 
         // ---- boss 联动 ----
@@ -125,7 +128,7 @@ public class MonsterSpawnPoint : MonoBehaviour
 
         Vector3 pos = transform.position + Vector3.up * spawnHeightOffset;
 
-        if (skipIfVisibleOnScreen && IsOnScreen(pos)) return; // 镜头内不刷
+        if (skipIfVisibleOnScreen && IsTooCloseToAnyPlayer(pos)) return;
         if (requireWalkableCell && !IsWalkable(pos)) return;  // 障碍格不刷
 
         int count = Mathf.Min(monstersPerWave, maxAlivePerPoint - alive.Count);
@@ -133,24 +136,28 @@ public class MonsterSpawnPoint : MonoBehaviour
         {
             // 出生即面向玩家(水平方向)
             Vector3 face = Vector3.forward;
-            if (flowField != null && flowField.player != null)
+            PlayerNetworkState closest = NetworkPlayerRegistry.GetClosestAlive(pos);
+            if (closest != null)
             {
-                face = flowField.player.position - pos;
+                face = closest.transform.position - pos;
                 face.y = 0f;
                 if (face.sqrMagnitude < 0.001f) face = Vector3.forward;
             }
-            GameObject go = Instantiate(enemyPrefab, pos,
-                Quaternion.LookRotation(face.normalized, Vector3.up), GetSpawnParent());
-            alive.Add(go);
+            GameObject go = NetworkSpawnUtility.Spawn(
+                enemyPrefab,
+                pos,
+                Quaternion.LookRotation(face.normalized, Vector3.up),
+                GetSpawnParent());
+            if (go != null) alive.Add(go);
         }
     }
 
-    private bool IsOnScreen(Vector3 worldPos)
+    private bool IsTooCloseToAnyPlayer(Vector3 worldPos)
     {
-        Camera cam = Camera.main;
-        if (cam == null) return false; // 找不到相机时不拦截
-        Vector3 v = cam.WorldToViewportPoint(worldPos);
-        return v.z > 0f && v.x >= 0f && v.x <= 1f && v.y >= 0f && v.y <= 1f;
+        PlayerNetworkState closest = NetworkPlayerRegistry.GetClosestAlive(worldPos);
+        if (closest == null)
+            return false;
+        return Vector3.Distance(worldPos, closest.transform.position) < minSpawnDistanceFromPlayers;
     }
 
     private bool IsWalkable(Vector3 worldPos)
@@ -189,7 +196,7 @@ public class MonsterSpawnPoint : MonoBehaviour
             Debug.LogWarning("[刷怪点] 请先进入 Play 模式再测试。", this);
             return;
         }
-        TrySpawnWave();
+        if (NetworkAuthority.IsServerOrOffline()) TrySpawnWave();
     }
 
     private void OnDrawGizmos()

@@ -19,12 +19,19 @@ public class EnemyMovement : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            if (rb != null) rb.simulated = false;
+            enabled = false;
+            return;
+        }
         ChangeState(EnemyState.Idle);
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (enemyState != EnemyState.Knockback)
         {
             if(player != null && shoottimer <= 0 && Vector2.Distance(transform.position, player.position) > StatsManager.Instance.enemyshootRange)
@@ -113,6 +120,7 @@ public class EnemyMovement : MonoBehaviour
 
     public void ChangeState(EnemyState newState)
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         //退出当前动画
         if (enemyState == EnemyState.Idle)
             anim.SetBool("isIdle", false);

@@ -1,5 +1,3 @@
-using System;
-using System.Reflection;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -53,6 +51,7 @@ public sealed class BossPhaseBloodPool : MonoBehaviour
 
     private void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (consumed || player == null)
         {
             return;
@@ -65,7 +64,7 @@ public sealed class BossPhaseBloodPool : MonoBehaviour
         }
 
         consumed = true;
-        ApplyStatsRewardWithoutCompileDependency();
+        ApplyPlayerReward();
         if (line != null)
         {
             line.startColor = new Color(1f, 0.2f, 0.25f, 0.15f);
@@ -74,51 +73,23 @@ public sealed class BossPhaseBloodPool : MonoBehaviour
         Destroy(gameObject, 0.25f);
     }
 
-    private void ApplyStatsRewardWithoutCompileDependency()
+    private void ApplyPlayerReward()
     {
-        Type statsType = Type.GetType("StatsManager, Assembly-CSharp");
-        FieldInfo instanceField = statsType?.GetField(
-            "Instance",
-            BindingFlags.Public | BindingFlags.Static);
-        object statsInstance = instanceField?.GetValue(null);
-        if (statsInstance == null)
+        PlayerNetworkState state = player != null
+            ? player.GetComponentInParent<PlayerNetworkState>()
+            : null;
+        if (state == null)
         {
-            Debug.LogWarning("[Boss 血池] 未找到 StatsManager.Instance，保留表现但未修改玩家属性。", this);
+            Debug.LogWarning("[Boss 血池] 未找到目标玩家的 PlayerNetworkState。", this);
             return;
         }
 
-        AddIntField(statsType, statsInstance, "damage", config.phaseRewardDamage);
-        AddIntField(statsType, statsInstance, "speed", config.phaseRewardSpeed);
-        AddIntField(statsType, statsInstance, "maxHealth", config.phaseRewardMaxHealth);
-        AddIntField(statsType, statsInstance, "currentHealth", config.phaseRewardMaxHealth);
-
-        FieldInfo maxHealthField = statsType.GetField("maxHealth", BindingFlags.Public | BindingFlags.Instance);
-        FieldInfo currentHealthField = statsType.GetField("currentHealth", BindingFlags.Public | BindingFlags.Instance);
-        if (maxHealthField != null && currentHealthField != null)
-        {
-            int maxHealth = (int)maxHealthField.GetValue(statsInstance);
-            int currentHealth = (int)currentHealthField.GetValue(statsInstance);
-            currentHealthField.SetValue(statsInstance, Mathf.Min(currentHealth, maxHealth));
-        }
+        state.ApplyUpgrade(
+            config != null ? config.phaseRewardDamage : 0,
+            config != null ? config.phaseRewardSpeed : 0,
+            config != null ? config.phaseRewardMaxHealth : 0);
 
         Debug.Log("[Boss 血池] 玩家获得阶段强化：伤害、移速与最大生命提升。", this);
-    }
-
-    private static void AddIntField(Type type, object instance, string fieldName, int amount)
-    {
-        if (amount <= 0)
-        {
-            return;
-        }
-
-        FieldInfo field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
-        if (field?.FieldType != typeof(int))
-        {
-            return;
-        }
-
-        int current = (int)field.GetValue(instance);
-        field.SetValue(instance, current + amount);
     }
 }
 

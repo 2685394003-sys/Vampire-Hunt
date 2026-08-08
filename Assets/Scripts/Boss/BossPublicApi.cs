@@ -25,6 +25,7 @@ public enum BossCommandResult
     InvalidArgument,
     NotReady,
     NotPlaying,
+    NotAuthority,
     CombatDisabled,
     TargetMissing,
     Busy,

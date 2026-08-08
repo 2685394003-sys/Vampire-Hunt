@@ -1,134 +1,212 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-
-public class PlayerAttact : MonoBehaviour
+/// <summary>
+/// Server-authoritative melee resolution with client-only presentation.
+/// Damage timing no longer depends exclusively on an Animator event, which is
+/// essential for headless dedicated servers.
+/// </summary>
+[DisallowMultipleComponent]
+[RequireComponent(typeof(PlayerNetworkState))]
+public sealed class PlayerAttact : MonoBehaviour
 {
     public Animator anim;
     public Animator attackPointAnim;
     public Transform AttackPoint;
 
-    [Header("特效大小跟随攻击范围 / VFX Scale Follows Weapon Range")]
-    [Tooltip("特效在 localScale=1 时的可视半径(世界单位),用于对齐判定框红线 / VFX visual radius at localScale=1 (world units), align to red gizmo circle")]
-    [SerializeField] private float vfxVisualRadiusAtScaleOne = 2f;
+    [Header("服务器判定 / Server Hit Timing")]
+    [SerializeField, Min(0f)] private float hitDelay = 0.12f;
 
-    private float timer;
+    [Header("特效大小跟随攻击范围 / VFX Scale Follows Weapon Range")]
+    [SerializeField, Min(0.001f)] private float vfxVisualRadiusAtScaleOne = 2f;
+
+    private PlayerNetworkState playerState;
+    private PlayerController playerController;
+    private Coroutine serverHitCoroutine;
+    private int activeAttackSequence;
+    private int lastResolvedAttackSequence;
+
+    private void Awake()
+    {
+        playerState = PlayerNetworkState.EnsureForMigration(gameObject);
+        playerController = GetComponent<PlayerController>();
+    }
 
     private void Update()
     {
-        SyncVfxScale();
-
-        if(timer > 0)
+        if (NetworkAuthority.IsOwnerOrOffline(playerState))
         {
-            timer -= Time.deltaTime;
+            SyncVfxScale();
         }
     }
-    
+
+    /// <summary>Compatibility entry point used by older animation/controller code.</summary>
     public void Attack()
     {
-        if(timer <= 0)
-        {
-        if (anim != null)
-            anim.SetBool("isAttacting",true);
-        if (attackPointAnim != null)
-            attackPointAnim.SetBool("isAttacking",true);
-        if (SFXManager.Instance != null)
-            SFXManager.Instance.PlayAttackSFX();
+        playerController?.RequestAttack();
+    }
 
-        timer = StatsManager.Instance.cooldown;
+    public void ServerBeginAttack(int sequence)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(playerState) ||
+            playerState == null ||
+            !playerState.IsAlive ||
+            sequence <= activeAttackSequence)
+        {
+            return;
         }
+
+        activeAttackSequence = sequence;
+        if (serverHitCoroutine != null)
+        {
+            StopCoroutine(serverHitCoroutine);
+        }
+        serverHitCoroutine = StartCoroutine(ServerResolveAfterDelay(sequence));
+    }
+
+    public void PlayAttackPresentation()
+    {
+        if (anim != null)
+        {
+            anim.SetBool("isAttacting", true);
+        }
+        if (attackPointAnim != null)
+        {
+            attackPointAnim.SetBool("isAttacking", true);
+        }
+        SFXManager.Instance?.PlayAttackSFX();
     }
 
     public void Attackfalse()
     {
         if (anim != null)
-            anim.SetBool("isAttacting",false);
+        {
+            anim.SetBool("isAttacting", false);
+        }
         if (attackPointAnim != null)
-            attackPointAnim.SetBool("isAttacking",false);
+        {
+            attackPointAnim.SetBool("isAttacking", false);
+        }
     }
 
-    // 用攻击范围换算特效缩放：weaponRange 越大，特效弧光越大
-    private void SyncVfxScale()
-    {
-        if (AttackPoint == null || StatsManager.Instance == null)
-            return;
-
-        float s = StatsManager.Instance.weaponRange / Mathf.Max(0.001f, vfxVisualRadiusAtScaleOne);
-        AttackPoint.localScale = new Vector3(s, s, s);
-    }
-
-    // 由 Effects Animation 的 AnimationEvent 在挥砍最亮帧调用
+    /// <summary>
+    /// AnimationEvent fallback. Sequence de-duplication guarantees that the server
+    /// coroutine and animation event cannot apply the same swing twice.
+    /// </summary>
     public void DealDamage()
     {
-        if (AttackPoint == null || StatsManager.Instance == null)
-            return;
+        ServerDealDamageOnce(activeAttackSequence);
+    }
 
-        float range = StatsManager.Instance.weaponRange;
-        int damage = StatsManager.Instance.damage;
+    private IEnumerator ServerResolveAfterDelay(int sequence)
+    {
+        if (hitDelay > 0f)
+        {
+            yield return new WaitForSeconds(hitDelay);
+        }
+
+        ServerDealDamageOnce(sequence);
+        serverHitCoroutine = null;
+    }
+
+    private void ServerDealDamageOnce(int sequence)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(playerState) ||
+            playerState == null ||
+            !playerState.IsAlive ||
+            AttackPoint == null ||
+            sequence <= 0 ||
+            sequence <= lastResolvedAttackSequence)
+        {
+            return;
+        }
+
+        lastResolvedAttackSequence = sequence;
         Collider[] hits = Physics.OverlapSphere(
             AttackPoint.position,
-            range,
-            StatsManager.Instance.enemyLayer,
+            playerState.WeaponRange,
+            playerState.EnemyLayer,
             QueryTriggerInteraction.Collide);
 
-        HashSet<Component> damaged = new HashSet<Component>();
+        HashSet<Component> damaged = new();
         foreach (Collider hit in hits)
         {
             if (hit == null)
+            {
                 continue;
+            }
 
-            // Boss 与一切实现 IDamageable 的目标（对齐 BossCombatTarget 范式）
             if (BossCombatTarget.TryGetInParent<IDamageable>(hit, out IDamageable damageable))
             {
-                Component asComponent = damageable as Component;
-                if (asComponent != null && !damaged.Add(asComponent))
+                Component damageComponent = damageable as Component;
+                if (damageComponent != null && !damaged.Add(damageComponent))
+                {
                     continue;
+                }
 
-                damageable.TakeDamage(damage);
-
-                if (StatsManager.Instance.knockbackForce > 0f &&
+                damageable.TakeDamage(playerState.Damage);
+                if (playerState.KnockbackForce > 0f &&
                     BossCombatTarget.TryGetInParent<IKnockbackReceiver>(hit, out IKnockbackReceiver receiver))
                 {
-                    receiver.ApplyKnockback(transform, StatsManager.Instance.knockbackForce, StatsManager.Instance.knockbackTime);
+                    receiver.ApplyKnockback(
+                        transform,
+                        playerState.KnockbackForce,
+                        playerState.KnockbackTime);
                 }
                 continue;
             }
 
-            // 普通敌人
             EnemyHealth enemyHealth = hit.GetComponentInParent<EnemyHealth>();
             if (enemyHealth == null || !damaged.Add(enemyHealth))
-                continue;
-
-            enemyHealth.ChangeEnemyHealth(damage);
-
-            EnemyKnockBack enemyKnockBack = hit.GetComponentInParent<EnemyKnockBack>();
-            if (enemyKnockBack != null)
             {
-                enemyKnockBack.EnemyKnockback(
-                    transform,
-                    StatsManager.Instance.knockbackForce,
-                    StatsManager.Instance.stunTime,
-                    StatsManager.Instance.knockbackTime);
+                continue;
             }
+
+            enemyHealth.ChangeEnemyHealth(playerState.Damage);
+            EnemyKnockBack enemyKnockBack = hit.GetComponentInParent<EnemyKnockBack>();
+            enemyKnockBack?.EnemyKnockback(
+                transform,
+                playerState.KnockbackForce,
+                playerState.StunTime,
+                playerState.KnockbackTime);
         }
     }
 
-    [ContextMenu("测试/触发一次挥砍伤害")]
+    private void SyncVfxScale()
+    {
+        if (AttackPoint == null || playerState == null)
+        {
+            return;
+        }
+
+        float scale = playerState.WeaponRange / Mathf.Max(0.001f, vfxVisualRadiusAtScaleOne);
+        AttackPoint.localScale = Vector3.one * scale;
+    }
+
+    [ContextMenu("测试/触发一次服务器挥砍伤害")]
     private void DebugDealDamage()
     {
-        DealDamage();
+        if (!Application.isPlaying || !NetworkAuthority.IsServerOrOffline(playerState))
+        {
+            return;
+        }
+
+        activeAttackSequence++;
+        ServerDealDamageOnce(activeAttackSequence);
     }
 
-    // 编辑时始终可见，半径跟随 StatsManager.weaponRange，与特效范围对齐
     private void OnDrawGizmos()
     {
-        if (AttackPoint == null || StatsManager.Instance == null)
+        PlayerNetworkState state = playerState != null
+            ? playerState
+            : GetComponent<PlayerNetworkState>();
+        if (AttackPoint == null || state == null)
+        {
             return;
+        }
 
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(AttackPoint.position, StatsManager.Instance.weaponRange);
+        Gizmos.DrawWireSphere(AttackPoint.position, state.WeaponRange);
     }
-
 }

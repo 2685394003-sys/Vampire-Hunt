@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public enum CellState
 {
@@ -14,166 +14,237 @@ public struct FlowCell
     public Vector3 flowDirection;
 }
 
-public class FlowFieldManager : MonoBehaviour
+/// <summary>
+/// Server-side multi-target flow fields. Physics obstacles are scanned only when
+/// marked dirty; moving players rebuild inexpensive cost fields without doing
+/// 72,000 Physics.CheckBox calls per second.
+/// </summary>
+public sealed class FlowFieldManager : MonoBehaviour
 {
     [Header("网格设置 / Grid Settings")]
     public float cellSize = 1.2f;
     public int gridWidth = 120;
     public int gridHeight = 120;
+    [Tooltip("Legacy/offline fallback. Network AI uses NetworkPlayerRegistry.")]
     public Transform player;
     public LayerMask obstacleLayer;
+
+    [Header("更新 / Refresh")]
+    [Min(0.02f)] public float refreshInterval = 0.2f;
+    [Tooltip("Enable only when obstacles can move without notifying this manager.")]
+    public bool periodicallyRescanDynamicObstacles;
+    [Min(0.2f)] public float dynamicObstacleRescanInterval = 1f;
 
     [Header("调试 / Debug")]
     public bool drawFlowArrows = true;
     public float arrowScale = 0.4f;
 
-    private FlowCell[,] grid;
-    private Vector2Int targetGridPos;
+    private readonly Dictionary<int, TargetFlowField> targetFields = new();
+    private readonly List<PlayerNetworkState> alivePlayers = new(4);
+    private readonly List<int> staleKeys = new();
+    private CellState[,] obstacleGrid;
     private float refreshTimer;
-    public float refreshInterval = 0.2f;
+    private float obstacleRescanTimer;
+    private bool obstaclesDirty = true;
 
-    // 4方向邻域
-    private readonly Vector2Int[] neighbors =
+    private static readonly Vector2Int[] Neighbours =
     {
-    new(-1,-1),new(0,-1),new(1,-1),
-    new(-1,0),          new(1,0),
-    new(-1,1), new(0,1),new(1,1)
+        new(-1, -1), new(0, -1), new(1, -1),
+        new(-1, 0),                new(1, 0),
+        new(-1, 1),  new(0, 1),  new(1, 1)
     };
 
-
-    void Awake()
+    private sealed class TargetFlowField
     {
-        grid = new FlowCell[gridWidth, gridHeight];
+        public Transform target;
+        public FlowCell[,] cells;
     }
 
-    void Update()
+    private void Awake()
     {
+        obstacleGrid = new CellState[gridWidth, gridHeight];
+        ForceRescan();
+    }
+
+    private void Update()
+    {
+        if (!NetworkAuthority.IsServerOrOffline())
+            return;
+
         refreshTimer += Time.deltaTime;
-        if (refreshTimer >= refreshInterval)
+        obstacleRescanTimer += Time.deltaTime;
+
+        if (periodicallyRescanDynamicObstacles &&
+            obstacleRescanTimer >= dynamicObstacleRescanInterval)
         {
-            refreshTimer = 0;
-            UpdateFlowField();
+            obstaclesDirty = true;
         }
+
+        if (refreshTimer < refreshInterval)
+            return;
+
+        refreshTimer = 0f;
+        if (obstaclesDirty)
+            ScanObstacleGrid();
+        RebuildPlayerFields();
     }
 
-    // 【重要】每次刷新流场都重新扫描障碍物，不再只初始化一次！
-    void ScanObstacleGrid()
+    public void MarkObstaclesDirty()
     {
+        obstaclesDirty = true;
+    }
+
+    private void ScanObstacleGrid()
+    {
+        EnsureGridSize();
+        float checkExtent = cellSize * 0.45f;
         for (int x = 0; x < gridWidth; x++)
         {
             for (int z = 0; z < gridHeight; z++)
             {
-                Vector3 worldPos = GridToWorld(new Vector2Int(x, z));
-                // 缩小检测范围，修复判定过宽
-                float checkExt = cellSize * 0.45f; // 覆盖格子 90%,减少边缘漏检
-                bool hasObstacle = Physics.CheckBox(
-                    worldPos + Vector3.up * 0.5f,
-                    new Vector3(checkExt, 1, checkExt),
+                Vector3 worldPosition = GridToWorld(new Vector2Int(x, z));
+                bool blocked = Physics.CheckBox(
+                    worldPosition + Vector3.up * 0.5f,
+                    new Vector3(checkExtent, 1f, checkExtent),
                     Quaternion.identity,
                     obstacleLayer);
-
-                grid[x, z].state = hasObstacle ? CellState.Obstacle : CellState.Walkable;
-                grid[x, z].cost = int.MaxValue;
-                grid[x, z].flowDirection = Vector3.zero;
+                obstacleGrid[x, z] = blocked ? CellState.Obstacle : CellState.Walkable;
             }
         }
+
+        obstaclesDirty = false;
+        obstacleRescanTimer = 0f;
     }
 
-    void UpdateFlowField()
+    private void RebuildPlayerFields()
     {
-        ScanObstacleGrid(); // 每次重建先刷新障碍
-
-        // 重置代价
-        for (int x = 0; x < gridWidth; x++)
-            for (int z = 0; z < gridHeight; z++)
-                grid[x, z].cost = int.MaxValue;
-
-        targetGridPos = WorldToGrid(player.position);
-        if (!IsInGrid(targetGridPos.x, targetGridPos.y)) return;
-
-        // 保护：玩家所在格子不能是障碍！防止BFS崩溃
-        if (grid[targetGridPos.x, targetGridPos.y].state == CellState.Obstacle)
+        NetworkPlayerRegistry.GetAlivePlayers(alivePlayers);
+        if (alivePlayers.Count == 0 && player != null)
         {
-            Debug.LogWarning("玩家所在格子被识别为障碍物，流场失效！");
-            return;
+            BuildOrRefreshField(player);
         }
 
-        Queue<Vector2Int> queue = new Queue<Vector2Int>();
-        grid[targetGridPos.x, targetGridPos.y].cost = 0;
-        queue.Enqueue(targetGridPos);
+        staleKeys.Clear();
+        foreach (KeyValuePair<int, TargetFlowField> pair in targetFields)
+            staleKeys.Add(pair.Key);
 
+        foreach (PlayerNetworkState playerState in alivePlayers)
+        {
+            if (playerState == null)
+                continue;
+            Transform target = playerState.transform;
+            BuildOrRefreshField(target);
+            staleKeys.Remove(target.GetInstanceID());
+        }
+
+        if (player != null)
+            staleKeys.Remove(player.GetInstanceID());
+
+        foreach (int key in staleKeys)
+            targetFields.Remove(key);
+    }
+
+    private void BuildOrRefreshField(Transform target)
+    {
+        if (target == null)
+            return;
+
+        int key = target.GetInstanceID();
+        if (!targetFields.TryGetValue(key, out TargetFlowField field) ||
+            field.cells.GetLength(0) != gridWidth ||
+            field.cells.GetLength(1) != gridHeight)
+        {
+            field = new TargetFlowField
+            {
+                target = target,
+                cells = new FlowCell[gridWidth, gridHeight]
+            };
+            targetFields[key] = field;
+        }
+
+        BuildField(field.cells, target.position);
+    }
+
+    private void BuildField(FlowCell[,] cells, Vector3 targetPosition)
+    {
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int z = 0; z < gridHeight; z++)
+            {
+                cells[x, z].state = obstacleGrid[x, z];
+                cells[x, z].cost = int.MaxValue;
+                cells[x, z].flowDirection = Vector3.zero;
+            }
+        }
+
+        Vector2Int targetCell = WorldToGrid(targetPosition);
+        if (!IsInGrid(targetCell.x, targetCell.y))
+            return;
+
+        // A player collider may share the obstacle mask. The target cell must be a
+        // valid BFS source but the cached obstacle grid itself stays unchanged.
+        cells[targetCell.x, targetCell.y].state = CellState.Walkable;
+        cells[targetCell.x, targetCell.y].cost = 0;
+
+        Queue<Vector2Int> queue = new();
+        queue.Enqueue(targetCell);
         while (queue.Count > 0)
         {
-            var current = queue.Dequeue();
-            int currX = current.x;
-            int currZ = current.y;
-
-            foreach (var offset in neighbors)
+            Vector2Int current = queue.Dequeue();
+            int nextCost = cells[current.x, current.y].cost + 1;
+            foreach (Vector2Int offset in Neighbours)
             {
-                int nx = currX + offset.x;
-                int nz = currZ + offset.y;
-                if (!IsInGrid(nx, nz)) continue;
-                var cell = grid[nx, nz];
-                if (cell.state == CellState.Obstacle) continue;
-
-                int newCost = grid[currX, currZ].cost + 1;
-                if (newCost < grid[nx, nz].cost)
-                {
-                    grid[nx, nz].cost = newCost;
-                    queue.Enqueue(new Vector2Int(nx, nz));
-                }
+                int x = current.x + offset.x;
+                int z = current.y + offset.y;
+                if (!IsInGrid(x, z) || cells[x, z].state == CellState.Obstacle)
+                    continue;
+                if (nextCost >= cells[x, z].cost)
+                    continue;
+                cells[x, z].cost = nextCost;
+                queue.Enqueue(new Vector2Int(x, z));
             }
         }
-        GenerateFlowDirections();
-    }
 
-    void GenerateFlowDirections()
-    {
         for (int x = 0; x < gridWidth; x++)
         {
             for (int z = 0; z < gridHeight; z++)
             {
-                if (grid[x, z].state == CellState.Obstacle || grid[x, z].cost == int.MaxValue)
-                {
-                    grid[x, z].flowDirection = Vector3.zero;
+                if (cells[x, z].state == CellState.Obstacle || cells[x, z].cost == int.MaxValue)
                     continue;
-                }
 
-                Vector3 bestDir = Vector3.zero;
-                int minCost = grid[x, z].cost;
-
-                foreach (var offset in neighbors)
+                int bestCost = cells[x, z].cost;
+                Vector3 bestDirection = Vector3.zero;
+                foreach (Vector2Int offset in Neighbours)
                 {
-                    int nx = x + offset.x;
-                    int nz = z + offset.y;
-                    if (!IsInGrid(nx, nz)) continue;
-                    if (grid[nx, nz].state == CellState.Obstacle) continue;
+                    int nextX = x + offset.x;
+                    int nextZ = z + offset.y;
+                    if (!IsInGrid(nextX, nextZ) || cells[nextX, nextZ].state == CellState.Obstacle)
+                        continue;
+                    if (cells[nextX, nextZ].cost >= bestCost)
+                        continue;
 
-                    if (grid[nx, nz].cost < minCost)
-                    {
-                        minCost = grid[nx, nz].cost;
-                        Vector3 neighborWorld = GridToWorld(new Vector2Int(nx, nz));
-                        Vector3 currentWorld = GridToWorld(new Vector2Int(x, z));
-                        bestDir = (neighborWorld - currentWorld).normalized;
-                    }
+                    bestCost = cells[nextX, nextZ].cost;
+                    bestDirection = (GridToWorld(new Vector2Int(nextX, nextZ)) -
+                                     GridToWorld(new Vector2Int(x, z))).normalized;
                 }
-                grid[x, z].flowDirection = bestDir;
+                cells[x, z].flowDirection = bestDirection;
             }
         }
     }
 
-    // ========== 坐标转换【修复Round边界跳变】 ==========
-    public Vector2Int WorldToGrid(Vector3 worldPos)
+    public Vector2Int WorldToGrid(Vector3 worldPosition)
     {
-        int x = Mathf.FloorToInt(worldPos.x / cellSize);
-        int z = Mathf.FloorToInt(worldPos.z / cellSize);
-        return new Vector2Int(x, z);
+        return new Vector2Int(
+            Mathf.FloorToInt(worldPosition.x / cellSize),
+            Mathf.FloorToInt(worldPosition.z / cellSize));
     }
 
-    public Vector3 GridToWorld(Vector2Int gridPos)
+    public Vector3 GridToWorld(Vector2Int gridPosition)
     {
-        // 返回格子中心(不是左下角),让 CheckBox 和 Gizmos 都画在格子正中
-        return new Vector3((gridPos.x + 0.5f) * cellSize, 0, (gridPos.y + 0.5f) * cellSize);
+        return new Vector3(
+            (gridPosition.x + 0.5f) * cellSize,
+            0f,
+            (gridPosition.y + 0.5f) * cellSize);
     }
 
     public bool IsInGrid(int x, int z)
@@ -181,49 +252,79 @@ public class FlowFieldManager : MonoBehaviour
         return x >= 0 && x < gridWidth && z >= 0 && z < gridHeight;
     }
 
-    // 给 LevelGenerator 用:查询某个格子当前是 Walkable 还是 Obstacle
     public CellState GetCellState(int x, int z)
     {
-        if (!IsInGrid(x, z)) return CellState.Obstacle;
-        return grid[x, z].state;
+        EnsureGridSize();
+        return IsInGrid(x, z) ? obstacleGrid[x, z] : CellState.Obstacle;
     }
 
-    // 给 LevelGenerator 用:立即重建一次流场(不等 0.2s 自动刷新)
     public void ForceRescan()
     {
-        UpdateFlowField();
+        if (!NetworkAuthority.IsServerOrOffline())
+            return;
+        ScanObstacleGrid();
+        RebuildPlayerFields();
     }
 
-    public Vector3 GetFlowDirection(Vector3 enemyWorldPos)
+    public Vector3 GetFlowDirection(Vector3 enemyWorldPosition)
     {
-        var gridPos = WorldToGrid(enemyWorldPos);
-        if (!IsInGrid(gridPos.x, gridPos.y))
-        {
-            return (player.position - enemyWorldPos).normalized;
-        }
-        Vector3 dir = grid[gridPos.x, gridPos.y].flowDirection;
-        // 格子无有效流向时兜底直线追击
-        if (dir.magnitude < 0.01f)
-        {
-            dir = (player.position - enemyWorldPos).normalized;
-        }
-        return dir;
+        PlayerNetworkState closest = NetworkPlayerRegistry.GetClosestAlive(enemyWorldPosition);
+        Transform target = closest != null ? closest.transform : player;
+        return GetFlowDirection(enemyWorldPosition, target);
     }
 
-    // ========== Gizmos 绘制：网格+流向箭头 ==========
-    void OnDrawGizmos()
+    public Vector3 GetFlowDirection(Vector3 enemyWorldPosition, Transform target)
     {
-        if (grid == null) return;
+        if (target == null)
+            return Vector3.zero;
 
+        int key = target.GetInstanceID();
+        if (!targetFields.TryGetValue(key, out TargetFlowField field))
+        {
+            BuildOrRefreshField(target);
+            targetFields.TryGetValue(key, out field);
+        }
+
+        Vector2Int cell = WorldToGrid(enemyWorldPosition);
+        if (field == null || !IsInGrid(cell.x, cell.y))
+            return PlanarDirection(enemyWorldPosition, target.position);
+
+        Vector3 direction = field.cells[cell.x, cell.y].flowDirection;
+        return direction.sqrMagnitude > 0.0001f
+            ? direction
+            : PlanarDirection(enemyWorldPosition, target.position);
+    }
+
+    private void EnsureGridSize()
+    {
+        if (obstacleGrid == null ||
+            obstacleGrid.GetLength(0) != gridWidth ||
+            obstacleGrid.GetLength(1) != gridHeight)
+        {
+            obstacleGrid = new CellState[gridWidth, gridHeight];
+            obstaclesDirty = true;
+        }
+    }
+
+    private static Vector3 PlanarDirection(Vector3 from, Vector3 to)
+    {
+        Vector3 direction = to - from;
+        direction.y = 0f;
+        return direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.zero;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (obstacleGrid == null)
+            return;
         for (int x = 0; x < gridWidth; x++)
         {
             for (int z = 0; z < gridHeight; z++)
             {
-                Vector3 center = GridToWorld(new Vector2Int(x, z));
-                // 绘制格子方块
-                Gizmos.color = grid[x, z].state == CellState.Obstacle ? Color.red : Color.green;
-                Gizmos.DrawWireCube(center, Vector3.one * cellSize * 0.9f);
-
+                Gizmos.color = obstacleGrid[x, z] == CellState.Obstacle ? Color.red : Color.green;
+                Gizmos.DrawWireCube(
+                    GridToWorld(new Vector2Int(x, z)),
+                    Vector3.one * cellSize * 0.9f);
             }
         }
     }

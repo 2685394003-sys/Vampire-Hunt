@@ -1,3 +1,4 @@
+using Unity.Netcode.Components;
 using UnityEngine;
 
 /// <summary>
@@ -150,6 +151,13 @@ internal sealed class BossMovementMotor
             return;
         }
 
+        LevelGenerator generator = Object.FindFirstObjectByType<LevelGenerator>();
+        generator?.RemoveObstaclesNear(actor.position, config.phaseClearObstacleRadius);
+        if (NetworkAuthority.IsNetworkActive)
+        {
+            return;
+        }
+
         Collider[] obstacles = Physics.OverlapSphere(
             actor.position,
             config.phaseClearObstacleRadius,
@@ -209,6 +217,7 @@ internal sealed class BossPresentationGateway
     private readonly AudioSource audioSource;
     private readonly Transform visualRoot;
     private readonly Transform vfxRoot;
+    private readonly NetworkAnimator networkAnimator;
 
     private Renderer[] renderers = System.Array.Empty<Renderer>();
     private GameObject contractVfxObject;
@@ -231,6 +240,7 @@ internal sealed class BossPresentationGateway
         audioSource = targetAudioSource;
         visualRoot = targetVisualRoot;
         vfxRoot = targetVfxRoot;
+        networkAnimator = actor != null ? actor.GetComponent<NetworkAnimator>() : null;
     }
 
     public void Initialize()
@@ -268,6 +278,13 @@ internal sealed class BossPresentationGateway
         if (!HasParameter(triggerName, AnimatorControllerParameterType.Trigger))
         {
             return false;
+        }
+
+        if (NetworkAuthority.IsNetworkActive && networkAnimator != null)
+        {
+            if (NetworkAuthority.IsServerOrOffline() && networkAnimator.IsSpawned)
+                networkAnimator.SetTrigger(triggerName);
+            return true;
         }
 
         animator.SetTrigger(triggerName);
@@ -437,6 +454,14 @@ internal static class BossTargetResolver
 {
     public static Transform Resolve(Transform current, BossConfig config)
     {
+        PlayerNetworkState closest = NetworkPlayerRegistry.GetClosestAlive(
+            current != null ? current.position : Vector3.zero);
+        if (closest != null)
+        {
+            BossCombatTarget.EnsurePlayerAdapter(closest.transform, true);
+            return closest.transform;
+        }
+
         if (IsUsable(current))
         {
             BossCombatTarget.EnsurePlayerAdapter(current, false);
@@ -471,7 +496,9 @@ internal static class BossTargetResolver
 
     public static bool IsUsable(Transform target)
     {
-        return target != null && target.gameObject.activeInHierarchy;
+        if (target == null || !target.gameObject.activeInHierarchy) return false;
+        PlayerNetworkState state = target.GetComponentInParent<PlayerNetworkState>();
+        return state == null || state.IsAlive;
     }
 
     private static GameObject FindTaggedPlayer()

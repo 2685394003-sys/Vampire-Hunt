@@ -17,6 +17,10 @@ public class PlayerHurtInvincible : MonoBehaviour
 
     void Update()
     {
+        PlayerNetworkState state = GetComponent<PlayerNetworkState>();
+        if (!NetworkAuthority.IsServerOrOffline(state))
+            return;
+
         // 无敌倒计时
         if (invincibleTimer > 0)
         {
@@ -33,7 +37,11 @@ public class PlayerHurtInvincible : MonoBehaviour
     // 受伤时外部调用，开启无敌+闪烁
     public void EnterInvincibleState()
     {
-    invincibleTimer = StatsManager.Instance.invincibleTime;
+        PlayerNetworkState state = GetComponent<PlayerNetworkState>();
+        if (!NetworkAuthority.IsServerOrOffline(state))
+            return;
+
+        invincibleTimer = StatsManager.Instance.invincibleTime;
     }
 
     // 透明度交替闪烁
@@ -47,6 +55,10 @@ public class PlayerHurtInvincible : MonoBehaviour
     // 扣血专用校验函数：返回true代表可以扣血，false无敌不扣
     public bool CanTakeDamage()
     {
+        PlayerNetworkState state = GetComponent<PlayerNetworkState>();
+        if (!NetworkAuthority.IsServerOrOffline(state))
+            return false;
+
         return invincibleTimer <= 0;
     }
     
