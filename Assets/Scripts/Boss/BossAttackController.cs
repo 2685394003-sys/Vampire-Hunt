@@ -36,6 +36,10 @@ public sealed class BossAttackController : MonoBehaviour
     public Transform GroundIndicator => groundIndicator;
     public Transform VFXRoot => vfxRoot;
 
+    public event System.Action<BossAttackType> AttackStarted;
+    public event System.Action<BossAttackType> AttackCompleted;
+    public event System.Action<BossAttackType> AttackCancelled;
+
     private readonly Dictionary<BossAttackType, float> readyTimes = new();
     private readonly List<GameObject> activeTelegraphs = new();
     private Coroutine attackCoroutine;
@@ -145,7 +149,34 @@ public sealed class BossAttackController : MonoBehaviour
             return false;
         }
 
-        CancelCurrentAttack();
+        return TryForceAttack(attackType, true);
+    }
+
+    /// <summary>
+    /// Explicit attack entry point for BossController and scripted encounters.
+    /// Normal gameplay should leave interruptCurrentAttack false so an active
+    /// attack cannot be cancelled accidentally.
+    /// </summary>
+    public bool TryForceAttack(
+        BossAttackType attackType,
+        bool interruptCurrentAttack = false)
+    {
+        if (!Application.isPlaying || player == null || stats == null ||
+            !IsSupportedAttack(attackType))
+        {
+            return false;
+        }
+
+        if (IsBusy && !interruptCurrentAttack)
+        {
+            return false;
+        }
+
+        if (IsBusy)
+        {
+            CancelCurrentAttack();
+        }
+
         attackCoroutine = StartCoroutine(AttackWrapper(attackType, false));
         return true;
     }
@@ -182,6 +213,7 @@ public sealed class BossAttackController : MonoBehaviour
 
     public void CancelCurrentAttack()
     {
+        BossAttackType? cancelledAttack = IsBusy ? LastAttack : null;
         if (attackCoroutine != null)
         {
             StopCoroutine(attackCoroutine);
@@ -191,6 +223,11 @@ public sealed class BossAttackController : MonoBehaviour
         CleanupTelegraphs();
         IsBusy = false;
         nextDecisionTime = Time.time + 0.1f;
+
+        if (cancelledAttack.HasValue)
+        {
+            AttackCancelled?.Invoke(cancelledAttack.Value);
+        }
     }
 
     private bool TryChooseAttack(int phase, bool bossVisible, float playerDistance, out BossAttackType chosen)
@@ -283,6 +320,7 @@ public sealed class BossAttackController : MonoBehaviour
         IsBusy = true;
         LastAttack = attackType;
         AttacksStarted++;
+        AttackStarted?.Invoke(attackType);
         PlayAttackFeedback(attackType);
 
         if (stats.logCombatEvents)
@@ -315,6 +353,16 @@ public sealed class BossAttackController : MonoBehaviour
         nextDecisionTime = Time.time + interval;
         IsBusy = false;
         attackCoroutine = null;
+        AttackCompleted?.Invoke(attackType);
+    }
+
+    private static bool IsSupportedAttack(BossAttackType attackType)
+    {
+        return attackType is BossAttackType.Format1 or
+            BossAttackType.Format2 or
+            BossAttackType.Format3 or
+            BossAttackType.Format4 or
+            BossAttackType.Format6;
     }
 
     private IEnumerator Format1Routine()
