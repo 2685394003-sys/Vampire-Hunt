@@ -23,7 +23,7 @@ public enum NetworkStartMode
 public sealed class NetworkRuntimeLauncher : MonoBehaviour
 {
     [SerializeField] private NetworkStartMode editorStartMode = NetworkStartMode.None;
-    [SerializeField] private NetworkStartMode playerBuildStartMode = NetworkStartMode.Host;
+    [SerializeField] private NetworkStartMode playerBuildStartMode = NetworkStartMode.None;
     [SerializeField] private string address = "127.0.0.1";
     [SerializeField, Min(1)] private ushort port = 7777;
     [SerializeField] private bool batchModeStartsServer = true;
@@ -160,9 +160,6 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
     private void OnGUI()
     {
         if (!showDevelopmentMenu || Application.isBatchMode || manager == null) return;
-#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
-        return;
-#endif
         GUILayout.BeginArea(new Rect(12f, 12f, 260f, 190f), GUI.skin.box);
         GUILayout.Label(manager.IsListening
             ? $"Network: {(manager.IsHost ? "Host" : manager.IsServer ? "Server" : "Client")}"
