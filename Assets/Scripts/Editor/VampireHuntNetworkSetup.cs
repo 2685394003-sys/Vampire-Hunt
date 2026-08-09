@@ -199,6 +199,7 @@ public static class VampireHuntNetworkSetup
 
         UnityTransport transport = GetOrAdd<UnityTransport>(manager.gameObject);
         GetOrAdd<NetworkRuntimeLauncher>(manager.gameObject);
+        GetOrAdd<PlayerProximityMonsterSpawner>(manager.gameObject);
         manager.NetworkConfig.NetworkTransport = transport;
         manager.NetworkConfig.PlayerPrefab = playerPrefab;
         manager.NetworkConfig.EnableSceneManagement = true;
@@ -216,6 +217,17 @@ public static class VampireHuntNetworkSetup
     {
         if (enemyPrefab == null) return;
         foreach (MonsterSpawnPoint spawner in Object.FindObjectsByType<MonsterSpawnPoint>(
+                     FindObjectsInactive.Include,
+                     FindObjectsSortMode.None))
+        {
+            if (spawner.enemyPrefab == null)
+            {
+                spawner.enemyPrefab = enemyPrefab;
+                EditorUtility.SetDirty(spawner);
+            }
+        }
+
+        foreach (PlayerProximityMonsterSpawner spawner in Object.FindObjectsByType<PlayerProximityMonsterSpawner>(
                      FindObjectsInactive.Include,
                      FindObjectsSortMode.None))
         {

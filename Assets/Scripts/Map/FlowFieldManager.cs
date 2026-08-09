@@ -234,17 +234,19 @@ public sealed class FlowFieldManager : MonoBehaviour
 
     public Vector2Int WorldToGrid(Vector3 worldPosition)
     {
+        Vector3 origin = transform.position;
         return new Vector2Int(
-            Mathf.FloorToInt(worldPosition.x / cellSize),
-            Mathf.FloorToInt(worldPosition.z / cellSize));
+            Mathf.FloorToInt((worldPosition.x - origin.x) / cellSize),
+            Mathf.FloorToInt((worldPosition.z - origin.z) / cellSize));
     }
 
     public Vector3 GridToWorld(Vector2Int gridPosition)
     {
+        Vector3 origin = transform.position;
         return new Vector3(
-            (gridPosition.x + 0.5f) * cellSize,
-            0f,
-            (gridPosition.y + 0.5f) * cellSize);
+            origin.x + (gridPosition.x + 0.5f) * cellSize,
+            origin.y,
+            origin.z + (gridPosition.y + 0.5f) * cellSize);
     }
 
     public bool IsInGrid(int x, int z)
