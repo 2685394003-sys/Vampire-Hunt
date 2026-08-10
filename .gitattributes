@@ -31,7 +31,7 @@
 *.uxml                  text linguist-language=xml linguist-detectable
 # Unity YAML files
 *.anim                  unity-yaml
-*.asset filter=lfs diff=lfs merge=lfs -text
+*.asset                 unity-yaml
 *.brush                 unity-yaml
 *.controller            unity-yaml
 *.flare                 unity-yaml
@@ -54,7 +54,7 @@
 *.spriteatlas           unity-yaml
 *.spriteatlasv2         unity-yaml
 *.terrainlayer          unity-yaml
-*.unity filter=lfs diff=lfs merge=lfs -text
+*.unity                 unity-yaml
 # "physic" for 3D but "physics" for 2D
 *.physicMaterial        unity-yaml
 *.physicsMaterial2D     unity-yaml
