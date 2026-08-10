@@ -19,6 +19,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
     private PlayerNetworkState targetPlayer;
     private Coroutine slowCoroutine;
     private float attackCooldownTimer;
+    private EnemyStatsConfig stats;
 
     public Transform CurrentTarget => targetPlayer != null ? targetPlayer.transform : null;
     public EnemyState State => enemyState;
@@ -33,6 +34,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
         body = GetComponent<Rigidbody>();
         animator = GetComponent<Animator>();
         flowField = FindFirstObjectByType<FlowFieldManager>();
+        stats = EnemyStatsResolver.Resolve(this);
         smoothDirection = Vector3.forward;
         ChangeState(EnemyState.Idle);
     }
@@ -95,7 +97,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float attackRange = StatsManager.Instance != null ? StatsManager.Instance.enemyAttackRange : 1f;
+        float attackRange = stats != null ? stats.attackRange : 1f;
         float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
         if (distance <= attackRange)
         {
@@ -103,9 +105,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             {
                 StopMovement();
                 ChangeState(EnemyState.isAttacking);
-                attackCooldownTimer = StatsManager.Instance != null
-                    ? StatsManager.Instance.enemyattaCooldown
-                    : 1f;
+                attackCooldownTimer = stats != null ? stats.attackCooldown : 1f;
             }
             else if (enemyState != EnemyState.isAttacking)
             {
@@ -139,7 +139,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             smoothDirection,
             rawDirection.normalized,
             Time.deltaTime * dirBlendSpeed);
-        float speed = StatsManager.Instance != null ? StatsManager.Instance.enemyspeed : 1f;
+        float speed = stats != null ? stats.moveSpeed : 1f;
         SetVelocity(smoothDirection.normalized * speed);
 
         if (smoothDirection.sqrMagnitude > 0.001f)
@@ -160,7 +160,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float range = StatsManager.Instance != null ? StatsManager.Instance.enemyAttackRange : 1f;
+        float range = stats != null ? stats.attackRange : 1f;
         ChangeState(Vector3.Distance(transform.position, targetPlayer.transform.position) <= range
             ? EnemyState.Idle
             : EnemyState.isChasing);

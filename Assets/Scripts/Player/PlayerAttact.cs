@@ -123,6 +123,7 @@ public sealed class PlayerAttact : MonoBehaviour
         }
 
         lastResolvedAttackSequence = sequence;
+        int attackDamage = playerState.RollAttackDamage(out _);
         Collider[] hits = Physics.OverlapSphere(
             AttackPoint.position,
             playerState.WeaponRange,
@@ -145,7 +146,7 @@ public sealed class PlayerAttact : MonoBehaviour
                     continue;
                 }
 
-                damageable.TakeDamage(playerState.Damage);
+                damageable.TakeDamage(attackDamage);
                 if (playerState.KnockbackForce > 0f &&
                     BossCombatTarget.TryGetInParent<IKnockbackReceiver>(hit, out IKnockbackReceiver receiver))
                 {
@@ -163,7 +164,7 @@ public sealed class PlayerAttact : MonoBehaviour
                 continue;
             }
 
-            enemyHealth.ChangeEnemyHealth(playerState.Damage);
+            enemyHealth.ChangeEnemyHealth(attackDamage);
             EnemyKnockBack enemyKnockBack = hit.GetComponentInParent<EnemyKnockBack>();
             enemyKnockBack?.EnemyKnockback(
                 transform,

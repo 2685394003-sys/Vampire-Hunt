@@ -85,8 +85,7 @@ public sealed class PlayerDash : NetworkBehaviour
             return;
         }
 
-        StatsManager config = playerState.Balance;
-        float cost = config != null ? config.dashStaminaCost : 0f;
+        float cost = playerState.DashStaminaCost;
         if (!playerState.TryConsumeStamina(cost))
         {
             return;

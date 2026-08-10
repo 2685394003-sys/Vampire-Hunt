@@ -34,6 +34,7 @@ public class EnemyHurtFlash : MonoBehaviour
     public void StartHurtFlash()
     {
         // 再次受伤直接重置计时，重新保持红色
-        flashTimer = StatsManager.Instance.enemyflashDuration;
+        EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+        flashTimer = stats != null ? stats.hurtFlashDuration : 0.3f;
     }
 }

@@ -992,7 +992,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerNetworkState
   ShowTopMostFoldoutHeaderGroup: 1
-  balance: {fileID: 0}
+  baseStats: {fileID: 11400000, guid: b1121212121212121212121212121212, type: 2}
   hideVisualsWhenDead: 1
 --- !u!114 &6103692169966063888
 MonoBehaviour:

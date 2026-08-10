@@ -5,6 +5,7 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkObject))]
 public sealed class EnemyHealth : NetworkBehaviour
 {
+    [SerializeField] private EnemyStatsConfig stats;
     public GameObject healthPackPrefab;
     [Range(0f, 1f)] public float healthPackDropChance = 0.2f;
     public GameObject coinPrefab;
@@ -21,6 +22,7 @@ public sealed class EnemyHealth : NetworkBehaviour
 
     public int CurrentHealth => UseNetworkValues ? networkHealth.Value : offlineHealth;
     public bool IsDead => UseNetworkValues ? networkDead.Value : offlineDead;
+    public EnemyStatsConfig Config => stats != null ? stats : stats = EnemyStatsConfig.LoadDefault();
     private bool UseNetworkValues => NetworkAuthority.IsNetworkActive && IsSpawned;
 
     private void Awake()
@@ -109,8 +111,9 @@ public sealed class EnemyHealth : NetworkBehaviour
         else offlineDead = value;
     }
 
-    private static int GetConfiguredMaxHealth()
+    private int GetConfiguredMaxHealth()
     {
-        return Mathf.Max(1, StatsManager.Instance != null ? StatsManager.Instance.enemymaxHealth : 1);
+        EnemyStatsConfig config = Config;
+        return Mathf.Max(1, config != null ? config.maxHealth : 1);
     }
 }

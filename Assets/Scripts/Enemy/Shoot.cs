@@ -20,13 +20,14 @@ public sealed class Shoot : MonoBehaviour
             targetPlayer = target != null ? target.transform : null;
         }
 
-        if (targetPlayer != null && body != null && StatsManager.Instance != null)
+        EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+        if (targetPlayer != null && body != null && stats != null)
         {
             Vector2 direction = (targetPlayer.position - transform.position).normalized;
-            body.linearVelocity = direction * StatsManager.Instance.bulletspeed;
+            body.linearVelocity = direction * stats.projectileSpeed;
         }
 
-        float life = StatsManager.Instance != null ? StatsManager.Instance.bulletMaxLife : 5f;
+        float life = stats != null ? stats.projectileLifetime : 5f;
         Invoke(nameof(ServerExpire), Mathf.Max(0.05f, life));
     }
 
@@ -38,7 +39,8 @@ public sealed class Shoot : MonoBehaviour
         PlayerHealth playerHealth = hit.GetComponentInParent<PlayerHealth>();
         if (playerHealth != null)
         {
-            int damage = StatsManager.Instance != null ? StatsManager.Instance.shootDamage : 1;
+            EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+            int damage = stats != null ? stats.projectileDamage : 1;
             playerHealth.ChangeHealth(damage);
             NetworkSpawnUtility.Despawn(gameObject);
             return;

@@ -84,6 +84,7 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
     private bool missingMethodsLogged;
     private PlayerNetworkState playerState;
     private PlayerController playerController;
+    private PlayerHealth playerHealth;
 
     private void Awake()
     {
@@ -94,6 +95,7 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
     {
         playerState = GetComponentInParent<PlayerNetworkState>();
         playerController = GetComponentInParent<PlayerController>();
+        playerHealth = GetComponentInParent<PlayerHealth>();
         damageTarget = null;
         knockbackTarget = null;
         forceDeathTarget = null;
@@ -175,6 +177,12 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
     public void TakeDamage(int amount)
     {
         if (!NetworkAuthority.IsServerOrOffline(playerState)) return;
+        if (playerHealth != null)
+        {
+            // Route every damage source through the same invincibility rule.
+            playerHealth.ChangeHealth(amount);
+            return;
+        }
         if (playerState != null)
         {
             playerState.ApplyDamage(amount);
