@@ -16,13 +16,18 @@ public class EnemyShoot : MonoBehaviour
     
     public void Shoot()
     {
+        if (!NetworkAuthority.IsServerOrOffline())
+            return;
+
         Transform targetPlayer = null;
         if(enemyMove != null)
         {
             targetPlayer = enemyMove.GetPlayerTarget();
         }
 
-        GameObject bulletObj = Instantiate(bulletPrefab,firePoint.position,Quaternion.identity);
+        GameObject bulletObj = NetworkSpawnUtility.Spawn(bulletPrefab, firePoint.position, Quaternion.identity);
+        if (bulletObj == null)
+            return;
 
         Shoot bullet = bulletObj.GetComponent<Shoot>();
 

@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 public enum BossAttackType
@@ -43,6 +44,7 @@ public sealed class BossAttackController : MonoBehaviour
     private readonly Dictionary<BossAttackType, float> readyTimes = new();
     private readonly List<GameObject> activeTelegraphs = new();
     private Coroutine attackCoroutine;
+    private NetworkAnimator networkAnimator;
     private float nextDecisionTime;
     private Color format3OriginalBossColor = Color.white;
     private bool format3BossTintActive;
@@ -52,6 +54,7 @@ public sealed class BossAttackController : MonoBehaviour
         stats ??= GetComponent<BossConfig>();
         bossRigidbody ??= GetComponent<Rigidbody>();
         animator ??= GetComponentInChildren<Animator>(true);
+        networkAnimator = GetComponent<NetworkAnimator>();
         audioSource ??= GetComponent<AudioSource>();
         bossSpriteRenderer ??= animator != null
             ? animator.GetComponent<SpriteRenderer>()
@@ -121,6 +124,7 @@ public sealed class BossAttackController : MonoBehaviour
 
     public bool TryStartAttack(int phase, bool bossVisible, float playerDistance)
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return false;
         if (IsBusy || player == null || stats == null || Time.time < nextDecisionTime)
         {
             return false;
@@ -143,6 +147,8 @@ public sealed class BossAttackController : MonoBehaviour
             return false;
         }
 
+        if (!NetworkAuthority.IsServerOrOffline()) return false;
+
         if (player == null)
         {
             Debug.LogError("[Boss 调试] 尚未找到玩家，不能强制攻击。", this);
@@ -161,6 +167,7 @@ public sealed class BossAttackController : MonoBehaviour
         BossAttackType attackType,
         bool interruptCurrentAttack = false)
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return false;
         if (!Application.isPlaying || player == null || stats == null ||
             !IsSupportedAttack(attackType))
         {
@@ -616,10 +623,21 @@ public sealed class BossAttackController : MonoBehaviour
         GameObject projectileObject;
         if (stats.projectilePrefab != null)
         {
-            projectileObject = Instantiate(stats.projectilePrefab, position, Quaternion.identity);
+            projectileObject = NetworkSpawnUtility.Spawn(
+                stats.projectilePrefab,
+                position,
+                Quaternion.identity);
+            if (projectileObject == null) return;
         }
         else
         {
+            if (NetworkAuthority.IsNetworkActive)
+            {
+                Debug.LogError(
+                    "[Boss] 联机模式必须配置带 NetworkObject 的 projectilePrefab。",
+                    this);
+                return;
+            }
             projectileObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             projectileObject.name = "Boss_格式2_弹幕";
             projectileObject.transform.position = position;
@@ -1190,7 +1208,12 @@ public sealed class BossAttackController : MonoBehaviour
         string triggerName = GetAnimatorTriggerName(attackType);
         if (animator != null && HasTrigger(animator, triggerName))
         {
-            animator.SetTrigger(triggerName);
+            if (NetworkAuthority.IsNetworkActive &&
+                networkAnimator != null &&
+                networkAnimator.IsSpawned)
+                networkAnimator.SetTrigger(triggerName);
+            else
+                animator.SetTrigger(triggerName);
         }
     }
 

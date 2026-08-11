@@ -1,0 +1,65 @@
+﻿
+float3 hash3(float3 p)
+{
+    float3 q;
+
+    q.x = dot(p, float3(127.1, 311.7, 74.7));
+    q.y = dot(p, float3(269.5, 183.3, 246.1));
+    q.z = dot(p, float3(113.5, 271.9, 124.6));
+
+    return frac(sin(q) * 43758.5453);
+}
+
+float worley(float3 p, float tileCount)
+{
+    float3 cell = floor(p);
+    float3 local = frac(p);
+
+    float minDist = 1e10;
+
+    for (int z = -1; z <= 1; z++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                float3 neighbor = float3(x, y, z);
+
+                float3 wrappedCell = fmod(
+                    cell + neighbor + tileCount,
+                    tileCount
+                );
+
+                float3 featurePoint =
+                    neighbor + hash3(wrappedCell);
+
+                float distanceToPoint = length(
+                    local - featurePoint
+                );
+
+                minDist = min(
+                    minDist,
+                    distanceToPoint
+                );
+            }
+        }
+    }
+
+    return saturate(minDist);
+}
+
+#pragma kernel GenerateDetailNoise
+
+RWTexture3D<float4> _DetailNoise;
+
+[numthreads(8, 8, 8)]
+void GenerateDetailNoise(uint3 id : SV_DispatchThreadID)
+{
+    float3 uvw = (id + 0.5) / 32.0; 
+
+    float d0 = worley(uvw * 4.0, 4.0);
+    float d1 = worley(uvw * 8.0, 8.0);
+    float d2 = worley(uvw * 16.0, 16.0);
+
+    _DetailNoise[id] = float4(d0, d1, d2, 0);
+}

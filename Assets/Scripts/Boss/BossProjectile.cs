@@ -1,7 +1,9 @@
+using Unity.Netcode;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public sealed class BossProjectile : MonoBehaviour
+[RequireComponent(typeof(NetworkObject))]
+public sealed class BossProjectile : NetworkBehaviour
 {
     private Vector3 direction;
     private float speed;
@@ -24,6 +26,7 @@ public sealed class BossProjectile : MonoBehaviour
         Transform projectileOwner,
         float minimumEffectHeight)
     {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
         direction = Vector3.ProjectOnPlane(moveDirection, Vector3.up).normalized;
         speed = Mathf.Max(0f, moveSpeed);
         damage = Mathf.Max(0, hitDamage);
@@ -37,11 +40,12 @@ public sealed class BossProjectile : MonoBehaviour
         transform.position = startPosition;
         initialized = true;
 
-        Destroy(gameObject, Mathf.Max(0.05f, lifeTime));
+        StartCoroutine(DespawnAfter(Mathf.Max(0.05f, lifeTime)));
     }
 
     private void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
         if (initialized)
         {
             transform.position += direction * (speed * Time.deltaTime);
@@ -53,6 +57,7 @@ public sealed class BossProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
         if (!initialized || other == null)
         {
             return;
@@ -88,14 +93,20 @@ public sealed class BossProjectile : MonoBehaviour
                     0.18f);
             }
 
-            Destroy(gameObject);
+            NetworkSpawnUtility.Despawn(gameObject);
             return;
         }
 
         if (IsInLayerMask(other.gameObject.layer, obstacleLayer))
         {
-            Destroy(gameObject);
+            NetworkSpawnUtility.Despawn(gameObject);
         }
+    }
+
+    private System.Collections.IEnumerator DespawnAfter(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        NetworkSpawnUtility.Despawn(gameObject);
     }
 
     private static bool IsInLayerMask(int layer, LayerMask mask)

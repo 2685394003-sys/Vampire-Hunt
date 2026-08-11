@@ -65,8 +65,6 @@ public sealed class BossController : MonoBehaviour, IBossController
     private bool runtimeSetupValidated;
     private bool eventsBound;
     private bool combatCommandReceived;
-    private bool phaseTimeScaleAdjusted;
-    private float phaseOriginalTimeScale = 1f;
     private float nextTargetResolveTime;
 
     private void Awake()
@@ -110,6 +108,12 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private IEnumerator Start()
     {
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            if (bossRigidbody != null) bossRigidbody.isKinematic = true;
+            yield break;
+        }
+
         ResolveTargetNow();
         ValidateRuntimeSetup();
 
@@ -132,6 +136,7 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         ResolveTargetWhenNeeded();
         UpdateContractCountdown();
 
@@ -143,6 +148,7 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void FixedUpdate()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (!combatEnabled ||
             player == null ||
             bossHealth == null ||
@@ -206,6 +212,8 @@ public sealed class BossController : MonoBehaviour, IBossController
             return BossCommandResult.NotPlaying;
         }
 
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+
         if (!BossTargetResolver.IsUsable(target))
         {
             return BossCommandResult.InvalidArgument;
@@ -223,6 +231,8 @@ public sealed class BossController : MonoBehaviour, IBossController
             return BossCommandResult.NotPlaying;
         }
 
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+
         SetTargetInternal(null);
         movement?.Stop();
         return BossCommandResult.Succeeded;
@@ -234,6 +244,8 @@ public sealed class BossController : MonoBehaviour, IBossController
         {
             return BossCommandResult.NotPlaying;
         }
+
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
 
         if (bossHealth == null || attackController == null)
         {
@@ -257,6 +269,8 @@ public sealed class BossController : MonoBehaviour, IBossController
             return BossCommandResult.NotPlaying;
         }
 
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+
         if (bossHealth != null && bossHealth.IsDead)
         {
             return BossCommandResult.Dead;
@@ -276,6 +290,8 @@ public sealed class BossController : MonoBehaviour, IBossController
         {
             return BossCommandResult.NotPlaying;
         }
+
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
 
         if (amount <= 0)
         {
@@ -309,6 +325,8 @@ public sealed class BossController : MonoBehaviour, IBossController
             return BossCommandResult.NotPlaying;
         }
 
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+
         if (bossHealth == null)
         {
             return BossCommandResult.NotReady;
@@ -330,6 +348,8 @@ public sealed class BossController : MonoBehaviour, IBossController
         {
             return BossCommandResult.NotPlaying;
         }
+
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
 
         if (!IsSupportedAttack(attackType))
         {
@@ -387,7 +407,23 @@ public sealed class BossController : MonoBehaviour, IBossController
         }
 
         PublishSnapshot();
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            phaseChangeCoroutine = StartCoroutine(ClientPhasePresentationRoutine(newPhase));
+            return;
+        }
         phaseChangeCoroutine = StartCoroutine(PhaseChangeRoutine(newPhase));
+    }
+
+    private IEnumerator ClientPhasePresentationRoutine(int newPhase)
+    {
+        presentation.PlayOneShot(stats.phaseChangeClip);
+        presentation.TrySetTrigger(stats.phaseChangeTrigger);
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, stats.phaseChangeDuration));
+        presentation.SetRenderersEnabled(true);
+        presentation.TrySetInteger(stats.phaseParameter, newPhase);
+        if (newPhase >= 3) presentation.StartPhaseThreeRain();
+        phaseChangeCoroutine = null;
     }
 
     private IEnumerator PhaseChangeRoutine(int newPhase)
@@ -396,14 +432,6 @@ public sealed class BossController : MonoBehaviour, IBossController
         attackController.CancelCurrentAttack();
         movement.Stop();
         ApplyPhaseTransitionKnockback();
-
-        RestoreTimeScale();
-        if (stats.phaseSlowMotionRealtime > 0f && stats.phaseSlowMotionScale < 1f)
-        {
-            phaseOriginalTimeScale = Time.timeScale;
-            Time.timeScale = Mathf.Max(0.01f, stats.phaseSlowMotionScale);
-            phaseTimeScaleAdjusted = true;
-        }
 
         presentation.PlayOneShot(stats.phaseChangeClip);
         presentation.TrySetTrigger(stats.phaseChangeTrigger);
@@ -421,11 +449,6 @@ public sealed class BossController : MonoBehaviour, IBossController
         while (elapsed < stats.phaseChangeDuration)
         {
             elapsed += Time.unscaledDeltaTime;
-            if (phaseTimeScaleAdjusted && elapsed >= stats.phaseSlowMotionRealtime)
-            {
-                RestoreTimeScale();
-            }
-
             if (elapsed >= nextBlinkTime)
             {
                 renderersEnabled = !renderersEnabled;
@@ -436,7 +459,6 @@ public sealed class BossController : MonoBehaviour, IBossController
             yield return null;
         }
 
-        RestoreTimeScale();
         presentation.SetRenderersEnabled(true);
 
         if (stats.teleportAfterPhaseChange)
@@ -517,6 +539,15 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void HandleDeath()
     {
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            presentation.SetRenderersEnabled(true);
+            presentation.TrySetTrigger(stats.deathTrigger);
+            presentation.PlayOneShot(stats.deathClip);
+            if (bossCollider != null) bossCollider.enabled = false;
+            return;
+        }
+
         SetCombatEnabled(false);
         TransitionTo(BossState.Dead);
 
@@ -534,7 +565,6 @@ public sealed class BossController : MonoBehaviour, IBossController
         attackController.CancelCurrentAttack();
         movement.Stop();
         ContractCountdownActive = false;
-        RestoreTimeScale();
         presentation.DestroyContractVfx();
 
         leftGuard?.DisableForBossDeath();
@@ -560,7 +590,7 @@ public sealed class BossController : MonoBehaviour, IBossController
             yield return new WaitForSeconds(stats.deathDisableDelay);
         }
 
-        gameObject.SetActive(false);
+        NetworkSpawnUtility.Despawn(gameObject);
     }
 
     private void HandleHealthChanged(int currentHealth, int maxHealth)
@@ -653,7 +683,7 @@ public sealed class BossController : MonoBehaviour, IBossController
         }
         else
         {
-            player.gameObject.SetActive(false);
+            Debug.LogError("[Boss] 契约目标没有实现 IForceKillable。", player);
         }
     }
 
@@ -758,17 +788,6 @@ public sealed class BossController : MonoBehaviour, IBossController
     private void PublishSnapshot()
     {
         SnapshotChanged?.Invoke(this, CreateSnapshot());
-    }
-
-    private void RestoreTimeScale()
-    {
-        if (!phaseTimeScaleAdjusted)
-        {
-            return;
-        }
-
-        Time.timeScale = phaseOriginalTimeScale;
-        phaseTimeScaleAdjusted = false;
     }
 
     private void BindComponentEvents()
@@ -1137,14 +1156,12 @@ public sealed class BossController : MonoBehaviour, IBossController
         movement?.Stop();
         BossRegistry.Unregister(this);
         UnbindComponentEvents();
-        RestoreTimeScale();
         presentation?.Dispose();
     }
 
     private void OnDestroy()
     {
         BossRegistry.Unregister(this);
-        RestoreTimeScale();
     }
 
     private void OnDrawGizmosSelected()

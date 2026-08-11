@@ -1,37 +1,57 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class Shoot : MonoBehaviour
+public sealed class Shoot : MonoBehaviour
 {
-    private float trackCheckTimer;  
     public Transform targetPlayer;
-    private Rigidbody2D rb;
-    
-    void Start()
+    private Rigidbody2D body;
+
+    private void Start()
     {
-        trackCheckTimer = StatsManager.Instance.bulletMaxLife;
-        rb = GetComponent<Rigidbody2D>();
-        if(targetPlayer != null)
+        body = GetComponent<Rigidbody2D>();
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            if (body != null) body.simulated = false;
+            return;
+        }
+
+        if (targetPlayer == null)
+        {
+            PlayerNetworkState target = NetworkPlayerRegistry.GetClosestAlive(transform.position);
+            targetPlayer = target != null ? target.transform : null;
+        }
+
+        EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+        if (targetPlayer != null && body != null && stats != null)
         {
             Vector2 direction = (targetPlayer.position - transform.position).normalized;
-            rb.linearVelocity = direction * StatsManager.Instance.bulletspeed;
+            body.linearVelocity = direction * stats.projectileSpeed;
         }
-        Destroy(gameObject,StatsManager.Instance.bulletMaxLife);
+
+        float life = stats != null ? stats.projectileLifetime : 5f;
+        Invoke(nameof(ServerExpire), Mathf.Max(0.05f, life));
     }
 
     private void OnTriggerEnter2D(Collider2D hit)
     {
-        if (hit.CompareTag("Player"))
+        if (!NetworkAuthority.IsServerOrOffline() || hit == null)
+            return;
+
+        PlayerHealth playerHealth = hit.GetComponentInParent<PlayerHealth>();
+        if (playerHealth != null)
         {
-            PlayerHealth playerHp = targetPlayer.GetComponent<PlayerHealth>();
-            playerHp.ChangeHealth(StatsManager.Instance.shootDamage);
-            Destroy(gameObject);
+            EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+            int damage = stats != null ? stats.projectileDamage : 1;
+            playerHealth.ChangeHealth(damage);
+            NetworkSpawnUtility.Despawn(gameObject);
             return;
         }
+
         if (hit.CompareTag("Wall"))
-        {
-            Destroy(gameObject);
-        }
+            NetworkSpawnUtility.Despawn(gameObject);
+    }
+
+    private void ServerExpire()
+    {
+        NetworkSpawnUtility.Despawn(gameObject);
     }
 }

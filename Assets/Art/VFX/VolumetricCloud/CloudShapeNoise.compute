@@ -1,0 +1,176 @@
+﻿#pragma kernel GenerateShapeNoise
+
+RWTexture3D<float4> _ShapeNoise;
+
+
+// 作者截图未提供：Remap 函数
+float remap(
+    float value,
+    float originalMin,
+    float originalMax,
+    float newMin,
+    float newMax
+)
+{
+    return newMin +
+        (value - originalMin) *
+        (newMax - newMin) /
+        (originalMax - originalMin);
+}
+
+
+// 作者截图未提供：生成格子中的随机特征点
+float3 hash3(float3 p)
+{
+    float3 q;
+
+    q.x = dot(p, float3(127.1, 311.7, 74.7));
+    q.y = dot(p, float3(269.5, 183.3, 246.1));
+    q.z = dot(p, float3(113.5, 271.9, 124.6));
+
+    return frac(sin(q) * 43758.5453);
+}
+
+
+// 单层 Worley：返回到最近特征点的距离
+float worley(float3 p, float tileCount)
+{
+    float3 cell = floor(p); // 当前格子
+    float3 local = frac(p); // 格子内的局部坐标
+
+    float minDist = 1e10;
+
+    // 遍历周围 3x3x3 = 27 个格子
+    for (int z = -1; z <= 1; z++)
+        for (int y = -1; y <= 1; y++)
+            for (int x = -1; x <= 1; x++)
+            {
+                float3 neighbor = float3(x, y, z);
+
+        // 取模让边界格子绕回，保证平铺连续 +tileCount 避免取负数
+                float3 wrappedCell = fmod(cell + neighbor + tileCount, tileCount);
+        // 这个邻格内的随机特征点位置（相对于当前格子原点）
+                float3 featurePoint = neighbor + hash3(wrappedCell);
+        //float3 featurePoint = neighbor + hash3_modern(uint3(int3(cell + neighbor)));
+        // 到特征点的距离
+                float d = length(local - featurePoint);
+                minDist = min(minDist, d);
+            }
+
+    return saturate(minDist);
+}
+
+
+float worleyFBM(float3 pos, float baseFrequency, int series)
+{
+    float value = 0;
+    float amplitude = 0.5;
+    float freq = baseFrequency;
+
+    for (int i = 0; i < series; i++)
+    {
+        value += worley(pos * freq, freq) * amplitude;
+        freq *= 2.0;
+        amplitude *= 0.5;
+    }
+
+    return saturate(value); // FBM 叠加后 saturate 保险
+}
+
+
+float perlin(float3 p, float tileCount)
+{
+    // 第一步：和 Worley 完全一样
+    float3 cell = floor(p);
+    float3 local = frac(p);
+
+    // 第二步：fade 函数平滑插值权重
+    float3 u = local * local * local * (local * (local * 6.0 - 15.0) + 10.0);
+
+    // 8个顶点都取模，无缝处理
+    float3 c000 = fmod(cell + float3(0, 0, 0) + tileCount, tileCount);
+    float3 c100 = fmod(cell + float3(1, 0, 0) + tileCount, tileCount);
+    float3 c010 = fmod(cell + float3(0, 1, 0) + tileCount, tileCount);
+    float3 c110 = fmod(cell + float3(1, 1, 0) + tileCount, tileCount);
+    float3 c001 = fmod(cell + float3(0, 0, 1) + tileCount, tileCount);
+    float3 c101 = fmod(cell + float3(1, 0, 1) + tileCount, tileCount);
+    float3 c011 = fmod(cell + float3(0, 1, 1) + tileCount, tileCount);
+    float3 c111 = fmod(cell + float3(1, 1, 1) + tileCount, tileCount);
+
+    // 第三步：8个顶点各算一个梯度点积
+    // 立方体格子的顶点（计算随机方向），拿对角线向量进行投影得到随机梯度
+    float v000 = dot(normalize(hash3(c000) * 2.0 - 1.0), local - float3(0, 0, 0));
+    float v100 = dot(normalize(hash3(c100) * 2.0 - 1.0), local - float3(1, 0, 0));
+    float v010 = dot(normalize(hash3(c010) * 2.0 - 1.0), local - float3(0, 1, 0));
+    float v110 = dot(normalize(hash3(c110) * 2.0 - 1.0), local - float3(1, 1, 0));
+    float v001 = dot(normalize(hash3(c001) * 2.0 - 1.0), local - float3(0, 0, 1));
+    float v101 = dot(normalize(hash3(c101) * 2.0 - 1.0), local - float3(1, 0, 1));
+    float v011 = dot(normalize(hash3(c011) * 2.0 - 1.0), local - float3(0, 1, 1));
+    float v111 = dot(normalize(hash3(c111) * 2.0 - 1.0), local - float3(1, 1, 1));
+
+    // 第四步：三线性插值，用 fade 后的 u 做权重
+    float result = lerp(
+        lerp(
+            lerp(v000, v100, u.x),
+            lerp(v010, v110, u.x),
+            u.y
+        ),
+        lerp(
+            lerp(v001, v101, u.x),
+            lerp(v011, v111, u.x),
+            u.y
+        ),
+        u.z
+    );
+
+    // 输出范围 [-1, 1] → remap 到 [0, 1]
+    return result * 0.5 + 0.5;
+}
+
+
+float perlinFBM(float3 pos, float baseFrequency, int series)
+{
+    float value = 0;
+    float amplitude = 0.5;
+    float freq = baseFrequency;
+
+    for (int i = 0; i < series; i++)
+    {
+        value += perlin(pos * freq, freq) * amplitude;
+        freq *= 2.0;
+        amplitude *= 0.5;
+    }
+
+    return saturate(value); // perlin 输出已经是 [0,1]，FBM 叠加后 saturate
+}
+
+
+[numthreads(8, 8, 8)]
+void GenerateShapeNoise(uint3 id : SV_DispatchThreadID)
+{
+    float3 uvw = (id + 0.5) / 128.0;
+
+    //float p = perlin(uvw, 4.0);          // perlin      单频率
+    float pFBM = perlinFBM(uvw, 4.0, 4); // perlinFBM   四个递增频率
+    float wFBM = worleyFBM(uvw, 4.0, 3); // worleyFBM   三个递增频率
+
+    // 作者截图里后面使用的是 p，但上面的 p 被注释了。
+    // 保留作者的 remap 原句，用 pFBM 给 p 赋值。
+    float p = pFBM;
+
+    // Perlin-Worley 合成（R通道）
+    float perlinWorley = remap(p, 1.0 - wFBM, 1.0, 0.0, 1.0);
+
+    // GBA 分别保存单层低频、中频、高频 Worley。
+    // 最终云采样时再使用 0.625、0.25、0.125 合成为 Worley FBM。
+    float worleyLow = worley(uvw * 4.0, 4.0);
+    float worleyMid = worley(uvw * 8.0, 8.0);
+    float worleyHigh = worley(uvw * 16.0, 16.0);
+
+    _ShapeNoise[id] = float4(
+        saturate(perlinWorley),
+        worleyLow,
+        worleyMid,
+        worleyHigh
+    );
+}

@@ -34,7 +34,6 @@ public class StatsUI : MonoBehaviour
         if(statsOpen)
         {
             // 关闭面板逻辑
-            Time.timeScale = 1;
             uiCanvasGroup.alpha = 0;
             uiCanvasGroup.interactable = false;
             uiCanvasGroup.blocksRaycasts = false;
@@ -43,7 +42,6 @@ public class StatsUI : MonoBehaviour
         else
         {
             // 打开面板逻辑
-            Time.timeScale = 0;
             uiCanvasGroup.alpha = 1;
             uiCanvasGroup.interactable = true;
             uiCanvasGroup.blocksRaycasts = true;

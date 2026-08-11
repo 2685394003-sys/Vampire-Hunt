@@ -6,7 +6,8 @@ public class EnemyMovement : MonoBehaviour
 {
     private EnemyState enemyState;
     private float shoottimer;
-    private float attackCooldownTimer; // 每只小怪自己的攻击冷却计时器(上限由StatsManager.enemyattaCooldown统一管理)
+    private float attackCooldownTimer;
+    private EnemyStatsConfig stats;
 
     private Rigidbody2D rb;
     public Transform EnemyDetectionPonint;
@@ -19,18 +20,26 @@ public class EnemyMovement : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        stats = EnemyStatsResolver.Resolve(this);
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            if (rb != null) rb.simulated = false;
+            enabled = false;
+            return;
+        }
         ChangeState(EnemyState.Idle);
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (enemyState != EnemyState.Knockback)
         {
-            if(player != null && shoottimer <= 0 && Vector2.Distance(transform.position, player.position) > StatsManager.Instance.enemyshootRange)
+            if(player != null && shoottimer <= 0 && Vector2.Distance(transform.position, player.position) > stats.shootRange)
             {
                 Stop();
-                shoottimer = StatsManager.Instance.enemyshootcd;
+                shoottimer = stats.shootCooldown;
                 return;
             }
 
@@ -47,7 +56,7 @@ public class EnemyMovement : MonoBehaviour
             }
 
 
-            if (enemyState == EnemyState.isChasing && Vector2.Distance(transform.position, player.position) > StatsManager.Instance.enemyAttackRange)
+            if (player != null && enemyState == EnemyState.isChasing && Vector2.Distance(transform.position, player.position) > stats.attackRange)
             {
                 Chase();
             }
@@ -61,20 +70,21 @@ public class EnemyMovement : MonoBehaviour
 
     private void CheckForPlayer()
     {   
-        Collider2D[] hits = Physics2D.OverlapCircleAll(EnemyDetectionPonint.position,StatsManager.Instance.enemyplayerDetectRange,StatsManager.Instance.playerLayer);
+        if (stats == null || EnemyDetectionPonint == null) return;
+        Collider2D[] hits = Physics2D.OverlapCircleAll(EnemyDetectionPonint.position, stats.playerDetectRange, stats.playerLayer);
         
         if(hits.Length > 0)
         {
             player = hits[0].transform;
         
-            if(Vector2.Distance(transform.position, player.position) <= StatsManager.Instance.enemyAttackRange && attackCooldownTimer <= 0)
+            if(Vector2.Distance(transform.position, player.position) <= stats.attackRange && attackCooldownTimer <= 0)
             {
                 Stop();
                 ChangeState(EnemyState.isAttacking);
-               attackCooldownTimer = StatsManager.Instance.enemyattaCooldown;
+               attackCooldownTimer = stats.attackCooldown;
             }
 
-            else if(Vector2.Distance(transform.position, player.position) > StatsManager.Instance.enemyAttackRange && enemyState != EnemyState.isAttacking)
+            else if(Vector2.Distance(transform.position, player.position) > stats.attackRange && enemyState != EnemyState.isAttacking)
             {
                 ChangeState(EnemyState.isChasing);
                 // 玩家重新进入，立刻停止减速协程，恢复追逐
@@ -102,7 +112,7 @@ public class EnemyMovement : MonoBehaviour
         // 持续匀速减小速度，直到接近0
         while (currentVel.magnitude > 0.05f)
         {
-            currentVel = Vector2.MoveTowards(currentVel, Vector2.zero, StatsManager.Instance.slowDeceleration * Time.deltaTime);
+            currentVel = Vector2.MoveTowards(currentVel, Vector2.zero, stats.slowDeceleration * Time.deltaTime);
             rb.linearVelocity = currentVel;
             yield return null; // 等待下一帧再执行
         }
@@ -113,6 +123,7 @@ public class EnemyMovement : MonoBehaviour
 
     public void ChangeState(EnemyState newState)
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         //退出当前动画
         if (enemyState == EnemyState.Idle)
             anim.SetBool("isIdle", false);
@@ -139,14 +150,14 @@ public class EnemyMovement : MonoBehaviour
 
     void Chase()
     {
-        if(Vector2.Distance(transform.position, player.transform.position) <= StatsManager.Instance.enemyAttackRange && attackCooldownTimer <= 0)
+        if(Vector2.Distance(transform.position, player.transform.position) <= stats.attackRange && attackCooldownTimer <= 0)
         {
             ChangeState(EnemyState.isAttacking);
-            attackCooldownTimer = StatsManager.Instance.enemyattaCooldown;
+            attackCooldownTimer = stats.attackCooldown;
         }
 
         Vector2 direction = (player.position - transform.position).normalized;
-        rb.linearVelocity = direction * StatsManager.Instance.enemyspeed;
+        rb.linearVelocity = direction * stats.moveSpeed;
 
         // 翻转逻辑
         float dirX = player.position.x - transform.position.x;

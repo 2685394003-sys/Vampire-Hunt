@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 
 /// <summary>
 /// 装饰性地面贴片生成器 / Decorative ground tile generator (grass / road)
@@ -11,7 +12,9 @@ using System.Collections.Generic;
 /// - 支持 prefab 模式或材质回退模式
 ///   Supports prefab mode or material fallback mode (flattened Cube)
 /// </summary>
-public class DecorationGenerator : MonoBehaviour
+[DisallowMultipleComponent]
+[RequireComponent(typeof(NetworkObject))]
+public class DecorationGenerator : NetworkBehaviour
 {
     public enum RoadPattern { Scatter, RandomWalk, Cross }
 
@@ -58,17 +61,45 @@ public class DecorationGenerator : MonoBehaviour
 
     private readonly List<GameObject> spawned = new List<GameObject>();
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
+    private readonly NetworkVariable<int> networkSeed = new(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<int> generationSequence = new(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private Coroutine generationCoroutine;
 
     IEnumerator Start()
     {
         // 等一帧,确保 LevelGenerator 的 Start 已经跑完(障碍已放+流场已重扫)
         yield return null;
-        Generate();
+        if (!NetworkAuthority.IsNetworkActive) Generate();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        generationSequence.OnValueChanged += HandleGenerationChanged;
+        if (IsServer)
+        {
+            PublishLayoutSeed();
+        }
+        else if (generationSequence.Value > 0)
+        {
+            ScheduleGeneration(networkSeed.Value);
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        generationSequence.OnValueChanged -= HandleGenerationChanged;
     }
 
     [ContextMenu("重新生成 / Regenerate")]
     public void Regenerate()
     {
+        if (NetworkAuthority.IsNetworkActive)
+        {
+            if (IsServer) PublishLayoutSeed();
+            return;
+        }
         Clear();
         Generate();
     }
@@ -88,7 +119,15 @@ public class DecorationGenerator : MonoBehaviour
 
     public void Generate()
     {
-        if (flowField == null) flowField = FindObjectOfType<FlowFieldManager>();
+        int actualSeed = NetworkAuthority.IsNetworkActive
+            ? networkSeed.Value
+            : seed != 0 ? seed : Random.Range(int.MinValue, int.MaxValue);
+        GenerateWithSeed(actualSeed);
+    }
+
+    private void GenerateWithSeed(int actualSeed)
+    {
+        if (flowField == null) flowField = FindFirstObjectByType<FlowFieldManager>();
         if (flowField == null)
         {
             Debug.LogError("[DecorationGenerator] 找不到 FlowFieldManager / FlowFieldManager not found");
@@ -99,7 +138,6 @@ public class DecorationGenerator : MonoBehaviour
         // 先 raycast 找地板 Y(只算一次,后续放置都用它)
         float floorY = GetFloorY();
 
-        int actualSeed = (seed != 0) ? seed : Random.Range(int.MinValue, int.MaxValue);
         Random.State oldState = Random.state;
         Random.InitState(actualSeed);
 
@@ -110,6 +148,37 @@ public class DecorationGenerator : MonoBehaviour
         Debug.Log("[DecorationGenerator] 草地 " + grassPlaced + "/" + grassCount +
                   ",道路 " + roadPlaced + "/" + roadCount +
                   ",seed=" + actualSeed + ",floorY=" + floorY);
+    }
+
+    private void PublishLayoutSeed()
+    {
+        int chosen = seed != 0 ? seed : Random.Range(int.MinValue, int.MaxValue);
+        if (chosen == 0) chosen = 1;
+        networkSeed.Value = chosen;
+        generationSequence.Value++;
+    }
+
+    private void HandleGenerationChanged(int previous, int current)
+    {
+        if (current > previous) ScheduleGeneration(networkSeed.Value);
+    }
+
+    private void ScheduleGeneration(int layoutSeed)
+    {
+        if (IsServer && !IsClient) return; // Dedicated servers do not need decorations.
+        if (generationCoroutine != null) StopCoroutine(generationCoroutine);
+        generationCoroutine = StartCoroutine(GenerateAfterWorldLayout(layoutSeed));
+    }
+
+    private IEnumerator GenerateAfterWorldLayout(int layoutSeed)
+    {
+        // Network obstacle placements arrive first; wait for local obstacle
+        // instances and the flow field rescan before placing presentation tiles.
+        yield return null;
+        yield return null;
+        Clear();
+        GenerateWithSeed(layoutSeed);
+        generationCoroutine = null;
     }
 
     // 从地板中心高空往下打射线,命中点就是地板表面 Y

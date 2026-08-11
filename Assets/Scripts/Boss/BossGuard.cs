@@ -54,7 +54,10 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
 
     private void Start()
     {
-        if (independentMovement && bossRoot != null && transform.parent != null)
+        if (independentMovement &&
+            !NetworkAuthority.IsNetworkActive &&
+            bossRoot != null &&
+            transform.parent != null)
         {
             transform.SetParent(null, true);
         }
@@ -62,6 +65,7 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
 
     private void FixedUpdate()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (!independentMovement || bossRoot == null)
         {
             return;
@@ -102,6 +106,7 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
 
     public void TakeDamage(int amount)
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (amount <= 0 || IsBroken)
         {
             return;
@@ -126,6 +131,7 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
     [ContextMenu("Boss/修复护卫")]
     public void Restore()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         CurrentHealth = maxHealth;
         if (hitCollider != null)
         {
@@ -162,6 +168,7 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
 
     public void DisableForBossDeath()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         CurrentHealth = 0;
         if (hitCollider != null)
         {

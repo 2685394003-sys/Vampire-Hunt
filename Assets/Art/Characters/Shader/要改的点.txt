@@ -1,0 +1,14 @@
+Inspector 有滑条，但实际上完全没效果
+主光阴影判断要改，写的有点几把了
+API好像也没升
+Forward+ / Cluster Lighting
+ShadowCaster 对点光/聚光灯的 Bias 算法不完整
+把没真正使用的 Shader Variant 清掉
+Outline Pass 不要再完整算一遍光照
+View/Clip Space 屏幕宽度描边
+
+脸部深度被写死了0.03
+
+
+增加 Toon Specular + Rim Light
+透明和 Cull 模式要做成材质参数，也被写死了

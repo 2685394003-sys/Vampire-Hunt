@@ -1,26 +1,17 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class HPUI : MonoBehaviour
 {
-    private void Start()
-    {
-        UpdateUI();
-    }
-
-    void Update()
-    {
-        UpdateUI(); // 每帧刷新，数值改动立刻同步
-    }
-
     public Slider HpSlider;
 
-    private void UpdateUI()
+    private void Update()
     {
-        HpSlider.maxValue = StatsManager.Instance.maxHealth;
-        HpSlider.value = StatsManager.Instance.currentHealth;
+        PlayerNetworkState player = NetworkPlayerRegistry.GetLocalPlayer();
+        if (player == null || HpSlider == null)
+            return;
 
+        HpSlider.maxValue = player.MaxHealth;
+        HpSlider.value = player.CurrentHealth;
     }
 }

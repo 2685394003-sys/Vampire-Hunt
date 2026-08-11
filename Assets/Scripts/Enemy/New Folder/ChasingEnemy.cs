@@ -11,11 +11,17 @@ public sealed class ChasingEnemy : MonoBehaviour
 
     private void Awake()
     {
+        if (!NetworkAuthority.IsServerOrOffline())
+        {
+            enabled = false;
+            return;
+        }
         ResolveTarget();
     }
 
     private void Update()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         if (!ResolveTarget())
         {
             return;
@@ -44,7 +50,7 @@ public sealed class ChasingEnemy : MonoBehaviour
             return true;
         }
 
-        PlayerController player = FindFirstObjectByType<PlayerController>();
+        PlayerNetworkState player = NetworkPlayerRegistry.GetClosestAlive(transform.position);
         if (player == null)
         {
             return false;
@@ -56,11 +62,13 @@ public sealed class ChasingEnemy : MonoBehaviour
 
     public void SetTarget(Transform newTarget)
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         target = newTarget;
     }
 
     public void ReceiveHit()
     {
+        if (!NetworkAuthority.IsServerOrOffline()) return;
         // Hit has been detected; health and reactions are deliberately deferred.
     }
 }

@@ -82,6 +82,9 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
     private MethodInfo forceDeathMethod;
     private bool resolved;
     private bool missingMethodsLogged;
+    private PlayerNetworkState playerState;
+    private PlayerController playerController;
+    private PlayerHealth playerHealth;
 
     private void Awake()
     {
@@ -90,6 +93,9 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
 
     public void ResolveTargets(bool logMissingMethods)
     {
+        playerState = GetComponentInParent<PlayerNetworkState>();
+        playerController = GetComponentInParent<PlayerController>();
+        playerHealth = GetComponentInParent<PlayerHealth>();
         damageTarget = null;
         knockbackTarget = null;
         forceDeathTarget = null;
@@ -170,6 +176,18 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
 
     public void TakeDamage(int amount)
     {
+        if (!NetworkAuthority.IsServerOrOffline(playerState)) return;
+        if (playerHealth != null)
+        {
+            // Route every damage source through the same invincibility rule.
+            playerHealth.ChangeHealth(amount);
+            return;
+        }
+        if (playerState != null)
+        {
+            playerState.ApplyDamage(amount);
+            return;
+        }
         EnsureResolved();
         if (amount <= 0 || changeHealthMethod == null || damageTarget == null)
         {
@@ -181,6 +199,15 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
 
     public void ApplyKnockback(Transform source, float force, float stunTime)
     {
+        if (!NetworkAuthority.IsServerOrOffline(playerState)) return;
+        if (playerController != null)
+        {
+            playerController.Knockback(
+                source != null ? source : transform,
+                force,
+                stunTime);
+            return;
+        }
         EnsureResolved();
         if (force <= 0f || knockbackMethod == null || knockbackTarget == null)
         {
@@ -195,6 +222,12 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
 
     public void ForceKill()
     {
+        if (!NetworkAuthority.IsServerOrOffline(playerState)) return;
+        if (playerState != null)
+        {
+            playerState.ForceDeath();
+            return;
+        }
         EnsureResolved();
         if (forceDeathMethod != null && forceDeathTarget != null)
         {
@@ -202,7 +235,7 @@ public sealed class BossPlayerTargetAdapter : MonoBehaviour, IDamageable, IKnock
             return;
         }
 
-        gameObject.SetActive(false);
+        Debug.LogError("[Boss 适配] 无法击杀目标：缺少 PlayerNetworkState/ForceDeath。", this);
     }
 
     private void EnsureResolved()

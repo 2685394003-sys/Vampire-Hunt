@@ -1,58 +1,43 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerHealth : MonoBehaviour
+[DisallowMultipleComponent]
+[RequireComponent(typeof(PlayerNetworkState))]
+public sealed class PlayerHealth : MonoBehaviour
 {
-    // 变量必须放在class大括号内部
     public PlayerHurtInvincible invincible;
+
+    private PlayerNetworkState state;
+
+    private void Awake()
+    {
+        state = PlayerNetworkState.EnsureForMigration(gameObject);
+    }
 
     public void ChangeHealth(int amount)
     {
-        if (amount <= 0 || StatsManager.Instance == null)
+        if (!NetworkAuthority.IsServerOrOffline(state) || amount <= 0 || state == null)
         {
             return;
         }
 
-        if (invincible == null || invincible.CanTakeDamage())
+        if (invincible != null && !invincible.CanTakeDamage())
         {
-            StatsManager.Instance.currentHealth -= amount;
-            if (invincible != null)
-            {
-                invincible.EnterInvincibleState();
-            }
+            return;
+        }
 
-            if (StatsManager.Instance.currentHealth <= 0)
-            {
-                ForceDeath();
-                return;
-            }
-            
-            if (StatsManager.Instance.currentHealth > StatsManager.Instance.maxHealth)
-            {
-            ReHealth();
-            }
+        if (state.ApplyDamage(amount))
+        {
+            invincible?.EnterInvincibleState();
         }
     }
 
     public void ReHealth()
     {
-        if (StatsManager.Instance == null)
-        {
-            return;
-        }
-
-        StatsManager.Instance.currentHealth = StatsManager.Instance.maxHealth;
-        gameObject.SetActive(true);
+        state?.HealToFull();
     }
 
     public void ForceDeath()
     {
-        if (StatsManager.Instance != null)
-        {
-            StatsManager.Instance.currentHealth = 0;
-        }
-
-        gameObject.SetActive(false);
+        state?.ForceDeath();
     }
 }
