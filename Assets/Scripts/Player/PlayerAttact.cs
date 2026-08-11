@@ -11,16 +11,12 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerNetworkState))]
 public sealed class PlayerAttact : MonoBehaviour
 {
-    private static readonly int AttackParameter = Animator.StringToHash("Attack");
-    private static readonly int AttackPointParameter = Animator.StringToHash("isAttacking");
-
     public Animator anim;
     public Animator attackPointAnim;
     public Transform AttackPoint;
 
     [Header("服务器判定 / Server Hit Timing")]
     [SerializeField, Min(0f)] private float hitDelay = 0.12f;
-    [SerializeField, Min(0.01f)] private float attackAnimationDuration = 1.25f;
 
     [Header("特效大小跟随攻击范围 / VFX Scale Follows Weapon Range")]
     [SerializeField, Min(0.001f)] private float vfxVisualRadiusAtScaleOne = 2f;
@@ -28,11 +24,8 @@ public sealed class PlayerAttact : MonoBehaviour
     private PlayerNetworkState playerState;
     private PlayerController playerController;
     private Coroutine serverHitCoroutine;
-    private Coroutine attackResetCoroutine;
     private int activeAttackSequence;
     private int lastResolvedAttackSequence;
-
-    public bool IsAttackAnimationPlaying { get; private set; }
 
     private void Awake()
     {
@@ -65,8 +58,6 @@ public sealed class PlayerAttact : MonoBehaviour
         }
 
         activeAttackSequence = sequence;
-        SetAttackState(true);
-        RestartAttackResetTimer();
         if (serverHitCoroutine != null)
         {
             StopCoroutine(serverHitCoroutine);
@@ -76,45 +67,27 @@ public sealed class PlayerAttact : MonoBehaviour
 
     public void PlayAttackPresentation()
     {
-        SetAttackState(true);
-        RestartAttackResetTimer();
+        if (anim != null)
+        {
+            anim.SetBool("isAttacting", true);
+        }
+        if (attackPointAnim != null)
+        {
+            attackPointAnim.SetBool("isAttacking", true);
+        }
         SFXManager.Instance?.PlayAttackSFX();
     }
 
     public void Attackfalse()
     {
-        SetAttackState(false);
-    }
-
-    private void SetAttackState(bool attacking)
-    {
-        IsAttackAnimationPlaying = attacking;
         if (anim != null)
         {
-            anim.SetBool(AttackParameter, attacking);
+            anim.SetBool("isAttacting", false);
         }
-        if (attackPointAnim != null &&
-            attackPointAnim.isActiveAndEnabled &&
-            attackPointAnim.runtimeAnimatorController != null)
+        if (attackPointAnim != null)
         {
-            attackPointAnim.SetBool(AttackPointParameter, attacking);
+            attackPointAnim.SetBool("isAttacking", false);
         }
-    }
-
-    private void RestartAttackResetTimer()
-    {
-        if (attackResetCoroutine != null)
-        {
-            StopCoroutine(attackResetCoroutine);
-        }
-        attackResetCoroutine = StartCoroutine(ResetAttackAfterDelay());
-    }
-
-    private IEnumerator ResetAttackAfterDelay()
-    {
-        yield return new WaitForSeconds(attackAnimationDuration);
-        SetAttackState(false);
-        attackResetCoroutine = null;
     }
 
     /// <summary>
