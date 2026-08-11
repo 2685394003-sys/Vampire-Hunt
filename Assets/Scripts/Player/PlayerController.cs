@@ -291,6 +291,28 @@ public sealed class PlayerController : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// Applies root motion delta from the visual animator to the authoritative root.
+    /// Called by PlayerRootMotionDriver during OnAnimatorMove.
+    /// </summary>
+    public void ApplyAnimatorRootMotion(Vector3 deltaPosition)
+    {
+        if (!NetworkAuthority.IsOwnerOrOffline(this) || playerState == null || !playerState.IsAlive || isKnockedBack)
+        {
+            return;
+        }
+
+        Vector3 nextPosition = transform.position + deltaPosition;
+        if (body != null && !body.isKinematic)
+        {
+            body.MovePosition(nextPosition);
+        }
+        else
+        {
+            transform.position = nextPosition;
+        }
+    }
+
     public Vector3 GetLocalDesiredMoveWorld()
     {
         return localMoveWorld;

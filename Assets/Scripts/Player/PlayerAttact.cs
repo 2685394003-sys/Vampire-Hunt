@@ -65,6 +65,19 @@ public sealed class PlayerAttact : MonoBehaviour
         serverHitCoroutine = StartCoroutine(ServerResolveAfterDelay(sequence));
     }
 
+    /// <summary>
+    /// True while the attack animation is active (checked by root motion driver).
+    /// </summary>
+    public bool IsAttackAnimationPlaying
+    {
+        get
+        {
+            if (anim != null && anim.GetBool("isAttacting")) return true;
+            if (attackPointAnim != null && attackPointAnim.GetBool("isAttacking")) return true;
+            return false;
+        }
+    }
+
     public void PlayAttackPresentation()
     {
         if (anim != null)
