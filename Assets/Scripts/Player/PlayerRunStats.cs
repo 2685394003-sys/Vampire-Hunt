@@ -18,7 +18,9 @@ public enum PlayerStatType
     CritDamage = 10,
     InvincibleTime = 11,
     FlashSpeed = 12,
-    MaxScarlet = 13
+    MaxScarlet = 13,
+    DashSpeedMultiplier = 14,
+    DashDuration = 15
 }
 
 /// <summary>Legacy one-shot upgrade operation kept for existing callers.</summary>
@@ -335,6 +337,8 @@ public interface IPlayerRunStats
     float AttackCooldown { get; }
     float KnockbackForce { get; }
     float MoveSpeed { get; }
+    float DashSpeedMultiplier { get; }
+    float DashDuration { get; }
     float CritRate { get; }
     float CritDamage { get; }
     float InvincibleTime { get; }

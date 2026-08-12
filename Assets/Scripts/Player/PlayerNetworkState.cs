@@ -23,6 +23,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private readonly NetworkVariable<float> networkDamage = ServerVariable(10f);
     private readonly NetworkVariable<float> networkWeaponRange = ServerVariable(2f);
     private readonly NetworkVariable<float> networkMoveSpeed = ServerVariable(5f);
+    private readonly NetworkVariable<float> networkDashSpeedMultiplier = ServerVariable(2f);
+    private readonly NetworkVariable<float> networkDashDuration = ServerVariable(0.15f);
     private readonly NetworkVariable<float> networkAttackCooldown = ServerVariable(1f);
     private readonly NetworkVariable<float> networkKnockbackForce = ServerVariable(5f);
     private readonly NetworkVariable<float> networkCritRate = ServerVariable(0.05f);
@@ -43,6 +45,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private float offlineDamage;
     private float offlineWeaponRange;
     private float offlineMoveSpeed;
+    private float offlineDashSpeedMultiplier;
+    private float offlineDashDuration;
     private float offlineAttackCooldown;
     private float offlineKnockbackForce;
     private float offlineCritRate;
@@ -74,6 +78,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     public float Damage => Read(networkDamage, offlineDamage);
     public float WeaponRange => Read(networkWeaponRange, offlineWeaponRange);
     public float MoveSpeed => Read(networkMoveSpeed, offlineMoveSpeed);
+    public float DashSpeedMultiplier => Read(networkDashSpeedMultiplier, offlineDashSpeedMultiplier);
+    public float DashDuration => Read(networkDashDuration, offlineDashDuration);
     public float AttackCooldown => Read(networkAttackCooldown, offlineAttackCooldown);
     public float KnockbackForce => Read(networkKnockbackForce, offlineKnockbackForce);
     public float CritRate => Read(networkCritRate, offlineCritRate);
@@ -359,6 +365,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         offlineDamage = config != null ? config.BaseAttack : 10f;
         offlineWeaponRange = config != null ? config.AttackRange : 2f;
         offlineMoveSpeed = config != null ? config.MoveSpeed : 5f;
+        offlineDashSpeedMultiplier = config != null ? config.DashSpeedMultiplier : 2f;
+        offlineDashDuration = config != null ? config.DashDuration : 0.15f;
         offlineAttackCooldown = config != null ? config.AttackInterval : 1f;
         offlineKnockbackForce = config != null ? config.KnockbackForce : 5f;
         offlineCritRate = config != null ? config.CritRate : 0.05f;
@@ -382,6 +390,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkDamage.Value = config != null ? config.BaseAttack : 10f;
         networkWeaponRange.Value = config != null ? config.AttackRange : 2f;
         networkMoveSpeed.Value = config != null ? config.MoveSpeed : 5f;
+        networkDashSpeedMultiplier.Value = config != null ? config.DashSpeedMultiplier : 2f;
+        networkDashDuration.Value = config != null ? config.DashDuration : 0.15f;
         networkAttackCooldown.Value = config != null ? config.AttackInterval : 1f;
         networkKnockbackForce.Value = config != null ? config.KnockbackForce : 5f;
         networkCritRate.Value = config != null ? config.CritRate : 0.05f;
@@ -410,6 +420,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             PlayerStatType.AttackInterval => config.AttackInterval,
             PlayerStatType.KnockbackForce => config.KnockbackForce,
             PlayerStatType.MoveSpeed => config.MoveSpeed,
+            PlayerStatType.DashSpeedMultiplier => config.DashSpeedMultiplier,
+            PlayerStatType.DashDuration => config.DashDuration,
             PlayerStatType.CritRate => config.CritRate,
             PlayerStatType.CritDamage => config.CritDamage,
             PlayerStatType.InvincibleTime => config.InvincibleTime,
@@ -454,6 +466,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
                 break;
             case PlayerStatType.AttackInterval:
             case PlayerStatType.FlashSpeed:
+            case PlayerStatType.DashSpeedMultiplier:
+            case PlayerStatType.DashDuration:
                 minimum = 0.01f;
                 break;
             case PlayerStatType.CritRate:
@@ -505,6 +519,18 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
                 break;
             case PlayerStatType.MoveSpeed:
                 SetRuntimeFloat(networkMoveSpeed, ref offlineMoveSpeed, Mathf.Max(0f, value));
+                break;
+            case PlayerStatType.DashSpeedMultiplier:
+                SetRuntimeFloat(
+                    networkDashSpeedMultiplier,
+                    ref offlineDashSpeedMultiplier,
+                    Mathf.Max(0.01f, value));
+                break;
+            case PlayerStatType.DashDuration:
+                SetRuntimeFloat(
+                    networkDashDuration,
+                    ref offlineDashDuration,
+                    Mathf.Max(0.01f, value));
                 break;
             case PlayerStatType.CritRate:
                 SetRuntimeFloat(networkCritRate, ref offlineCritRate, Mathf.Clamp01(value));
@@ -624,6 +650,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkDamage.OnValueChanged += HandleDamageChanged;
         networkWeaponRange.OnValueChanged += HandleAttackRangeChanged;
         networkMoveSpeed.OnValueChanged += HandleMoveSpeedChanged;
+        networkDashSpeedMultiplier.OnValueChanged += HandleDashSpeedMultiplierChanged;
+        networkDashDuration.OnValueChanged += HandleDashDurationChanged;
         networkAttackCooldown.OnValueChanged += HandleAttackIntervalChanged;
         networkKnockbackForce.OnValueChanged += HandleKnockbackChanged;
         networkCritRate.OnValueChanged += HandleCritRateChanged;
@@ -646,6 +674,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkDamage.OnValueChanged -= HandleDamageChanged;
         networkWeaponRange.OnValueChanged -= HandleAttackRangeChanged;
         networkMoveSpeed.OnValueChanged -= HandleMoveSpeedChanged;
+        networkDashSpeedMultiplier.OnValueChanged -= HandleDashSpeedMultiplierChanged;
+        networkDashDuration.OnValueChanged -= HandleDashDurationChanged;
         networkAttackCooldown.OnValueChanged -= HandleAttackIntervalChanged;
         networkKnockbackForce.OnValueChanged -= HandleKnockbackChanged;
         networkCritRate.OnValueChanged -= HandleCritRateChanged;
@@ -686,6 +716,9 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private void HandleDamageChanged(float p, float c) => Notify(PlayerStatType.BaseAttack);
     private void HandleAttackRangeChanged(float p, float c) => Notify(PlayerStatType.AttackRange);
     private void HandleMoveSpeedChanged(float p, float c) => Notify(PlayerStatType.MoveSpeed);
+    private void HandleDashSpeedMultiplierChanged(float p, float c) =>
+        Notify(PlayerStatType.DashSpeedMultiplier);
+    private void HandleDashDurationChanged(float p, float c) => Notify(PlayerStatType.DashDuration);
     private void HandleAttackIntervalChanged(float p, float c) => Notify(PlayerStatType.AttackInterval);
     private void HandleKnockbackChanged(float p, float c) => Notify(PlayerStatType.KnockbackForce);
     private void HandleCritRateChanged(float p, float c) => Notify(PlayerStatType.CritRate);

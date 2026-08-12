@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemyShoot : MonoBehaviour
@@ -7,6 +6,7 @@ public class EnemyShoot : MonoBehaviour
     public Transform firePoint;
     public GameObject bulletPrefab;
     private EnemyMovement enemyMove;
+    private bool shotPending;
 
     void Start()
     {
@@ -16,8 +16,31 @@ public class EnemyShoot : MonoBehaviour
     
     public void Shoot()
     {
-        if (!NetworkAuthority.IsServerOrOffline())
+        if (!NetworkAuthority.IsServerOrOffline() || shotPending)
             return;
+
+        EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+        float delay = stats != null ? stats.shootWaitTime : 0f;
+        if (delay > 0f)
+        {
+            StartCoroutine(ShootAfterDelay(delay, stats));
+            return;
+        }
+
+        SpawnProjectile(stats);
+    }
+
+    private IEnumerator ShootAfterDelay(float delay, EnemyStatsConfig stats)
+    {
+        shotPending = true;
+        yield return new WaitForSeconds(delay);
+        shotPending = false;
+        if (NetworkAuthority.IsServerOrOffline()) SpawnProjectile(stats);
+    }
+
+    private void SpawnProjectile(EnemyStatsConfig stats)
+    {
+        if (firePoint == null || bulletPrefab == null) return;
 
         Transform targetPlayer = null;
         if(enemyMove != null)
@@ -25,15 +48,18 @@ public class EnemyShoot : MonoBehaviour
             targetPlayer = enemyMove.GetPlayerTarget();
         }
 
-        GameObject bulletObj = NetworkSpawnUtility.Spawn(bulletPrefab, firePoint.position, Quaternion.identity);
+        GameObject bulletObj = NetworkSpawnUtility.Spawn(
+            bulletPrefab,
+            firePoint.position,
+            Quaternion.identity);
         if (bulletObj == null)
             return;
 
         Shoot bullet = bulletObj.GetComponent<Shoot>();
 
-        if(bullet != null && targetPlayer != null)
+        if(bullet != null)
         {
-            bullet.targetPlayer = targetPlayer;
+            bullet.Configure(targetPlayer, stats);
         }
     }
 }

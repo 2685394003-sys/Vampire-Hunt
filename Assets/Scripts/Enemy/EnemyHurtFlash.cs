@@ -21,19 +21,23 @@ public class EnemyHurtFlash : MonoBehaviour
         if (flashTimer > 0)
         {
             flashTimer -= Time.deltaTime;
-            // 持续保持红色，不再来回切换
-            enemySprite.color = hurtRed;
+            EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+            float frequency = stats != null ? stats.hurtFlashSpeed : 15f;
+            bool showHurtColor =
+                Mathf.Sin(Time.time * Mathf.PI * 2f * Mathf.Max(0.01f, frequency)) > 0f;
+            if (enemySprite != null)
+                enemySprite.color = showHurtColor ? hurtRed : originalColor;
         }
         else
         {
             // 时间结束恢复原本颜色
-            enemySprite.color = originalColor;
+            if (enemySprite != null) enemySprite.color = originalColor;
         }
     }
 
     public void StartHurtFlash()
     {
-        // 再次受伤直接重置计时，重新保持红色
+        // 再次受伤直接重置计时。
         EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
         flashTimer = stats != null ? stats.hurtFlashDuration : 0.3f;
     }

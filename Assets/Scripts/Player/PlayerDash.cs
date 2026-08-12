@@ -10,8 +10,6 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(PlayerNetworkState))]
 public sealed class PlayerDash : NetworkBehaviour
 {
-    [Header("冲刺设置 / Dash Settings")]
-    [Min(0f)] public float dashDuration = 0.15f;
     public InputAction shiftAction;
     public InputAction moveAction;
 
@@ -91,7 +89,7 @@ public sealed class PlayerDash : NetworkBehaviour
             return;
         }
 
-        if (!playerController.ServerTryStartDash(desiredDirection, dashDuration))
+        if (!playerController.ServerTryStartDash(desiredDirection, playerState.DashDuration))
         {
             // Dash was rejected after stamina validation; refund on the server.
             playerState.RestoreStamina(cost);

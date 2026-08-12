@@ -1,0 +1,533 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1161616161616161616161616161616, type: 3}
+  m_Name: BloodPacts
+  m_EditorClassIdentifier: Assembly-CSharp::BloodPactConfig
+  pacts:
+  - displayName: 渡鸦之翼
+    pactId: update_001
+    tier: 1
+    moveSpeed: 2
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 芬里尔之牙
+    pactId: update_002
+    tier: 1
+    moveSpeed: 0
+    attackPower: 2
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 约顿之躯
+    pactId: update_003
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 20
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 不朽之血
+    pactId: update_004
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 20
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 奥丁之眼
+    pactId: update_005
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0.05
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 处刑之刃
+    pactId: update_006
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0.3
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 疾风之步
+    pactId: update_007
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0.1
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 长镰之锋
+    pactId: update_008
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0.5
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 雷神之锤
+    pactId: update_009
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 2
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 嗜血之渴
+    pactId: update_010
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 占位符
+  - displayName: 铁壁之纹
+    pactId: update_011
+    tier: 1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0.2
+    specialEffect:
+  - displayName: 血潮之契
+    pactId: update_012
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 攻击敌人附加流血效果，流血可连锁传播
+  - displayName: 残月之契
+    pactId: update_013
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 1
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 攻击时散发弧形剑气，大幅延长攻击范围
+  - displayName: 荒芜之契
+    pactId: update_014
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 以自身为中心产生领域，领域内敌人持续受到伤害
+  - displayName: 烬火之契
+    pactId: update_015
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 攻击有几率触发灼烧，持续造成火焰伤害
+  - displayName: 霜息之契
+    pactId: update_016
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 攻击有几率冻结敌人，使其无法移动
+  - displayName: 猩红之吻
+    pactId: update_017
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 攻击命中时回复生命值，吸血续航
+  - displayName: 猎杀之契
+    pactId: update_018
+    tier: 2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0.05
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 暴击时触发追猎效果，对低血量敌人额外伤害
+  - displayName: 加姆之吠
+    pactId: update_019
+    tier: 3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0.5
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 攻击变为前方三段连击，每段范围递增
+  - displayName: 苏尔特之焰
+    pactId: update_020
+    tier: 3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 所有攻击必定触发灼烧，灼烧伤害翻倍
+  - displayName: 狂战士之怒
+    pactId: update_021
+    tier: 3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 生命值越低，攻击力和暴击率越高，残血爆发
+  - displayName: 诸神黄昏
+    pactId: update_022
+    tier: 3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 猩红值满时进入爆发状态，全属性大幅提升
+  - displayName: 世界树之根
+    pactId: update_023
+    tier: 3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 冲刺不消耗体力，击杀敌人重置冲刺冷却
+  - displayName: 饿狼之饥
+    pactId: update_024
+    tier: -1
+    moveSpeed: 2
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 凶兽之爪
+    pactId: update_025
+    tier: -1
+    moveSpeed: 0
+    attackPower: 2
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 尸鬼之皮
+    pactId: update_026
+    tier: -1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 30
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 长臂之握
+    pactId: update_027
+    tier: -1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0.5
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 重击之拳
+    pactId: update_028
+    tier: -1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 1
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 迅捷之爪
+    pactId: update_029
+    tier: -1
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0.2
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect:
+  - displayName: 龙鳞之铠
+    pactId: update_030
+    tier: -2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 精英怪获得装甲，需弹反破防后才能造成正常伤害
+  - displayName: 亡者之嚎
+    pactId: update_031
+    tier: -2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 敌人死亡时有几率召唤一只近战小怪
+  - displayName: 爆裂之躯
+    pactId: update_032
+    tier: -2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 敌人死亡时发生爆炸，对周围玩家造成范围伤害
+  - displayName: 霜冻之甲
+    pactId: update_033
+    tier: -2
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 敌人受击时有几率释放冰霜，减速玩家移动速度
+  - displayName: 诸神黄昏·末曲
+    pactId: update_034
+    tier: -3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 所有敌人攻击力提升50%，移动速度提升30%，狂暴化
+  - displayName: 苏尔特之降临
+    pactId: update_035
+    tier: -3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 所有敌人的攻击附带灼烧效果，玩家受击后持续掉血
+  - displayName: 海拉之拥抱
+    pactId: update_036
+    tier: -3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 0
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 精英怪濒死时进入不死状态5秒，期间攻击力翻倍且无法被击退
+  - displayName: 血月之蚀
+    pactId: update_037
+    tier: -3
+    moveSpeed: 0
+    attackPower: 0
+    maxHealth: 50
+    maxStamina: 0
+    critRate: 0
+    critDamage: 0
+    cooldownReduction: 0
+    weaponRange: 0
+    knockbackForce: 0
+    invincibleTime: 0
+    specialEffect: 所有敌人最大生命值翻倍，击杀后掉落猩红资源和金币翻倍

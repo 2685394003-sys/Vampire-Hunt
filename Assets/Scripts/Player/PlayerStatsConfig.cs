@@ -32,15 +32,15 @@ public sealed class PlayerStatsConfig : ScriptableObject
 
     [Header("移动与受伤反馈 / Movement & Hurt Feedback")]
     [SerializeField, Min(0f)] private float moveSpeed = 5f;
+    [SerializeField, Min(0.01f)] private float dashSpeedMultiplier = 2f;
+    [SerializeField, Min(0.01f)] private float dashDuration = 0.15f;
     [SerializeField, Min(0f)] private float invincibleTime = 0.8f;
     [Tooltip("每秒闪烁次数 / flashes per second")]
     [SerializeField, Min(0.01f)] private float flashSpeed = 10f;
 
     [Header("战斗系统补充参数 / Supplemental Combat Settings")]
-    [Tooltip("策划 CSV 暂未包含：击退维持时间。")]
-    [SerializeField, Min(0f)] private float knockbackDuration = 2f;
-    [Tooltip("策划 CSV 暂未包含：敌人受击后的额外硬直时间。")]
-    [SerializeField, Min(0f)] private float stunDuration = 2f;
+    [SerializeField, Min(0f)] private float knockbackDuration = 0.2f;
+    [SerializeField, Min(0f)] private float stunDuration = 0.2f;
     [SerializeField] private LayerMask enemyLayer = 1 << 7;
 
     public string PlayerId => playerId;
@@ -54,6 +54,8 @@ public sealed class PlayerStatsConfig : ScriptableObject
     public float AttackInterval => attackInterval;
     public float KnockbackForce => knockbackForce;
     public float MoveSpeed => moveSpeed;
+    public float DashSpeedMultiplier => dashSpeedMultiplier;
+    public float DashDuration => dashDuration;
     public float CritRate => critRate;
     public float CritDamage => critDamage;
     public float InvincibleTime => invincibleTime;
@@ -78,6 +80,8 @@ public sealed class PlayerStatsConfig : ScriptableObject
         attackInterval = Mathf.Max(0.01f, attackInterval);
         knockbackForce = Mathf.Max(0f, knockbackForce);
         moveSpeed = Mathf.Max(0f, moveSpeed);
+        dashSpeedMultiplier = Mathf.Max(0.01f, dashSpeedMultiplier);
+        dashDuration = Mathf.Max(0.01f, dashDuration);
         critRate = Mathf.Clamp01(critRate);
         critDamage = Mathf.Max(1f, critDamage);
         invincibleTime = Mathf.Max(0f, invincibleTime);

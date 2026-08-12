@@ -7,9 +7,8 @@ public sealed class EnemyHealth : NetworkBehaviour
 {
     [SerializeField] private EnemyStatsConfig stats;
     public GameObject healthPackPrefab;
-    [Range(0f, 1f)] public float healthPackDropChance = 0.2f;
+    public GameObject redResourcePrefab;
     public GameObject coinPrefab;
-    [Range(0f, 1f)] public float coinDropChance = 0.5f;
 
     private readonly NetworkVariable<int> networkHealth = new(
         1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -19,6 +18,7 @@ public sealed class EnemyHealth : NetworkBehaviour
     private EnemyHurtFlash hurtFlash;
     private int offlineHealth;
     private bool offlineDead;
+    private int cachedMaxHealth;
 
     public int CurrentHealth => UseNetworkValues ? networkHealth.Value : offlineHealth;
     public bool IsDead => UseNetworkValues ? networkDead.Value : offlineDead;
@@ -33,14 +33,19 @@ public sealed class EnemyHealth : NetworkBehaviour
         }
 
         hurtFlash = GetComponent<EnemyHurtFlash>();
-        offlineHealth = GetConfiguredMaxHealth();
+        cachedMaxHealth = GetConfiguredMaxHealth();
+        offlineHealth = cachedMaxHealth;
     }
+
+    private void OnEnable() => EnemyRunStats.StatChanged += HandleRunStatChanged;
+    private void OnDisable() => EnemyRunStats.StatChanged -= HandleRunStatChanged;
 
     public override void OnNetworkSpawn()
     {
         if (IsServer)
         {
-            networkHealth.Value = GetConfiguredMaxHealth();
+            cachedMaxHealth = GetConfiguredMaxHealth();
+            networkHealth.Value = cachedMaxHealth;
             networkDead.Value = false;
         }
     }
@@ -76,8 +81,10 @@ public sealed class EnemyHealth : NetworkBehaviour
         }
 
         SetDead(true);
-        ServerTryDrop(healthPackPrefab, healthPackDropChance);
-        ServerTryDrop(coinPrefab, coinDropChance);
+        EnemyStatsConfig config = Config;
+        ServerTryDrop(healthPackPrefab, config != null ? config.healthPackDropChance : 0f);
+        ServerDropCount(redResourcePrefab, config != null ? config.redResourceDropAmount : 0);
+        ServerDropCount(coinPrefab, config != null ? config.coinDropAmount : 0);
         NetworkSpawnUtility.Despawn(gameObject);
     }
 
@@ -91,6 +98,17 @@ public sealed class EnemyHealth : NetworkBehaviour
         Vector2 offset = Random.insideUnitCircle * 0.5f;
         Vector3 position = transform.position + new Vector3(offset.x, 0f, offset.y);
         NetworkSpawnUtility.Spawn(prefab, position, Quaternion.identity);
+    }
+
+    private void ServerDropCount(GameObject prefab, int count)
+    {
+        if (prefab == null) return;
+        for (int index = 0; index < Mathf.Max(0, count); index++)
+        {
+            Vector2 offset = Random.insideUnitCircle * 0.5f;
+            Vector3 position = transform.position + new Vector3(offset.x, 0f, offset.y);
+            NetworkSpawnUtility.Spawn(prefab, position, Quaternion.identity);
+        }
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -114,6 +132,21 @@ public sealed class EnemyHealth : NetworkBehaviour
     private int GetConfiguredMaxHealth()
     {
         EnemyStatsConfig config = Config;
-        return Mathf.Max(1, config != null ? config.maxHealth : 1);
+        return Mathf.Max(1, EnemyRunStats.GetRoundedValue(config, EnemyStatType.MaxHealth));
+    }
+
+    private void HandleRunStatChanged(EnemyStatType statType)
+    {
+        if (statType != EnemyStatType.MaxHealth ||
+            !NetworkAuthority.IsServerOrOffline(this) ||
+            IsDead)
+        {
+            return;
+        }
+
+        int nextMaxHealth = GetConfiguredMaxHealth();
+        int delta = nextMaxHealth - cachedMaxHealth;
+        cachedMaxHealth = nextMaxHealth;
+        SetHealth(Mathf.Clamp(CurrentHealth + Mathf.Max(0, delta), 0, nextMaxHealth));
     }
 }

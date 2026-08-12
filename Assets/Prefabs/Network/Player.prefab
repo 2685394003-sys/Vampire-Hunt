@@ -777,7 +777,6 @@ MonoBehaviour:
   playerAttack: {fileID: 755214740615585287}
   inputSendRate: 20
   inputTimeout: 0.5
-  dashSpeedMultiplier: 2
   turnSpeed: 720
   moveDampTime: 0.2
   attackWindupDuration: 0.18
@@ -802,7 +801,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDash
   ShowTopMostFoldoutHeaderGroup: 1
-  dashDuration: 0.03
   shiftAction:
     m_Name: Shift
     m_Type: 0

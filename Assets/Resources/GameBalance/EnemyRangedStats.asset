@@ -10,36 +10,36 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b1030303030303030303030303030303, type: 3}
-  m_Name: EnemyDefaultStats
+  m_Name: EnemyRangedStats
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStatsConfig
-  enemyId: enemy_0001
-  enemyName: 近战小怪
-  maxHealth: 30
-  damage: 3
-  moveSpeed: 4
-  weaponRange: 1.5
-  knockbackForce: 0.2
-  knockbackTime: 0.2
-  attackCooldown: 1.2
-  stunTime: 0.3
+  enemyId: enemy_0002
+  enemyName: 远程小怪
+  maxHealth: 18
+  damage: 2
+  moveSpeed: 3
+  weaponRange: 3
+  knockbackForce: 0
+  knockbackTime: 0
+  attackCooldown: 1.5
+  stunTime: 0
   canBeParried: 0
   parryWindupTime: 0
   redResourceDropAmount: 1
-  coinDropAmount: 5
-  healthPackDropChance: 0.3
-  isRanged: 0
-  projectileDamage: 0
-  enhancedProjectileDamage: 0
-  shootCooldown: 0
-  projectileLifetime: 0
-  projectileSpeed: 0
-  shootWaitTime: 0
-  shootRange: 0
-  inRangeAttackCooldown: 0
+  coinDropAmount: 4
+  healthPackDropChance: 0.2
+  isRanged: 1
+  projectileDamage: 2
+  enhancedProjectileDamage: 4
+  shootCooldown: 2
+  projectileLifetime: 3
+  projectileSpeed: 12
+  shootWaitTime: 0.5
+  shootRange: 15
+  inRangeAttackCooldown: 1.5
   rangedPatrolRange: 0
   hurtFlashDuration: 0.2
   hurtFlashSpeed: 15
-  playerDetectRange: 5
+  playerDetectRange: 15
   slowDeceleration: 3
   playerLayer:
     serializedVersion: 2

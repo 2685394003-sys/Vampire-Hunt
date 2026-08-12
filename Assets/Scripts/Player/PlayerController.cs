@@ -26,7 +26,6 @@ public sealed class PlayerController : NetworkBehaviour
     [Header("服务器移动 / Server Movement")]
     [SerializeField, Min(1f)] private float inputSendRate = 20f;
     [SerializeField, Min(0.1f)] private float inputTimeout = 0.5f;
-    [SerializeField, Min(1f)] private float dashSpeedMultiplier = 2f;
     [SerializeField, Min(0f)] private float turnSpeed = 720f;
 
     [Header("动画过渡 / Animation Blending")]
@@ -165,7 +164,7 @@ public sealed class PlayerController : NetworkBehaviour
         else if (serverDashRemaining > 0f)
         {
             serverDashRemaining = Mathf.Max(0f, serverDashRemaining - Time.fixedDeltaTime);
-            desiredVelocity = serverDashDirection * playerState.MoveSpeed * dashSpeedMultiplier;
+            desiredVelocity = serverDashDirection * playerState.MoveSpeed * playerState.DashSpeedMultiplier;
             MoveAuthoritatively(desiredVelocity, Time.fixedDeltaTime);
             if (serverDashRemaining <= 0f)
             {

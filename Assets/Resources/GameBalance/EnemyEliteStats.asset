@@ -10,23 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b1030303030303030303030303030303, type: 3}
-  m_Name: EnemyDefaultStats
+  m_Name: EnemyEliteStats
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStatsConfig
-  enemyId: enemy_0001
-  enemyName: 近战小怪
-  maxHealth: 30
-  damage: 3
-  moveSpeed: 4
-  weaponRange: 1.5
-  knockbackForce: 0.2
-  knockbackTime: 0.2
-  attackCooldown: 1.2
-  stunTime: 0.3
-  canBeParried: 0
-  parryWindupTime: 0
-  redResourceDropAmount: 1
-  coinDropAmount: 5
-  healthPackDropChance: 0.3
+  enemyId: enemy_0003
+  enemyName: 精英怪
+  maxHealth: 60
+  damage: 5
+  moveSpeed: 3.5
+  weaponRange: 2
+  knockbackForce: 0.5
+  knockbackTime: 0.3
+  attackCooldown: 2
+  stunTime: 0.5
+  canBeParried: 1
+  parryWindupTime: 0.3
+  redResourceDropAmount: 5
+  coinDropAmount: 15
+  healthPackDropChance: 0.5
   isRanged: 0
   projectileDamage: 0
   enhancedProjectileDamage: 0

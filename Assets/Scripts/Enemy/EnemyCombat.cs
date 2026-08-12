@@ -15,13 +15,15 @@ public sealed class EnemyCombat : MonoBehaviour
         if (target == null || EnemyAttackPoint == null || stats == null)
             return;
 
-        if (Vector3.Distance(EnemyAttackPoint.position, target.position) > stats.weaponRange)
+        float weaponRange = EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange);
+        if (Vector3.Distance(EnemyAttackPoint.position, target.position) > weaponRange)
             return;
 
-        target.GetComponentInParent<PlayerHealth>()?.ChangeHealth(stats.damage);
+        int damage = EnemyRunStats.GetRoundedValue(stats, EnemyStatType.Damage);
+        target.GetComponentInParent<PlayerHealth>()?.ChangeHealth(damage);
         target.GetComponentInParent<PlayerController>()?.Knockback(
             transform,
-            stats.knockbackForce,
+            EnemyRunStats.GetValue(stats, EnemyStatType.KnockbackForce),
             stats.stunTime);
     }
 
@@ -31,6 +33,8 @@ public sealed class EnemyCombat : MonoBehaviour
         if (EnemyAttackPoint == null || stats == null)
             return;
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(EnemyAttackPoint.position, stats.weaponRange);
+        Gizmos.DrawWireSphere(
+            EnemyAttackPoint.position,
+            EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange));
     }
 }
