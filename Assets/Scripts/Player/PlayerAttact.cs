@@ -193,7 +193,7 @@ public sealed class PlayerAttact : MonoBehaviour
                 continue;
             }
 
-            enemyHealth.ChangeEnemyHealth(attackDamage);
+            enemyHealth.ChangeEnemyHealth(attackDamage, playerState);
             EnemyKnockBack enemyKnockBack = hit.GetComponentInParent<EnemyKnockBack>();
             enemyKnockBack?.EnemyKnockback(
                 transform,

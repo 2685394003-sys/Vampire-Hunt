@@ -158,20 +158,6 @@ public static class VampireHuntNetworkSetup
             Register(list, shooter.bulletPrefab);
         }
 
-        foreach (EnemyHealth enemyHealth in Object.FindObjectsByType<EnemyHealth>(
-                     FindObjectsInactive.Include,
-                     FindObjectsSortMode.None))
-        {
-            RegisterSpawnPrefab(list, enemyHealth.healthPackPrefab);
-            RegisterSpawnPrefab(list, enemyHealth.coinPrefab);
-        }
-    }
-
-    private static void RegisterSpawnPrefab(NetworkPrefabsList list, GameObject prefab)
-    {
-        if (prefab == null) return;
-        PreparePrefabAsset(prefab);
-        Register(list, prefab);
     }
 
     private static void PreparePrefabAsset(GameObject prefab)

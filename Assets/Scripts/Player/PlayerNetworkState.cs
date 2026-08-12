@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -11,6 +12,8 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkObject))]
 public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
 {
+    public const float BloodPactScarletCost = 100f;
+
     [SerializeField] private PlayerStatsConfig baseStats;
     [SerializeField] private bool hideVisualsWhenDead = true;
 
@@ -33,6 +36,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private readonly NetworkVariable<float> networkFlashSpeed = ServerVariable(10f);
     private readonly NetworkVariable<float> networkMaxScarlet = ServerVariable(100f);
     private readonly NetworkVariable<float> networkScarlet = ServerVariable(0f);
+    private readonly NetworkVariable<int> networkCoins = ServerVariable(0);
     private readonly NetworkVariable<bool> networkAlive = ServerVariable(true);
     private readonly NetworkVariable<bool> networkInitialized = ServerVariable(false);
 
@@ -55,15 +59,18 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private float offlineFlashSpeed;
     private float offlineMaxScarlet;
     private float offlineScarlet;
+    private int offlineCoins;
     private bool offlineAlive;
     private bool staminaRecoveryPaused;
     private readonly PlayerStatModifierCollection runModifiers = new();
     private readonly HashSet<PlayerStatType> changedStatsScratch = new();
+    private readonly HashSet<string> selectedBloodPacts = new(StringComparer.Ordinal);
     private int generatedModifierSequence;
 
     public event Action<int, int> HealthChanged;
     public event Action<float, float> StaminaChanged;
     public event Action<float, float> ScarletChanged;
+    public event Action<int> CoinsChanged;
     public event Action<bool> AliveChanged;
     public event Action<PlayerStatType> RunStatChanged;
 
@@ -88,6 +95,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     public float FlashSpeed => Read(networkFlashSpeed, offlineFlashSpeed);
     public float MaxScarlet => Read(networkMaxScarlet, offlineMaxScarlet);
     public float CurrentScarlet => Read(networkScarlet, offlineScarlet);
+    public int CurrentCoins => UseNetworkValues ? networkCoins.Value : offlineCoins;
     public bool IsAlive => UseNetworkValues ? networkAlive.Value : offlineAlive;
 
     // These two supplemental timings are intentionally baseline-only until design
@@ -209,6 +217,90 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             SetScarlet(CurrentScarlet + amount);
     }
 
+    public void AddCoins(int amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0) return;
+
+        long nextValue = (long)CurrentCoins + amount;
+        SetCoins((int)Math.Min(int.MaxValue, nextValue));
+    }
+
+    public bool TrySpendCoins(int amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            amount < 0 ||
+            CurrentCoins < amount)
+        {
+            return false;
+        }
+
+        SetCoins(CurrentCoins - amount);
+        return true;
+    }
+
+    /// <summary>
+    /// Requests a server-authoritative blood-pact purchase. The server owns the
+    /// fixed cost and validates the pact database entry and duplicate state.
+    /// </summary>
+    public bool RequestBloodPactSelection(string pactId)
+    {
+        if (string.IsNullOrWhiteSpace(pactId) || pactId.Length > 64)
+        {
+            return false;
+        }
+
+        if (!NetworkAuthority.IsNetworkActive)
+        {
+            return ServerTrySelectBloodPact(pactId.Trim());
+        }
+
+        if (!IsSpawned || !IsOwner)
+        {
+            return false;
+        }
+
+        RequestBloodPactSelectionRpc(new FixedString64Bytes(pactId.Trim()));
+        return true;
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestBloodPactSelectionRpc(FixedString64Bytes pactId)
+    {
+        ServerTrySelectBloodPact(pactId.ToString());
+    }
+
+    private bool ServerTrySelectBloodPact(string pactId)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            CurrentScarlet + 0.0001f < BloodPactScarletCost)
+        {
+            return false;
+        }
+
+        BloodPactConfig database = BloodPactConfig.LoadDefault();
+        if (database == null ||
+            !database.TryGet(pactId, out BloodPactDefinition pact) ||
+            !pact.IsPlayerPact ||
+            !pact.HasNumericEffects ||
+            (!pact.IsRepeatable && selectedBloodPacts.Contains(pactId)) ||
+            !TryConsumeScarlet(BloodPactScarletCost))
+        {
+            return false;
+        }
+
+        if (!pact.ApplyNumericEffects(this))
+        {
+            AddScarlet(BloodPactScarletCost);
+            return false;
+        }
+
+        if (!pact.IsRepeatable)
+        {
+            selectedBloodPacts.Add(pactId);
+        }
+        return true;
+    }
+
     public bool ApplyDamage(int amount)
     {
         if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || !IsAlive)
@@ -248,6 +340,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         if (!NetworkAuthority.IsServerOrOffline(this)) return;
 
         runModifiers.Clear();
+        selectedBloodPacts.Clear();
         generatedModifierSequence = 0;
         staminaRecoveryPaused = false;
 
@@ -375,6 +468,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         offlineFlashSpeed = config != null ? config.FlashSpeed : 10f;
         offlineMaxScarlet = config != null ? config.MaxScarlet : 100f;
         offlineScarlet = 0f;
+        offlineCoins = 0;
         offlineAlive = true;
     }
 
@@ -400,6 +494,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkFlashSpeed.Value = config != null ? config.FlashSpeed : 10f;
         networkMaxScarlet.Value = config != null ? config.MaxScarlet : 100f;
         networkScarlet.Value = 0f;
+        networkCoins.Value = 0;
         networkAlive.Value = true;
         networkInitialized.Value = true;
     }
@@ -613,6 +708,17 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         }
     }
 
+    private void SetCoins(int value)
+    {
+        value = Mathf.Max(0, value);
+        if (UseNetworkValues) networkCoins.Value = value;
+        else if (offlineCoins != value)
+        {
+            offlineCoins = value;
+            CoinsChanged?.Invoke(offlineCoins);
+        }
+    }
+
     private void SetAlive(bool value)
     {
         if (UseNetworkValues) networkAlive.Value = value;
@@ -644,6 +750,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkMaxStamina.OnValueChanged += HandleNetworkMaxStaminaChanged;
         networkScarlet.OnValueChanged += HandleNetworkScarletChanged;
         networkMaxScarlet.OnValueChanged += HandleNetworkMaxScarletChanged;
+        networkCoins.OnValueChanged += HandleNetworkCoinsChanged;
         networkAlive.OnValueChanged += HandleNetworkAliveChanged;
         networkDashStaminaCost.OnValueChanged += HandleDashCostChanged;
         networkStaminaRecovery.OnValueChanged += HandleStaminaRecoveryChanged;
@@ -668,6 +775,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkMaxStamina.OnValueChanged -= HandleNetworkMaxStaminaChanged;
         networkScarlet.OnValueChanged -= HandleNetworkScarletChanged;
         networkMaxScarlet.OnValueChanged -= HandleNetworkMaxScarletChanged;
+        networkCoins.OnValueChanged -= HandleNetworkCoinsChanged;
         networkAlive.OnValueChanged -= HandleNetworkAliveChanged;
         networkDashStaminaCost.OnValueChanged -= HandleDashCostChanged;
         networkStaminaRecovery.OnValueChanged -= HandleStaminaRecoveryChanged;
@@ -700,6 +808,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     }
     private void HandleNetworkScarletChanged(float previous, float current) =>
         ScarletChanged?.Invoke(current, MaxScarlet);
+    private void HandleNetworkCoinsChanged(int previous, int current) =>
+        CoinsChanged?.Invoke(current);
     private void HandleNetworkMaxScarletChanged(float previous, float current)
     {
         ScarletChanged?.Invoke(CurrentScarlet, current);
@@ -733,6 +843,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         HealthChanged?.Invoke(CurrentHealth, MaxHealth);
         StaminaChanged?.Invoke(CurrentStamina, MaxStamina);
         ScarletChanged?.Invoke(CurrentScarlet, MaxScarlet);
+        CoinsChanged?.Invoke(CurrentCoins);
         AliveChanged?.Invoke(IsAlive);
     }
 

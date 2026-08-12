@@ -169,9 +169,8 @@ public sealed class PlayerStatModifierCollection
 
         if (!DefinitionsMatch(active.Definition, modifier)) return false;
 
-        active.Stacks = Mathf.Min(
-            active.Definition.maxStacks,
-            active.Stacks + modifier.stacks);
+        long combinedStacks = (long)active.Stacks + modifier.stacks;
+        active.Stacks = (int)Math.Min(active.Definition.maxStacks, combinedStacks);
         if (active.Definition.durationSeconds > 0f)
             active.RemainingSeconds = active.Definition.durationSeconds;
         return true;
@@ -345,6 +344,7 @@ public interface IPlayerRunStats
     float FlashSpeed { get; }
     float MaxScarlet { get; }
     float CurrentScarlet { get; }
+    int CurrentCoins { get; }
 
     bool AddStatModifier(PlayerStatModifier modifier);
     bool RemoveStatModifier(string modifierId);

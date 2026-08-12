@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: EnemyDefaultStats
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStatsConfig
   enemyId: enemy_0001
-  enemyName: 近战小怪
+  enemyName: "\u8FD1\u6218\u5C0F\u602A"
   maxHealth: 30
   damage: 3
   moveSpeed: 4
   weaponRange: 1.5
-  knockbackForce: 0.2
-  knockbackTime: 0.2
-  attackCooldown: 1.2
+  knockbackForce: 0
+  knockbackTime: 0
+  attackCooldown: 3.05
   stunTime: 0.3
   canBeParried: 0
   parryWindupTime: 0
-  redResourceDropAmount: 1
+  redResourceDropAmount: 15
   coinDropAmount: 5
   healthPackDropChance: 0.3
   isRanged: 0

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -28,8 +29,43 @@ public sealed class BloodPactDefinition
     public int Tier => tier;
     public bool IsPlayerPact => tier > 0;
     public bool IsEnemyPact => tier < 0;
+    public bool IsRepeatable => tier == 1;
     public string SpecialEffect => specialEffect;
     public bool HasSpecialEffect => !string.IsNullOrWhiteSpace(specialEffect);
+    public bool HasNumericEffects =>
+        !Mathf.Approximately(moveSpeed, 0f) ||
+        !Mathf.Approximately(attackPower, 0f) ||
+        !Mathf.Approximately(maxHealth, 0f) ||
+        !Mathf.Approximately(maxStamina, 0f) ||
+        !Mathf.Approximately(critRate, 0f) ||
+        !Mathf.Approximately(critDamage, 0f) ||
+        !Mathf.Approximately(cooldownReduction, 0f) ||
+        !Mathf.Approximately(weaponRange, 0f) ||
+        !Mathf.Approximately(knockbackForce, 0f) ||
+        !Mathf.Approximately(invincibleTime, 0f);
+
+    public string BuildCardDescription()
+    {
+        List<string> lines = new();
+        AddFlatLine(lines, "移动速度", moveSpeed);
+        AddFlatLine(lines, "攻击力", attackPower);
+        AddFlatLine(lines, "最大生命", maxHealth);
+        AddFlatLine(lines, "最大体力", maxStamina);
+        AddPercentLine(lines, "暴击率", critRate);
+        AddFlatLine(lines, "暴击伤害", critDamage);
+        if (!Mathf.Approximately(cooldownReduction, 0f))
+            lines.Add($"攻击间隔 -{cooldownReduction:0.##}秒");
+        AddFlatLine(lines, "攻击范围", weaponRange);
+        AddFlatLine(lines, "击退力量", knockbackForce);
+        AddFlatLine(lines, "无敌时间", invincibleTime, "秒");
+
+        if (HasSpecialEffect)
+        {
+            lines.Add(specialEffect.Trim());
+        }
+
+        return lines.Count > 0 ? string.Join("\n", lines) : "神秘效果等待觉醒";
+    }
 
     public bool ApplyNumericEffects(PlayerNetworkState player)
     {
@@ -74,7 +110,7 @@ public sealed class BloodPactDefinition
             : IsEnemyPact ? EnemyRunStats.RemoveModifiersFromSource(sourceId) : 0;
     }
 
-    private static void ApplyPlayerFlat(
+    private void ApplyPlayerFlat(
         PlayerNetworkState player,
         string sourceId,
         PlayerStatType stat,
@@ -86,7 +122,8 @@ public sealed class BloodPactDefinition
             sourceId,
             stat,
             PlayerModifierOperation.Flat,
-            value));
+            value,
+            maxStacks: IsRepeatable ? int.MaxValue : 1));
     }
 
     private static void ApplyEnemyFlat(string sourceId, EnemyStatType stat, float value)
@@ -98,5 +135,23 @@ public sealed class BloodPactDefinition
             stat,
             PlayerModifierOperation.Flat,
             value));
+    }
+
+    private static void AddFlatLine(
+        List<string> lines,
+        string label,
+        float value,
+        string suffix = "")
+    {
+        if (Mathf.Approximately(value, 0f)) return;
+        string sign = value > 0f ? "+" : string.Empty;
+        lines.Add($"{label} {sign}{value:0.##}{suffix}");
+    }
+
+    private static void AddPercentLine(List<string> lines, string label, float value)
+    {
+        if (Mathf.Approximately(value, 0f)) return;
+        string sign = value > 0f ? "+" : string.Empty;
+        lines.Add($"{label} {sign}{value * 100f:0.#}%");
     }
 }

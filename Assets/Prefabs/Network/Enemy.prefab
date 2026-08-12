@@ -263,9 +263,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
   ShowTopMostFoldoutHeaderGroup: 1
   stats: {fileID: 11400000, guid: b1131313131313131313131313131313, type: 2}
-  healthPackPrefab: {fileID: 0}
-  redResourcePrefab: {fileID: 0}
-  coinPrefab: {fileID: 0}
 --- !u!114 &5631840021280996341
 MonoBehaviour:
   m_ObjectHideFlags: 0
