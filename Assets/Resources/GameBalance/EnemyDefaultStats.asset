@@ -17,9 +17,9 @@ MonoBehaviour:
   attackRange: 2
   weaponRange: 2
   attackCooldown: 2
-  knockbackForce: 2
-  knockbackTime: 2
-  stunTime: 2
+  knockbackForce: 0.48
+  knockbackTime: 0.75
+  stunTime: 1
   moveSpeed: 2
   playerDetectRange: 5
   slowDeceleration: 3
