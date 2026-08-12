@@ -24,7 +24,7 @@ MonoBehaviour:
     density: 1
     brushSize: 5
     minScale: 0.5
-    maxScale: 1.5
+    maxScale: 0.5
     offsetFromPivot: {x: 0, y: 0, z: 0}
     rotOffsetFromPivot: {x: 0, y: 0, z: 0}
     minSlope: 0
@@ -46,7 +46,7 @@ MonoBehaviour:
     density: 1
     brushSize: 5
     minScale: 0.5
-    maxScale: 1.5
+    maxScale: 0.5
     offsetFromPivot: {x: 0, y: 0, z: 0}
     rotOffsetFromPivot: {x: 0, y: 0, z: 0}
     minSlope: 0
@@ -68,7 +68,7 @@ MonoBehaviour:
     density: 1
     brushSize: 5
     minScale: 0.5
-    maxScale: 1.5
+    maxScale: 0.5
     offsetFromPivot: {x: 0, y: 0, z: 0}
     rotOffsetFromPivot: {x: 0, y: 0, z: 0}
     minSlope: 0

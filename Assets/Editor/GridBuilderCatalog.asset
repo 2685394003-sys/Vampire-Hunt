@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: GridBuilderCatalog
   m_EditorClassIdentifier: Assembly-CSharp-Editor::VampireHunt.EditorTools.GridBuilderCatalog
   entries:
-  - displayName: largebuilding
-    prefab: {fileID: 919132149155446097, guid: 31b0d9f55e9be3b4981abf90f25f66db, type: 3}
+  - displayName: 
+    prefab: {fileID: 2103277007599617203, guid: 6bd8d837a0ba9f547b86688d959a1242, type: 3}
     sizeX: 0
     sizeZ: 0
     yOffset: 0

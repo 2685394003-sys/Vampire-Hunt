@@ -1,0 +1,580 @@
+# 3ds Max Wavefront OBJ Exporter v0.97b - (c)2007 guruware
+# File Created: 26.01.2020 14:03:49
+
+newmtl windowsA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_windowsA_Diffuse.jpg
+	map_Kd KB3D_DKF_windowsA_Diffuse.jpg
+	map_Ks KB3D_DKF_windowsA_Spec.jpg
+	map_bump Map__99_Normal Bump.tga
+	map_refl KB3D_DKF_windowsA_Spec.jpg
+
+newmtl wallB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_wallB_Diffuse.jpg
+	map_Kd KB3D_DKF_wallB_Diffuse.jpg
+	map_Ks KB3D_DKF_wallB_Spec.jpg
+	map_bump Map__69_Normal Bump.tga
+	map_refl KB3D_DKF_wallB_Spec.jpg
+
+newmtl plasterD
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_plasterD_Diffuse.jpg
+	map_Kd KB3D_DKF_plasterD_Diffuse.jpg
+	map_Ks KB3D_DKF_plasterD_Spec.jpg
+	map_bump Map__159_Normal Bump.tga
+	map_refl KB3D_DKF_plasterD_Spec.jpg
+
+newmtl slateB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_slateB_Diffuse.jpg
+	map_Kd KB3D_DKF_slateB_Diffuse.jpg
+	map_Ks KB3D_DKF_slateB_Spec.jpg
+	map_bump Map__34_Normal Bump.tga
+	map_refl KB3D_DKF_slateB_Spec.jpg
+
+newmtl stoneB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_stoneB_Diffuse.jpg
+	map_Kd KB3D_DKF_stoneB_Diffuse.jpg
+	map_Ks KB3D_DKF_stoneB_Spec.jpg
+	map_bump Map__79_Normal Bump.tga
+	map_refl KB3D_DKF_stoneB_Spec.jpg
+
+newmtl slateC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_slateC_Diffuse.jpg
+	map_Kd KB3D_DKF_slateC_Diffuse.jpg
+	map_Ks KB3D_DKF_slateC_Spec.jpg
+	map_bump Map__74_Normal Bump.tga
+	map_refl KB3D_DKF_slateC_Spec.jpg
+
+newmtl stoneA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_stoneA_Diffuse.jpg
+	map_Kd KB3D_DKF_stoneA_Diffuse.jpg
+	map_Ks KB3D_DKF_stoneA_Spec.jpg
+	map_bump Map__39_Normal Bump.tga
+	map_refl KB3D_DKF_stoneA_Spec.jpg
+
+newmtl metalA
+	Ns 95.000000
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_metalA_Diffuse.jpg
+	map_Kd KB3D_DKF_metalA_Diffuse.jpg
+	map_Ks KB3D_DKF_metalA_Spec.jpg
+	map_bump Map__19_Normal Bump.tga
+	map_refl KB3D_DKF_metalA_Spec.jpg
+
+newmtl wallC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_wallC_Diffuse.jpg
+	map_Kd KB3D_DKF_wallC_Diffuse.jpg
+	map_Ks KB3D_DKF_wallC_Spec.jpg
+	map_bump Map__49_Normal Bump.tga
+	map_refl KB3D_DKF_wallC_Spec.jpg
+
+newmtl blocksB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_blocksB_Diffuse.jpg
+	map_Kd KB3D_DKF_blocksB_Diffuse.jpg
+	map_Ks KB3D_DKF_blocksB_Spec.jpg
+	map_bump Map__64_Normal Bump.tga
+	map_refl KB3D_DKF_blocksB_Spec.jpg
+
+newmtl beamA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_beamA_Diffuse.jpg
+	map_Kd KB3D_DKF_beamA_Diffuse.jpg
+	map_Ks KB3D_DKF_beamA_Spec.jpg
+	map_bump Map__94_Normal Bump.tga
+	map_refl KB3D_DKF_beamA_Spec.jpg
+
+newmtl planksC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_planksC_Diffuse.jpg
+	map_Kd KB3D_DKF_planksC_Diffuse.jpg
+	map_Ks KB3D_DKF_planksC_Spec.jpg
+	map_bump Map__9_Normal Bump.tga
+	map_refl KB3D_DKF_planksC_Spec.jpg
+
+newmtl planksA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_planksA_Diffuse.jpg
+	map_Kd KB3D_DKF_planksA_Diffuse.jpg
+	map_Ks KB3D_DKF_planksA_Spec.jpg
+	map_bump Map__24_Normal Bump.tga
+	map_refl KB3D_DKF_planksA_Spec.jpg
+
+newmtl floorA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_floorA_Diffuse.jpg
+	map_Kd KB3D_DKF_floorA_Diffuse.jpg
+	map_Ks KB3D_DKF_floorA_Spec.jpg
+	map_bump Map__84_Normal Bump.tga
+	map_refl KB3D_DKF_floorA_Spec.jpg
+
+newmtl wallA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_wallA_Diffuse.jpg
+	map_Kd KB3D_DKF_wallA_Diffuse.jpg
+	map_Ks KB3D_DKF_wallA_Spec.jpg
+	map_bump Map__29_Normal Bump.tga
+	map_refl KB3D_DKF_wallA_Spec.jpg
+
+newmtl damageA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_damageA_Diffuse.jpg
+	map_Kd KB3D_DKF_damageA_Diffuse.jpg
+	map_Ks KB3D_DKF_damageA_Spec.jpg
+	map_bump Map__14_Normal Bump.tga
+	map_refl KB3D_DKF_damageA_Spec.jpg
+
+newmtl plasterA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_plasterA_Diffuse.jpg
+	map_Kd KB3D_DKF_plasterA_Diffuse.jpg
+	map_Ks KB3D_DKF_plasterA_Spec.jpg
+	map_bump Map__44_Normal Bump.tga
+	map_refl KB3D_DKF_plasterA_Spec.jpg
+
+newmtl windowsC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_windowsC_Diffuse.jpg
+	map_Kd KB3D_DKF_windowsC_Diffuse.jpg
+	map_Ks KB3D_DKF_windowsC_Spec.jpg
+	map_bump Map__114_Normal Bump.tga
+	map_refl KB3D_DKF_windowsC_Spec.jpg
+
+newmtl plasterB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_plasterB_Diffuse.jpg
+	map_Kd KB3D_DKF_plasterB_Diffuse.jpg
+	map_Ks KB3D_DKF_plasterB_Spec.jpg
+	map_bump Map__149_Normal Bump.tga
+	map_refl KB3D_DKF_plasterB_Spec.jpg
+
+newmtl planksD
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_planksD_Diffuse.jpg
+	map_Kd KB3D_DKF_planksD_Diffuse.jpg
+	map_Ks KB3D_DKF_planksD_Spec.jpg
+	map_bump Map__119_Normal Bump.tga
+	map_refl KB3D_DKF_planksD_Spec.jpg
+
+newmtl beamB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_beamB_Diffuse.jpg
+	map_Kd KB3D_DKF_beamB_Diffuse.jpg
+	map_Ks KB3D_DKF_beamB_Spec.jpg
+	map_bump Map__129_Normal Bump.tga
+	map_refl KB3D_DKF_beamB_Spec.jpg
+
+newmtl slateA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_slateA_Diffuse.jpg
+	map_Kd KB3D_DKF_slateA_Diffuse.jpg
+	map_Ks KB3D_DKF_slateA_Spec.jpg
+	map_bump Map__59_Normal Bump.tga
+	map_refl KB3D_DKF_slateA_Spec.jpg
+
+newmtl blocksA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_blocksA_Diffuse.jpg
+	map_Kd KB3D_DKF_blocksA_Diffuse.jpg
+	map_Ks KB3D_DKF_blocksA_Spec.jpg
+	map_bump Map__54_Normal Bump.tga
+	map_refl KB3D_DKF_blocksA_Spec.jpg
+
+newmtl shingleA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_shingleA_Diffuse.jpg
+	map_Kd KB3D_DKF_shingleA_Diffuse.jpg
+	map_Ks KB3D_DKF_shingleA_Spec.jpg
+	map_bump Map__139_Normal Bump.tga
+	map_refl KB3D_DKF_shingleA_Spec.jpg
+
+newmtl planksB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_planksB_Diffuse.jpg
+	map_Kd KB3D_DKF_planksB_Diffuse.jpg
+	map_Ks KB3D_DKF_planksB_Spec.jpg
+	map_bump Map__89_Normal Bump.tga
+	map_refl KB3D_DKF_planksB_Spec.jpg
+
+newmtl doorA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_doorA_Diffuse.jpg
+	map_Kd KB3D_DKF_doorA_Diffuse.jpg
+	map_Ks KB3D_DKF_doorA_Spec.jpg
+	map_bump Map__144_Normal Bump.tga
+	map_refl KB3D_DKF_doorA_Spec.jpg
+
+newmtl beamC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_beamC_Diffuse.jpg
+	map_Kd KB3D_DKF_beamC_Diffuse.jpg
+	map_Ks KB3D_DKF_beamC_Spec.jpg
+	map_bump Map__124_Normal Bump.tga
+	map_refl KB3D_DKF_beamC_Spec.jpg
+
+newmtl plasterC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_plasterC_Diffuse.jpg
+	map_Kd KB3D_DKF_plasterC_Diffuse.jpg
+	map_Ks KB3D_DKF_plasterC_Spec.jpg
+	map_bump Map__154_Normal Bump.tga
+	map_refl KB3D_DKF_plasterC_Spec.jpg
+
+newmtl decoA
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_decoA_Diffuse.jpg
+	map_Kd KB3D_DKF_decoA_Diffuse.jpg
+	map_Ks KB3D_DKF_decoA_Spec.jpg
+	map_bump Map__134_Normal Bump.tga
+	map_refl KB3D_DKF_decoA_Spec.jpg
+
+newmtl blocksC
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_blocksC_Diffuse.jpg
+	map_Kd KB3D_DKF_blocksC_Diffuse.jpg
+	map_Ks KB3D_DKF_blocksC_Spec.jpg
+	map_bump Map__104_Normal Bump.tga
+	map_refl KB3D_DKF_blocksC_Spec.jpg
+
+newmtl windowsB
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_windowsB_Diffuse.jpg
+	map_Kd KB3D_DKF_windowsB_Diffuse.jpg
+	map_Ks KB3D_DKF_windowsB_Spec.jpg
+	map_bump Map__109_Normal Bump.tga
+	map_refl KB3D_DKF_windowsB_Spec.jpg
+
+newmtl wallD
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_wallD_Diffuse.jpg
+	map_Kd KB3D_DKF_wallD_Diffuse.jpg
+	map_Ks KB3D_DKF_wallD_Spec.jpg
+	map_bump Map__169_Normal Bump.tga
+	map_refl KB3D_DKF_wallD_Spec.jpg
+
+newmtl slateD
+	Ns 46.438599
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.640000 0.640000 0.640000
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_slateD_Diffuse.jpg
+	map_Kd KB3D_DKF_slateD_Diffuse.jpg
+	map_Ks KB3D_DKF_slateD_Spec.jpg
+	map_bump Map__164_Normal Bump.tga
+	map_refl KB3D_DKF_slateD_Spec.jpg
+
+newmtl floorB
+	Ns 95.000000
+	Ni 1.500000
+	d 1.000000
+	Tr 0.000000
+	Tf 1.000000 1.000000 1.000000 
+	illum 2
+	Ka 0.800000 0.800000 0.800000
+	Kd 0.800000 0.800000 0.800000
+	Ks 0.555294 0.555294 0.555294
+	Ke 0.000000 0.000000 0.000000
+	map_Ka KB3D_DKF_floorB_Diffuse.jpg
+	map_Kd KB3D_DKF_floorB_Diffuse.jpg
+	map_Ks KB3D_DKF_floorB_Glossy.jpg
+	map_bump Map__4_Normal Bump.tga
+	map_refl KB3D_DKF_floorB_Glossy.jpg

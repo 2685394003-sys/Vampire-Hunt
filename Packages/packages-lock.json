@@ -1,5 +1,15 @@
 {
   "dependencies": {
+    "com.anandev.splinemesh": {
+      "version": "https://github.com/AnanD3V/SplineMesh.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.splines": "2.7.2",
+        "com.unity.formats.fbx": "5.1.5"
+      },
+      "hash": "9ecdad769f001b730735e9320ba18b16bbc26005"
+    },
     "com.anklebreaker.unity-mcp": {
       "version": "https://github.com/AnkleBreaker-Studio/unity-mcp-plugin.git",
       "depth": 0,
