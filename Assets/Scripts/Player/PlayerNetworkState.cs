@@ -1,11 +1,10 @@
 using System;
-using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
 /// Server-owned per-player run state. PlayerStatsConfig is the immutable baseline;
-/// runtime modifiers are aggregated on the server and only final values replicate.
+/// every roguelike upgrade is applied to this runtime copy and replicated.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
@@ -53,9 +52,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private float offlineScarlet;
     private bool offlineAlive;
     private bool staminaRecoveryPaused;
-    private readonly PlayerStatModifierCollection runModifiers = new();
-    private readonly HashSet<PlayerStatType> changedStatsScratch = new();
-    private int generatedModifierSequence;
 
     public event Action<int, int> HealthChanged;
     public event Action<float, float> StaminaChanged;
@@ -140,15 +136,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
 
     private void Update()
     {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return;
-
-        changedStatsScratch.Clear();
-        if (runModifiers.Tick(Time.deltaTime, changedStatsScratch) > 0)
-        {
-            foreach (PlayerStatType stat in changedStatsScratch) RecalculateStat(stat);
-        }
-
-        if (!IsAlive ||
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            !IsAlive ||
             staminaRecoveryPaused ||
             CurrentStamina >= MaxStamina)
         {
@@ -241,10 +230,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     {
         if (!NetworkAuthority.IsServerOrOffline(this)) return;
 
-        runModifiers.Clear();
-        generatedModifierSequence = 0;
-        staminaRecoveryPaused = false;
-
         if (UseNetworkValues) InitializeNetworkState();
         else
         {
@@ -256,8 +241,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     public bool ApplyRunUpgrade(PlayerStatUpgrade upgrade)
     {
         if (!NetworkAuthority.IsServerOrOffline(this) ||
-            !Enum.IsDefined(typeof(PlayerStatType), upgrade.stat) ||
-            !Enum.IsDefined(typeof(PlayerStatOperation), upgrade.operation) ||
             float.IsNaN(upgrade.value) ||
             float.IsInfinity(upgrade.value) ||
             (upgrade.operation == PlayerStatOperation.Multiply && upgrade.value < 0f))
@@ -265,64 +248,12 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             return false;
         }
 
-        string modifierId =
-            $"legacy:{++generatedModifierSequence}:{(int)upgrade.stat}";
-        PlayerModifierOperation operation = upgrade.operation == PlayerStatOperation.Add
-            ? PlayerModifierOperation.Flat
-            : PlayerModifierOperation.Multiplicative;
-        return AddStatModifier(new PlayerStatModifier(
-            modifierId,
-            "legacy_upgrade",
-            upgrade.stat,
-            operation,
-            upgrade.value));
-    }
-
-    public bool AddStatModifier(PlayerStatModifier modifier)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            !runModifiers.AddOrStack(modifier, out PlayerStatType changedStat))
-        {
-            return false;
-        }
-
-        RecalculateStat(changedStat);
-        return true;
-    }
-
-    public bool RemoveStatModifier(string modifierId)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            !runModifiers.Remove(modifierId, out PlayerStatType changedStat))
-        {
-            return false;
-        }
-
-        RecalculateStat(changedStat);
-        return true;
-    }
-
-    public int RemoveStatModifiersFromSource(string sourceId)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return 0;
-
-        changedStatsScratch.Clear();
-        int removed = runModifiers.RemoveBySource(sourceId, changedStatsScratch);
-        foreach (PlayerStatType stat in changedStatsScratch) RecalculateStat(stat);
-        return removed;
-    }
-
-    public bool TryGetStatBreakdown(
-        PlayerStatType stat,
-        out PlayerStatBreakdown breakdown)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this))
-        {
-            breakdown = default;
-            return false;
-        }
-
-        breakdown = CalculateStatBreakdown(stat);
+        float current = GetStatValue(upgrade.stat);
+        float next = upgrade.operation == PlayerStatOperation.Add
+            ? current + upgrade.value
+            : current * upgrade.value;
+        SetStatValue(upgrade.stat, next);
+        RunStatChanged?.Invoke(upgrade.stat);
         return true;
     }
 
@@ -394,86 +325,24 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkInitialized.Value = true;
     }
 
-    private float GetBaseStatValue(PlayerStatType stat)
+    private float GetStatValue(PlayerStatType stat) => stat switch
     {
-        PlayerStatsConfig config = ResolveBaseStats();
-        if (config == null) return 0f;
-
-        return stat switch
-        {
-            PlayerStatType.MaxHealth => config.MaxHealth,
-            PlayerStatType.MaxStamina => config.MaxStamina,
-            PlayerStatType.DashStaminaCost => config.DashStaminaCost,
-            PlayerStatType.StaminaRecovery => config.StaminaRecoverSpeed,
-            PlayerStatType.BaseAttack => config.BaseAttack,
-            PlayerStatType.AttackRange => config.AttackRange,
-            PlayerStatType.AttackInterval => config.AttackInterval,
-            PlayerStatType.KnockbackForce => config.KnockbackForce,
-            PlayerStatType.MoveSpeed => config.MoveSpeed,
-            PlayerStatType.CritRate => config.CritRate,
-            PlayerStatType.CritDamage => config.CritDamage,
-            PlayerStatType.InvincibleTime => config.InvincibleTime,
-            PlayerStatType.FlashSpeed => config.FlashSpeed,
-            PlayerStatType.MaxScarlet => config.MaxScarlet,
-            _ => 0f
-        };
-    }
-
-    private PlayerStatBreakdown CalculateStatBreakdown(PlayerStatType stat)
-    {
-        GetStatLimits(stat, out float minimum, out float maximum);
-        PlayerStatBreakdown result = runModifiers.Evaluate(
-            stat,
-            GetBaseStatValue(stat),
-            minimum,
-            maximum);
-
-        if (stat != PlayerStatType.MaxHealth) return result;
-        return new PlayerStatBreakdown(
-            result.Stat,
-            result.BaseValue,
-            result.FlatBonus,
-            result.AdditivePercent,
-            result.MultiplicativeFactor,
-            result.UnclampedValue,
-            Mathf.Max(1, Mathf.RoundToInt(result.FinalValue)),
-            result.ModifierCount);
-    }
-
-    private static void GetStatLimits(
-        PlayerStatType stat,
-        out float minimum,
-        out float maximum)
-    {
-        maximum = float.PositiveInfinity;
-        switch (stat)
-        {
-            case PlayerStatType.MaxHealth:
-            case PlayerStatType.CritDamage:
-                minimum = 1f;
-                break;
-            case PlayerStatType.AttackInterval:
-            case PlayerStatType.FlashSpeed:
-                minimum = 0.01f;
-                break;
-            case PlayerStatType.CritRate:
-                minimum = 0f;
-                maximum = 1f;
-                break;
-            default:
-                minimum = 0f;
-                break;
-        }
-    }
-
-    private void RecalculateStat(PlayerStatType stat)
-    {
-        PlayerStatBreakdown breakdown = CalculateStatBreakdown(stat);
-        SetStatValue(stat, breakdown.FinalValue);
-
-        // In network play the NetworkVariable callback is the single event source.
-        if (!UseNetworkValues) RunStatChanged?.Invoke(stat);
-    }
+        PlayerStatType.MaxHealth => MaxHealth,
+        PlayerStatType.MaxStamina => MaxStamina,
+        PlayerStatType.DashStaminaCost => DashStaminaCost,
+        PlayerStatType.StaminaRecovery => StaminaRecoverySpeed,
+        PlayerStatType.BaseAttack => Damage,
+        PlayerStatType.AttackRange => WeaponRange,
+        PlayerStatType.AttackInterval => AttackCooldown,
+        PlayerStatType.KnockbackForce => KnockbackForce,
+        PlayerStatType.MoveSpeed => MoveSpeed,
+        PlayerStatType.CritRate => CritRate,
+        PlayerStatType.CritDamage => CritDamage,
+        PlayerStatType.InvincibleTime => InvincibleTime,
+        PlayerStatType.FlashSpeed => FlashSpeed,
+        PlayerStatType.MaxScarlet => MaxScarlet,
+        _ => 0f
+    };
 
     private void SetStatValue(PlayerStatType stat, float value)
     {
