@@ -113,10 +113,11 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         ? networkBloodPacts?.Count ?? 0
         : offlineBloodPacts.Count;
 
-    // These two supplemental timings are intentionally baseline-only until design
-    // adds them to the progression sheet.
+    // Supplemental combat settings stay baseline-only until design adds them
+    // to the progression sheet.
     public float KnockbackTime => BaseStats != null ? BaseStats.KnockbackDuration : 0f;
     public float StunTime => BaseStats != null ? BaseStats.StunDuration : 0f;
+    public float AttackConeAngle => BaseStats != null ? BaseStats.AttackConeAngle : 110f;
     public LayerMask EnemyLayer => BaseStats != null ? BaseStats.EnemyLayer : 0;
 
     private bool UseNetworkValues => NetworkAuthority.IsNetworkActive && IsSpawned;

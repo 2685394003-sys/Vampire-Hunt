@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>
 /// Server-authoritative melee resolution with client-only presentation.
@@ -12,23 +13,39 @@ using UnityEngine;
 public sealed class PlayerAttact : MonoBehaviour
 {
     private static readonly int AttackParameter = Animator.StringToHash("Attack");
-    private static readonly int AttackPointParameter = Animator.StringToHash("isAttacking");
+    private static readonly int VfxColorProperty = Shader.PropertyToID("_Color");
+    private static readonly int VfxOpacityProperty = Shader.PropertyToID("_Opacity");
+    private static readonly int VfxProgressProperty = Shader.PropertyToID("_Progress");
+    private const string SwordSlashShaderPath = "VFX/SwordSlashWhite";
 
     public Animator anim;
-    public Animator attackPointAnim;
     public Transform AttackPoint;
 
     [Header("服务器判定 / Server Hit Timing")]
     [SerializeField, Min(0f)] private float hitDelay = 0.12f;
     [SerializeField, Min(0.01f)] private float attackAnimationDuration = 1.25f;
 
-    [Header("特效大小跟随攻击范围 / VFX Scale Follows Weapon Range")]
-    [SerializeField, Min(0.001f)] private float vfxVisualRadiusAtScaleOne = 2f;
+    [Header("白色剑气 / White Sword Slash VFX")]
+    [SerializeField, Min(0.01f)] private float swordSlashDuration = 0.32f;
+    [SerializeField, Min(0f)] private float swordSlashHeight = 0.8f;
+    [SerializeField, Range(0.05f, 0.5f)] private float swordSlashThicknessRatio = 0.22f;
+    [SerializeField, Min(0.01f)] private float swordSlashMinThickness = 0.35f;
+    [SerializeField, ColorUsage(true, true)] private Color swordSlashColor = Color.white;
 
     private PlayerNetworkState playerState;
     private PlayerController playerController;
     private Coroutine serverHitCoroutine;
     private Coroutine attackResetCoroutine;
+    private GameObject swordSlashObject;
+    private Mesh swordSlashMesh;
+    private MeshRenderer swordSlashRenderer;
+    private Material swordSlashMaterial;
+    private MaterialPropertyBlock swordSlashProperties;
+    private float swordSlashElapsed;
+    private float renderedSwordSlashRange = -1f;
+    private float renderedSwordSlashAngle = -1f;
+    private bool swordSlashPlaying;
+    private bool missingSwordSlashShaderLogged;
     private int activeAttackSequence;
     private int lastResolvedAttackSequence;
 
@@ -42,9 +59,18 @@ public sealed class PlayerAttact : MonoBehaviour
 
     private void Update()
     {
-        if (NetworkAuthority.IsOwnerOrOffline(playerState))
+        UpdateSwordSlashVfx(Time.deltaTime);
+    }
+
+    private void OnDestroy()
+    {
+        if (swordSlashMesh != null)
         {
-            SyncVfxScale();
+            Destroy(swordSlashMesh);
+        }
+        if (swordSlashMaterial != null)
+        {
+            Destroy(swordSlashMaterial);
         }
     }
 
@@ -80,6 +106,7 @@ public sealed class PlayerAttact : MonoBehaviour
         playerController?.StopMoveAnimationForAttack();
         SetAttackState(true);
         RestartAttackResetTimer();
+        PlaySwordSlashVfx();
         SFXManager.Instance?.PlayAttackSFX();
     }
 
@@ -95,11 +122,44 @@ public sealed class PlayerAttact : MonoBehaviour
         {
             anim.SetBool(AttackParameter, attacking);
         }
-        if (attackPointAnim != null &&
-            attackPointAnim.isActiveAndEnabled &&
-            attackPointAnim.runtimeAnimatorController != null)
+    }
+
+    private void PlaySwordSlashVfx()
+    {
+        if (Application.isBatchMode || playerState == null || !EnsureSwordSlashVfx())
         {
-            attackPointAnim.SetBool(AttackPointParameter, attacking);
+            return;
+        }
+
+        BuildSwordSlashMesh(playerState.WeaponRange, playerState.AttackConeAngle);
+        swordSlashElapsed = 0f;
+        swordSlashPlaying = true;
+        swordSlashRenderer.enabled = true;
+        ApplySwordSlashProperties(0f, 1f);
+    }
+
+    private void UpdateSwordSlashVfx(float deltaTime)
+    {
+        if (!swordSlashPlaying || swordSlashRenderer == null || playerState == null)
+        {
+            return;
+        }
+
+        BuildSwordSlashMesh(playerState.WeaponRange, playerState.AttackConeAngle);
+        UpdateSwordSlashTransform();
+        swordSlashElapsed += Mathf.Max(0f, deltaTime);
+        float normalizedTime = Mathf.Clamp01(
+            swordSlashElapsed / Mathf.Max(0.01f, swordSlashDuration));
+        float reveal = Mathf.Clamp01(normalizedTime / 0.55f);
+        float fade = normalizedTime < 0.18f
+            ? Mathf.SmoothStep(0f, 1f, normalizedTime / 0.18f)
+            : 1f - Mathf.SmoothStep(0f, 1f, (normalizedTime - 0.58f) / 0.42f);
+        ApplySwordSlashProperties(reveal, fade);
+
+        if (normalizedTime >= 1f)
+        {
+            swordSlashPlaying = false;
+            swordSlashRenderer.enabled = false;
         }
     }
 
@@ -162,6 +222,10 @@ public sealed class PlayerAttact : MonoBehaviour
         foreach (Collider hit in hits)
         {
             if (hit == null)
+            {
+                continue;
+            }
+            if (!IsInsideAttackCone(hit))
             {
                 continue;
             }
@@ -256,15 +320,168 @@ public sealed class PlayerAttact : MonoBehaviour
         }
     }
 
-    private void SyncVfxScale()
+    private bool IsInsideAttackCone(Collider hit)
     {
-        if (AttackPoint == null || playerState == null)
+        Vector3 origin = AttackPoint.position;
+        Vector3 closestPoint = hit.ClosestPoint(origin);
+        Vector3 toTarget = Vector3.ProjectOnPlane(closestPoint - origin, Vector3.up);
+        if (toTarget.sqrMagnitude <= 0.0001f)
+        {
+            return true;
+        }
+
+        Vector3 forward = GetAttackForward();
+        float minimumDot = Mathf.Cos(playerState.AttackConeAngle * 0.5f * Mathf.Deg2Rad);
+        return Vector3.Dot(forward, toTarget.normalized) >= minimumDot;
+    }
+
+    private Vector3 GetAttackForward()
+    {
+        Vector3 forward = playerController != null
+            ? playerController.facingDirection
+            : transform.forward;
+        forward = Vector3.ProjectOnPlane(forward, Vector3.up);
+        return forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+    }
+
+    private bool EnsureSwordSlashVfx()
+    {
+        if (swordSlashRenderer != null)
+        {
+            return true;
+        }
+
+        Shader shader = Resources.Load<Shader>(SwordSlashShaderPath);
+        if (shader == null)
+        {
+            if (!missingSwordSlashShaderLogged)
+            {
+                Debug.LogError($"[Player Attack] Missing Resources/{SwordSlashShaderPath}.shader", this);
+                missingSwordSlashShaderLogged = true;
+            }
+            return false;
+        }
+
+        swordSlashObject = new GameObject("WhiteSwordSlashVFX")
+        {
+            layer = gameObject.layer,
+            hideFlags = HideFlags.DontSave
+        };
+        swordSlashObject.transform.SetParent(transform, false);
+
+        MeshFilter meshFilter = swordSlashObject.AddComponent<MeshFilter>();
+        swordSlashRenderer = swordSlashObject.AddComponent<MeshRenderer>();
+        swordSlashRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        swordSlashRenderer.receiveShadows = false;
+        swordSlashRenderer.lightProbeUsage = LightProbeUsage.Off;
+        swordSlashRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+        swordSlashRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+        swordSlashRenderer.allowOcclusionWhenDynamic = false;
+        swordSlashRenderer.sortingOrder = 50;
+
+        swordSlashMesh = new Mesh
+        {
+            name = "Runtime White Sword Slash",
+            hideFlags = HideFlags.DontSave
+        };
+        swordSlashMesh.MarkDynamic();
+        meshFilter.sharedMesh = swordSlashMesh;
+
+        swordSlashMaterial = new Material(shader)
+        {
+            name = "Runtime White Sword Slash",
+            hideFlags = HideFlags.DontSave
+        };
+        swordSlashRenderer.sharedMaterial = swordSlashMaterial;
+        swordSlashProperties = new MaterialPropertyBlock();
+        swordSlashRenderer.enabled = false;
+        UpdateSwordSlashTransform();
+        return true;
+    }
+
+    private void BuildSwordSlashMesh(float range, float angle)
+    {
+        range = Mathf.Max(0.01f, range);
+        angle = Mathf.Clamp(angle, 1f, 179f);
+        if (Mathf.Approximately(range, renderedSwordSlashRange) &&
+            Mathf.Approximately(angle, renderedSwordSlashAngle))
         {
             return;
         }
 
-        float scale = playerState.WeaponRange / Mathf.Max(0.001f, vfxVisualRadiusAtScaleOne);
-        AttackPoint.localScale = Vector3.one * scale;
+        renderedSwordSlashRange = range;
+        renderedSwordSlashAngle = angle;
+        float thickness = Mathf.Min(
+            range * 0.8f,
+            Mathf.Max(swordSlashMinThickness, range * swordSlashThicknessRatio));
+        float innerRadius = Mathf.Max(0f, range - thickness);
+        int segmentCount = Mathf.Clamp(Mathf.CeilToInt(angle / 4f), 12, 64);
+        Vector3[] vertices = new Vector3[(segmentCount + 1) * 2];
+        Vector2[] uvs = new Vector2[vertices.Length];
+        int[] triangles = new int[segmentCount * 6];
+
+        for (int i = 0; i <= segmentCount; i++)
+        {
+            float t = i / (float)segmentCount;
+            float degrees = Mathf.Lerp(-angle * 0.5f, angle * 0.5f, t);
+            Vector3 direction = Quaternion.Euler(0f, degrees, 0f) * Vector3.forward;
+            int vertex = i * 2;
+            vertices[vertex] = direction * innerRadius;
+            vertices[vertex + 1] = direction * range;
+            uvs[vertex] = new Vector2(t, 0f);
+            uvs[vertex + 1] = new Vector2(t, 1f);
+
+            if (i == segmentCount)
+            {
+                continue;
+            }
+            int triangle = i * 6;
+            triangles[triangle] = vertex;
+            triangles[triangle + 1] = vertex + 1;
+            triangles[triangle + 2] = vertex + 2;
+            triangles[triangle + 3] = vertex + 1;
+            triangles[triangle + 4] = vertex + 3;
+            triangles[triangle + 5] = vertex + 2;
+        }
+
+        swordSlashMesh.Clear();
+        swordSlashMesh.vertices = vertices;
+        swordSlashMesh.uv = uvs;
+        swordSlashMesh.triangles = triangles;
+        swordSlashMesh.RecalculateBounds();
+    }
+
+    private void UpdateSwordSlashTransform()
+    {
+        if (swordSlashObject == null)
+        {
+            return;
+        }
+
+        Vector3 scale = transform.lossyScale;
+        swordSlashObject.transform.localPosition = new Vector3(
+            0f,
+            swordSlashHeight / SafeScale(scale.y),
+            0f);
+        swordSlashObject.transform.localRotation = Quaternion.identity;
+        swordSlashObject.transform.localScale = new Vector3(
+            1f / SafeScale(scale.x),
+            1f / SafeScale(scale.y),
+            1f / SafeScale(scale.z));
+    }
+
+    private void ApplySwordSlashProperties(float progress, float opacity)
+    {
+        swordSlashRenderer.GetPropertyBlock(swordSlashProperties);
+        swordSlashProperties.SetColor(VfxColorProperty, swordSlashColor);
+        swordSlashProperties.SetFloat(VfxProgressProperty, Mathf.Clamp01(progress));
+        swordSlashProperties.SetFloat(VfxOpacityProperty, Mathf.Clamp01(opacity));
+        swordSlashRenderer.SetPropertyBlock(swordSlashProperties);
+    }
+
+    private static float SafeScale(float value)
+    {
+        return Mathf.Max(0.0001f, Mathf.Abs(value));
     }
 
     [ContextMenu("测试/触发一次服务器挥砍伤害")]
@@ -289,7 +506,24 @@ public sealed class PlayerAttact : MonoBehaviour
             return;
         }
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(AttackPoint.position, state.WeaponRange);
+        Vector3 origin = AttackPoint.position;
+        Vector3 forward = GetAttackForward();
+        float halfAngle = state.AttackConeAngle * 0.5f;
+        Vector3 left = Quaternion.AngleAxis(-halfAngle, Vector3.up) * forward;
+        Vector3 right = Quaternion.AngleAxis(halfAngle, Vector3.up) * forward;
+
+        Gizmos.color = Color.white;
+        Gizmos.DrawLine(origin, origin + left * state.WeaponRange);
+        Gizmos.DrawLine(origin, origin + right * state.WeaponRange);
+        Vector3 previous = origin + left * state.WeaponRange;
+        const int arcSegments = 24;
+        for (int i = 1; i <= arcSegments; i++)
+        {
+            float degrees = Mathf.Lerp(-halfAngle, halfAngle, i / (float)arcSegments);
+            Vector3 direction = Quaternion.AngleAxis(degrees, Vector3.up) * forward;
+            Vector3 next = origin + direction * state.WeaponRange;
+            Gizmos.DrawLine(previous, next);
+            previous = next;
+        }
     }
 }
