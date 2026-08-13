@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>Fast integration checks for the GAS core and the two shipped pacts.</summary>
+/// <summary>Fast integration checks for the GAS core and implemented pacts.</summary>
 public static class GameplayAbilityFrameworkValidator
 {
     [MenuItem("Vampire Hunt/Validation/Validate Gameplay Ability Framework")]
@@ -19,7 +19,8 @@ public static class GameplayAbilityFrameworkValidator
         ValidateStackedPeriodicEffect();
         ValidateScarletKiss();
         ValidateBerserkerRage();
-        return "[GAS Validation] Passed tags, duration, stacking/periods, Scarlet Kiss, and Berserker Rage.";
+        ValidateEnemyBurningAndFrozen();
+        return "[GAS Validation] Passed tags, duration, stacking/periods, Scarlet Kiss, Berserker Rage, enemy instance modifiers, burning, and frozen state.";
     }
 
     private static void ValidateHierarchicalTags()
@@ -45,7 +46,7 @@ public static class GameplayAbilityFrameworkValidator
                 modifiers: new[]
                 {
                     new GameplayModifierDefinition(
-                        PlayerStatType.BaseAttack,
+                        GameplayAttributeType.BaseAttack,
                         PlayerModifierOperation.Flat,
                         new GameplayMagnitudeDefinition(GameplayMagnitudeSource.Fixed, 5f))
                 },
@@ -191,6 +192,140 @@ public static class GameplayAbilityFrameworkValidator
         }
     }
 
+    private static void ValidateEnemyBurningAndFrozen()
+    {
+        PlayerNetworkState player = CreatePlayer("Enemy Debuff Source Validation");
+        EnemyHealth enemy = CreateEnemy("Enemy Debuff Target Validation");
+        try
+        {
+            EnemyStatusVfxConfig globalVfxConfig = EnemyStatusVfxConfig.LoadDefault();
+            Require(globalVfxConfig != null, "global enemy status VFX config is missing");
+            Require(enemy.StatusVfxPresenter.Config == globalVfxConfig,
+                "enemy presenter did not resolve the shared global VFX config");
+
+            BloodPactDefinition burningPact = FindPact("update_015");
+            BloodPactDefinition frozenPact = FindPact("update_016");
+            Require(burningPact.IsRuntimeImplemented, "Ember Fire is not marked implemented");
+            Require(frozenPact.IsRuntimeImplemented, "Frost Breath is not marked implemented");
+
+            GameplayAbilityDefinition burning = MakeDeterministic(
+                burningPact.GameplayAbilities[0],
+                "validation.enemy_burning");
+            GameplayAbilityDefinition frozen = MakeDeterministic(
+                frozenPact.GameplayAbilities[0],
+                "validation.enemy_frozen");
+            Require(player.AbilitySystem.GrantAbilities(
+                    new[] { burning, frozen },
+                    "enemy_debuff_validation"),
+                "enemy debuff abilities failed to grant");
+
+            int healthBeforeBurning = enemy.CurrentHealth;
+            GameplayEventData hit = new(
+                GameplayEventType.AttackHit,
+                player,
+                enemy,
+                magnitude: 10f,
+                position: enemy.transform.position);
+            player.AbilitySystem.SendEvent(in hit);
+
+            Require(enemy.AbilitySystem.Tags.Has("State.Debuff.Burning"),
+                "burning gameplay tag was not applied to enemy");
+            if (!Application.isBatchMode)
+            {
+                Require(enemy.StatusVfxPresenter.IsStatusVisible(
+                        EnemyStatusVfxPresenter.BurningCueTag),
+                    "burning persistent VFX cue was not presented");
+            }
+
+            enemy.AbilitySystem.Tick(1f);
+            Require(healthBeforeBurning - enemy.CurrentHealth == 2,
+                "burning did not deal two server-side damage on its first period");
+            enemy.AbilitySystem.Tick(3.01f);
+            Require(healthBeforeBurning - enemy.CurrentHealth == 8,
+                "burning did not deal four two-damage periods");
+            Require(!enemy.AbilitySystem.Tags.Has("State.Debuff.Burning"),
+                "burning gameplay tag did not expire");
+
+            player.AbilitySystem.SendEvent(in hit);
+            Require(enemy.IsFrozen, "frozen control tag was not applied to enemy");
+            if (!Application.isBatchMode)
+            {
+                Require(enemy.StatusVfxPresenter.IsStatusVisible(
+                        EnemyStatusVfxPresenter.FrozenCueTag),
+                    "frozen persistent VFX cue was not presented");
+            }
+
+            enemy.AbilitySystem.Tick(2.01f);
+            Require(!enemy.IsFrozen, "frozen control tag did not expire");
+            if (!Application.isBatchMode)
+            {
+                Require(!enemy.StatusVfxPresenter.IsStatusVisible(
+                        EnemyStatusVfxPresenter.FrozenCueTag),
+                    "frozen VFX remained after the effect expired");
+            }
+
+            float baselineMoveSpeed = enemy.GetStatValue(EnemyStatType.MoveSpeed);
+            GameplayEffectDefinition slowEffect = new(
+                "validation.enemy_slow",
+                GameplayEffectDurationPolicy.Duration,
+                modifiers: new[]
+                {
+                    new GameplayModifierDefinition(
+                        GameplayAttributeType.MoveSpeed,
+                        PlayerModifierOperation.Multiplicative,
+                        new GameplayMagnitudeDefinition(GameplayMagnitudeSource.Fixed, 0.5f))
+                },
+                durationSeconds: 0.5f,
+                executeOnApplication: false,
+                grantedTags: new[] { "State.Debuff.Slow" });
+            GameplayAbilityDefinition slowAbility = new(
+                "validation.enemy_slow",
+                GameplayEventType.CriticalHit,
+                GameplayAbilityTarget.EventTarget,
+                new[] { slowEffect });
+            Require(player.AbilitySystem.GrantAbilities(
+                    new[] { slowAbility },
+                    "enemy_slow_validation"),
+                "enemy instance slow failed to grant");
+            GameplayEventData criticalHit = new(
+                GameplayEventType.CriticalHit,
+                player,
+                enemy,
+                magnitude: 1f);
+            player.AbilitySystem.SendEvent(in criticalHit);
+            RequireClose(
+                enemy.GetStatValue(EnemyStatType.MoveSpeed),
+                baselineMoveSpeed * 0.5f,
+                "enemy instance modifier did not affect only the target value");
+            enemy.AbilitySystem.Tick(0.51f);
+            RequireClose(
+                enemy.GetStatValue(EnemyStatType.MoveSpeed),
+                baselineMoveSpeed,
+                "enemy instance modifier did not expire cleanly");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(player.gameObject);
+            UnityEngine.Object.DestroyImmediate(enemy.gameObject);
+        }
+    }
+
+    private static GameplayAbilityDefinition MakeDeterministic(
+        GameplayAbilityDefinition source,
+        string abilityId)
+    {
+        Require(source != null, $"source ability for '{abilityId}' is missing");
+        return new GameplayAbilityDefinition(
+            abilityId,
+            source.TriggerEvent,
+            source.Target,
+            source.Effects,
+            chance: 1f,
+            internalCooldownSeconds: 0f,
+            requiredOwnerTags: source.RequiredOwnerTags as string[],
+            blockedOwnerTags: source.BlockedOwnerTags as string[]);
+    }
+
     private static PlayerNetworkState CreatePlayer(string name)
     {
         GameObject gameObject = new(name);
@@ -203,6 +338,22 @@ public static class GameplayAbilityFrameworkValidator
                     System.Reflection.BindingFlags.NonPublic)
                 ?.Invoke(player, null);
         return player;
+    }
+
+    private static EnemyHealth CreateEnemy(string name)
+    {
+        GameObject gameObject = new(name);
+        EnemyHealth enemy = gameObject.AddComponent<EnemyHealth>();
+        if (enemy.AbilitySystem == null)
+        {
+            typeof(EnemyHealth)
+                .GetMethod(
+                    "Awake",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)
+                ?.Invoke(enemy, null);
+        }
+        return enemy;
     }
 
     private static BloodPactDefinition FindPact(string pactId)

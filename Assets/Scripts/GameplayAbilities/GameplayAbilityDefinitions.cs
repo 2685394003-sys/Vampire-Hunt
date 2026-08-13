@@ -45,7 +45,33 @@ public enum GameplayExecutionType
 {
     Heal = 0,
     AddScarlet = 1,
-    AddCoins = 2
+    AddCoins = 2,
+    Damage = 3
+}
+
+/// <summary>
+/// Cross-entity attribute identifiers. Values intentionally match PlayerStatType
+/// so existing serialized blood-pact assets keep their meaning.
+/// </summary>
+public enum GameplayAttributeType
+{
+    MaxHealth = 0,
+    MaxStamina = 1,
+    DashStaminaCost = 2,
+    StaminaRecovery = 3,
+    BaseAttack = 4,
+    AttackRange = 5,
+    AttackInterval = 6,
+    KnockbackForce = 7,
+    MoveSpeed = 8,
+    CritRate = 9,
+    CritDamage = 10,
+    InvincibleTime = 11,
+    FlashSpeed = 12,
+    MaxScarlet = 13,
+    DashSpeedMultiplier = 14,
+    DashDuration = 15,
+    AttackConeAngle = 16
 }
 
 public enum GameplayCueEventType : byte
@@ -113,11 +139,12 @@ public interface IGameplayAbilitySystemHost
     bool AddGameplayModifier(
         string modifierId,
         string sourceId,
-        PlayerStatType stat,
+        GameplayAttributeType stat,
         PlayerModifierOperation operation,
         float value);
 
     bool RemoveGameplayModifier(string modifierId);
+    int DamageGameplay(int amount, IGameplayAbilitySystemHost source);
     int HealGameplay(int amount);
     void AddScarletGameplay(float amount);
     void AddCoinsGameplay(int amount);
@@ -184,18 +211,18 @@ public sealed class GameplayMagnitudeDefinition
 [Serializable]
 public sealed class GameplayModifierDefinition
 {
-    [SerializeField] private PlayerStatType stat;
+    [SerializeField] private GameplayAttributeType stat;
     [SerializeField] private PlayerModifierOperation operation;
     [SerializeField] private GameplayMagnitudeDefinition magnitude = new();
 
-    public PlayerStatType Stat => stat;
+    public GameplayAttributeType Stat => stat;
     public PlayerModifierOperation Operation => operation;
     public GameplayMagnitudeDefinition Magnitude => magnitude;
 
     public GameplayModifierDefinition() { }
 
     public GameplayModifierDefinition(
-        PlayerStatType stat,
+        GameplayAttributeType stat,
         PlayerModifierOperation operation,
         GameplayMagnitudeDefinition magnitude)
     {
@@ -205,7 +232,7 @@ public sealed class GameplayModifierDefinition
     }
 
     public bool IsValid() =>
-        Enum.IsDefined(typeof(PlayerStatType), stat) &&
+        Enum.IsDefined(typeof(GameplayAttributeType), stat) &&
         Enum.IsDefined(typeof(PlayerModifierOperation), operation) &&
         magnitude != null;
 }

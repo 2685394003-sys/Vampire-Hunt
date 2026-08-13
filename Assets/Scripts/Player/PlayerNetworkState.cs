@@ -442,6 +442,24 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         abilitySystem.SendEvent(in critical);
     }
 
+    /// <summary>
+    /// Broadcasts server-confirmed effect damage without producing AttackHit or
+    /// CriticalHit events. Periodic effects must use this path to avoid retriggering
+    /// on-hit abilities from their own damage ticks.
+    /// </summary>
+    public void ReportGameplayEffectDamage(
+        int damageDealt,
+        Vector3 position,
+        int combatTextTargetKey = 0)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0) return;
+        BroadcastDamageText(
+            damageDealt,
+            false,
+            position,
+            combatTextTargetKey);
+    }
+
     private void BroadcastDamageText(
         int damage,
         bool wasCritical,
@@ -564,20 +582,27 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     public bool AddGameplayModifier(
         string modifierId,
         string sourceId,
-        PlayerStatType stat,
+        GameplayAttributeType stat,
         PlayerModifierOperation operation,
         float value)
     {
+        if (!Enum.IsDefined(typeof(PlayerStatType), (int)stat)) return false;
         return AddStatModifier(new PlayerStatModifier(
             modifierId,
             sourceId,
-            stat,
+            (PlayerStatType)(int)stat,
             operation,
             value));
     }
 
     public bool RemoveGameplayModifier(string modifierId) =>
         RemoveStatModifier(modifierId);
+
+    public int DamageGameplay(int amount, IGameplayAbilitySystemHost source)
+    {
+        int previous = CurrentHealth;
+        return ApplyDamage(amount) ? previous - CurrentHealth : 0;
+    }
 
     public int HealGameplay(int amount) => RestoreHealth(amount);
     public void AddScarletGameplay(float amount) => AddScarlet(amount);

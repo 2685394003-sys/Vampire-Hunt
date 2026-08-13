@@ -4,7 +4,7 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
-public sealed class FlowFieldEnemy : NetworkBehaviour
+public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
 {
     [Header("流场寻路参数 / Flow Field Pathfinding")]
     public float turnSmooth = 6f;
@@ -14,6 +14,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
     [Header("局部避障 / Local Obstacle Avoidance")]
     [SerializeField, Min(0.05f)] private float obstacleProbeRadius = 0.3f;
     [SerializeField, Min(0.1f)] private float obstacleProbeDistance = 0.8f;
+    [SerializeField, Min(0.02f)] private float obstacleProbeInterval = 0.08f;
     [SerializeField, Range(10f, 60f)] private float avoidanceAngleStep = 30f;
     [SerializeField, Range(1, 5)] private int avoidanceChecksPerSide = 4;
     [SerializeField, Min(0.01f)] private float stuckSpeedThreshold = 0.2f;
@@ -30,6 +31,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
     private Rigidbody body;
     private EnemyAnimationController animationController;
     private EnemyCombat combat;
+    private EnemyHealth enemyHealth;
     private PlayerNetworkState targetPlayer;
     private Coroutine slowCoroutine;
     private float attackCooldownTimer;
@@ -38,6 +40,9 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
     private EnemyStatsConfig stats;
     private float stuckTimer;
     private int avoidanceSide;
+    private float obstacleProbeTimer;
+    private Vector3 cachedAvoidanceDirection;
+    private bool cachedAvoiding;
 
     private readonly NetworkVariable<EnemyState> networkState = new(
         EnemyState.Idle,
@@ -59,10 +64,12 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
         body = GetComponent<Rigidbody>();
         animationController = GetComponent<EnemyAnimationController>();
         combat = GetComponent<EnemyCombat>();
+        enemyHealth = GetComponent<EnemyHealth>();
         flowField = FindFirstObjectByType<FlowFieldManager>();
         stats = EnemyStatsResolver.Resolve(this);
         smoothDirection = Vector3.forward;
         avoidanceSide = (GetInstanceID() & 1) == 0 ? 1 : -1;
+        obstacleProbeTimer = Mathf.Abs(GetInstanceID() % 17) / 17f * obstacleProbeInterval;
         offlineState = EnemyState.Idle;
         animationController?.ApplyState(State, true);
     }
@@ -70,6 +77,8 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         networkState.OnValueChanged += HandleNetworkStateChanged;
+        if (IsServer)
+            networkState.Value = EnemyState.Idle;
         if (!IsServer && body != null)
         {
             body.isKinematic = true;
@@ -82,12 +91,50 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
         networkState.OnValueChanged -= HandleNetworkStateChanged;
     }
 
+    public void OnTakenFromNetworkPool()
+    {
+        ResetRuntimeState();
+    }
+
+    public void OnReturnedToNetworkPool()
+    {
+        ResetRuntimeState();
+    }
+
+    private void ResetRuntimeState()
+    {
+        CancelSlowStop();
+        StopAllCoroutines();
+        targetPlayer = null;
+        attackCooldownTimer = 0f;
+        attackElapsed = 0f;
+        attackDamageResolved = false;
+        stuckTimer = 0f;
+        obstacleProbeTimer = 0f;
+        cachedAvoiding = false;
+        cachedAvoidanceDirection = Vector3.zero;
+        smoothDirection = Vector3.forward;
+        offlineState = EnemyState.Idle;
+        SetVelocity(Vector3.zero);
+        animationController?.ApplyState(EnemyState.Idle, true);
+    }
+
     private void Update()
     {
         animationController?.ApplyState(State);
 
-        if (!NetworkAuthority.IsServerOrOffline(this) || State == EnemyState.Knockback)
+        if (!NetworkAuthority.IsServerOrOffline(this))
             return;
+
+        if (enemyHealth != null && enemyHealth.IsFrozen)
+        {
+            CancelSlowStop();
+            SetVelocity(Vector3.zero);
+            if (State != EnemyState.Idle) ChangeState(EnemyState.Idle);
+            return;
+        }
+
+        if (State == EnemyState.Knockback) return;
 
         ResolveTargetAndState();
         attackCooldownTimer = Mathf.Max(0f, attackCooldownTimer - Time.deltaTime);
@@ -148,9 +195,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float attackRange = stats != null
-            ? EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange)
-            : 1f;
+        float attackRange = GetStatValue(EnemyStatType.WeaponRange, 1f);
         float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
         if (distance <= attackRange)
         {
@@ -158,9 +203,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             {
                 StopMovement();
                 ChangeState(EnemyState.isAttacking);
-                attackCooldownTimer = stats != null
-                    ? EnemyRunStats.GetValue(stats, EnemyStatType.AttackCooldown)
-                    : 1f;
+                attackCooldownTimer = GetStatValue(EnemyStatType.AttackCooldown, 1f);
             }
             else if (State != EnemyState.isAttacking)
             {
@@ -190,13 +233,12 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float speed = stats != null
-            ? EnemyRunStats.GetValue(stats, EnemyStatType.MoveSpeed)
-            : 1f;
-        Vector3 desiredDirection = ResolveObstacleAvoidance(
+        float speed = GetStatValue(EnemyStatType.MoveSpeed, 1f);
+        Vector3 desiredDirection = GetObstacleAvoidedDirection(
             rawDirection.normalized,
             speed,
-            out bool avoiding);
+            out bool avoiding,
+            out bool probePerformed);
         if (desiredDirection.sqrMagnitude < 0.0001f)
         {
             SetVelocity(Vector3.zero);
@@ -212,8 +254,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
 
         // The previous smoothed heading may still point into a wall after the flow
         // changes. Snap to the newly validated direction instead of cutting the corner.
-        float probeDistance = GetProbeDistance(speed);
-        if (IsDirectionBlocked(nextDirection, probeDistance))
+        if (probePerformed && IsDirectionBlocked(nextDirection, GetProbeDistance(speed)))
             nextDirection = desiredDirection;
 
         smoothDirection = nextDirection;
@@ -224,6 +265,27 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             Quaternion targetRotation = Quaternion.LookRotation(smoothDirection, Vector3.up);
             transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSmooth);
         }
+    }
+
+    private Vector3 GetObstacleAvoidedDirection(
+        Vector3 desiredDirection,
+        float speed,
+        out bool avoiding,
+        out bool probePerformed)
+    {
+        obstacleProbeTimer -= Time.deltaTime;
+        probePerformed = obstacleProbeTimer <= 0f;
+        if (probePerformed)
+        {
+            obstacleProbeTimer += Mathf.Max(0.02f, obstacleProbeInterval);
+            cachedAvoidanceDirection = ResolveObstacleAvoidance(
+                desiredDirection,
+                speed,
+                out cachedAvoiding);
+        }
+
+        avoiding = cachedAvoiding;
+        return cachedAvoiding ? cachedAvoidanceDirection : desiredDirection;
     }
 
     private Vector3 ResolveObstacleAvoidance(
@@ -244,7 +306,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
         planarVelocity.y = 0f;
         if (planarVelocity.sqrMagnitude <= stuckSpeedThreshold * stuckSpeedThreshold)
         {
-            stuckTimer += Time.deltaTime;
+            stuckTimer += Mathf.Max(Time.deltaTime, obstacleProbeInterval);
             if (stuckTimer >= stuckSideSwitchDelay)
             {
                 avoidanceSide = -avoidanceSide;
@@ -310,9 +372,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float range = stats != null
-            ? EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange)
-            : 1f;
+        float range = GetStatValue(EnemyStatType.WeaponRange, 1f);
         ChangeState(Vector3.Distance(transform.position, targetPlayer.transform.position) <= range
             ? EnemyState.Idle
             : EnemyState.isChasing);
@@ -405,6 +465,12 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
     {
         if (body != null)
             body.linearVelocity = velocity;
+    }
+
+    private float GetStatValue(EnemyStatType stat, float fallback)
+    {
+        if (enemyHealth != null) return enemyHealth.GetStatValue(stat);
+        return stats != null ? EnemyRunStats.GetValue(stats, stat) : fallback;
     }
 }
 

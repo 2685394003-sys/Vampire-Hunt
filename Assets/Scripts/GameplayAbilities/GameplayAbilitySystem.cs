@@ -214,6 +214,11 @@ public sealed class GameplayAbilitySystem
                     while (active.TimeUntilPeriod <= 0f && catchUpLimit-- > 0)
                     {
                         Execute(active.Spec, active.Stacks);
+                        EmitCue(
+                            definition,
+                            GameplayCueEventType.Executed,
+                            active.Spec,
+                            active.Stacks);
                         active.TimeUntilPeriod += definition.PeriodSeconds;
                     }
                 }
@@ -417,6 +422,11 @@ public sealed class GameplayAbilitySystem
                     break;
                 case GameplayExecutionType.AddCoins:
                     owner.AddCoinsGameplay(Mathf.Max(0, Mathf.RoundToInt(raw)));
+                    break;
+                case GameplayExecutionType.Damage:
+                    owner.DamageGameplay(
+                        Mathf.Max(0, Mathf.RoundToInt(raw)),
+                        spec.Source);
                     break;
             }
         }

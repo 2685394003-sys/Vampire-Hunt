@@ -283,7 +283,7 @@ public sealed class PlayerAttact : MonoBehaviour
                 playerState,
                 out bool killed);
             playerState.ReportAttackHit(
-                null,
+                killed ? null : enemyHealth,
                 damageDealt,
                 enemyWasCritical,
                 enemyPosition,

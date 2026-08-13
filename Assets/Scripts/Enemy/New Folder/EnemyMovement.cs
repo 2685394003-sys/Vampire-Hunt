@@ -8,6 +8,7 @@ public class EnemyMovement : MonoBehaviour
     private float shoottimer;
     private float attackCooldownTimer;
     private EnemyStatsConfig stats;
+    private EnemyHealth enemyHealth;
 
     private Rigidbody2D rb;
     public Transform EnemyDetectionPonint;
@@ -21,6 +22,7 @@ public class EnemyMovement : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
         stats = EnemyStatsResolver.Resolve(this);
+        enemyHealth = GetComponentInParent<EnemyHealth>();
         if (!NetworkAuthority.IsServerOrOffline())
         {
             if (rb != null) rb.simulated = false;
@@ -34,6 +36,17 @@ public class EnemyMovement : MonoBehaviour
     void Update()
     {
         if (!NetworkAuthority.IsServerOrOffline()) return;
+        if (enemyHealth != null && enemyHealth.IsFrozen)
+        {
+            if (slowCoroutine != null)
+            {
+                StopCoroutine(slowCoroutine);
+                slowCoroutine = null;
+            }
+            if (rb != null) rb.linearVelocity = Vector2.zero;
+            if (enemyState != EnemyState.Idle) ChangeState(EnemyState.Idle);
+            return;
+        }
         if (enemyState != EnemyState.Knockback)
         {
             if(player != null && shoottimer <= 0 && Vector2.Distance(transform.position, player.position) > stats.shootRange)
@@ -58,7 +71,7 @@ public class EnemyMovement : MonoBehaviour
 
             if (player != null && enemyState == EnemyState.isChasing &&
                 Vector2.Distance(transform.position, player.position) >
-                EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange))
+                GetStatValue(EnemyStatType.WeaponRange))
             {
                 Chase();
             }
@@ -79,12 +92,12 @@ public class EnemyMovement : MonoBehaviour
         {
             player = hits[0].transform;
         
-            float attackRange = EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange);
+            float attackRange = GetStatValue(EnemyStatType.WeaponRange);
             if(Vector2.Distance(transform.position, player.position) <= attackRange && attackCooldownTimer <= 0)
             {
                 Stop();
                 ChangeState(EnemyState.isAttacking);
-               attackCooldownTimer = EnemyRunStats.GetValue(stats, EnemyStatType.AttackCooldown);
+               attackCooldownTimer = GetStatValue(EnemyStatType.AttackCooldown);
             }
 
             else if(Vector2.Distance(transform.position, player.position) > attackRange && enemyState != EnemyState.isAttacking)
@@ -154,15 +167,15 @@ public class EnemyMovement : MonoBehaviour
     void Chase()
     {
         if(Vector2.Distance(transform.position, player.transform.position) <=
-            EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange) &&
+            GetStatValue(EnemyStatType.WeaponRange) &&
             attackCooldownTimer <= 0)
         {
             ChangeState(EnemyState.isAttacking);
-            attackCooldownTimer = EnemyRunStats.GetValue(stats, EnemyStatType.AttackCooldown);
+            attackCooldownTimer = GetStatValue(EnemyStatType.AttackCooldown);
         }
 
         Vector2 direction = (player.position - transform.position).normalized;
-        rb.linearVelocity = direction * EnemyRunStats.GetValue(stats, EnemyStatType.MoveSpeed);
+        rb.linearVelocity = direction * GetStatValue(EnemyStatType.MoveSpeed);
 
         // 翻转逻辑
         float dirX = player.position.x - transform.position.x;
@@ -181,6 +194,13 @@ public class EnemyMovement : MonoBehaviour
     public Transform GetPlayerTarget()
     {
         return player;
+    }
+
+    private float GetStatValue(EnemyStatType stat)
+    {
+        return enemyHealth != null
+            ? enemyHealth.GetStatValue(stat)
+            : EnemyRunStats.GetValue(stats, stat);
     }
 
 

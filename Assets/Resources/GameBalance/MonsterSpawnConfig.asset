@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4718f98d84148f2a98db95fd1dd56f1, type: 3}
+  m_Name: MonsterSpawnConfig
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterSpawnConfig
+  enemyPrefab: {fileID: 6734190735489785284, guid: 6793cd89dde2e17408b488e66bbb9226, type: 3}
+  monstersPerWave: 2
+  spawnInterval: 4
+  firstSpawnDelay: 3
+  maxAlive: 300
+  waveGrowthInterval: 15
+  monstersAddedPerGrowth: 1
+  maxMonstersPerWave: 20
+  poolPrewarmCount: 32
+  minSpawnRadius: 15
+  maxSpawnRadius: 25
+  maxSampleAttemptsPerMonster: 16
+  spawnHeightOffset: 0
+  minWaveSpawnSeparation: 1
+  bossDirectionProbability: 0.7
+  bossDirectionHalfAngle: 55
+  bossFindRetryInterval: 0.5
+  pauseDuringBossTransition: 1
+  stopWhenBossDies: 1
+  resumeDelayAfterPhase: 3
+  requireWalkableCell: 1
+  spawnBlockingLayers:
+    serializedVersion: 2
+    m_Bits: 200
+  spawnClearanceRadius: 0.6
+  drawGizmos: 1

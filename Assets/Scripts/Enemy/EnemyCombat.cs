@@ -15,23 +15,31 @@ public sealed class EnemyCombat : MonoBehaviour
             return;
 
         FlowFieldEnemy enemy = GetComponentInParent<FlowFieldEnemy>();
+        EnemyHealth enemyHealth = GetComponentInParent<EnemyHealth>();
+        if (enemyHealth != null && enemyHealth.IsFrozen) return;
         Transform target = enemy != null ? enemy.CurrentTarget : null;
         EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
         if (target == null || stats == null)
             return;
 
         Transform attackOrigin = EnemyAttackPoint != null ? EnemyAttackPoint : transform;
-        float weaponRange = EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange);
+        float weaponRange = enemyHealth != null
+            ? enemyHealth.GetStatValue(EnemyStatType.WeaponRange)
+            : EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange);
         Vector3 targetOffset = target.position - attackOrigin.position;
         targetOffset.y = 0f;
         if (targetOffset.magnitude > weaponRange)
             return;
 
-        int damage = EnemyRunStats.GetRoundedValue(stats, EnemyStatType.Damage);
+        int damage = enemyHealth != null
+            ? enemyHealth.GetRoundedStatValue(EnemyStatType.Damage)
+            : EnemyRunStats.GetRoundedValue(stats, EnemyStatType.Damage);
         target.GetComponentInParent<PlayerHealth>()?.ChangeHealth(damage);
         target.GetComponentInParent<PlayerController>()?.Knockback(
             transform,
-            EnemyRunStats.GetValue(stats, EnemyStatType.KnockbackForce),
+            enemyHealth != null
+                ? enemyHealth.GetStatValue(EnemyStatType.KnockbackForce)
+                : EnemyRunStats.GetValue(stats, EnemyStatType.KnockbackForce),
             stats.stunTime);
     }
 
@@ -40,9 +48,12 @@ public sealed class EnemyCombat : MonoBehaviour
         EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
         if (EnemyAttackPoint == null || stats == null)
             return;
+        EnemyHealth enemyHealth = GetComponentInParent<EnemyHealth>();
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(
             EnemyAttackPoint.position,
-            EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange));
+            enemyHealth != null
+                ? enemyHealth.GetStatValue(EnemyStatType.WeaponRange)
+                : EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange));
     }
 }

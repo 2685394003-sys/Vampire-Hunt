@@ -6,17 +6,20 @@ public class EnemyShoot : MonoBehaviour
     public Transform firePoint;
     public GameObject bulletPrefab;
     private EnemyMovement enemyMove;
+    private EnemyHealth enemyHealth;
     private bool shotPending;
 
     void Start()
     {
         // 拿到同物体上的EnemyMovement
         enemyMove = GetComponent<EnemyMovement>();
+        enemyHealth = GetComponentInParent<EnemyHealth>();
     }
     
     public void Shoot()
     {
-        if (!NetworkAuthority.IsServerOrOffline() || shotPending)
+        if (!NetworkAuthority.IsServerOrOffline() || shotPending ||
+            (enemyHealth != null && enemyHealth.IsFrozen))
             return;
 
         EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
@@ -35,7 +38,11 @@ public class EnemyShoot : MonoBehaviour
         shotPending = true;
         yield return new WaitForSeconds(delay);
         shotPending = false;
-        if (NetworkAuthority.IsServerOrOffline()) SpawnProjectile(stats);
+        if (NetworkAuthority.IsServerOrOffline() &&
+            (enemyHealth == null || !enemyHealth.IsFrozen))
+        {
+            SpawnProjectile(stats);
+        }
     }
 
     private void SpawnProjectile(EnemyStatsConfig stats)

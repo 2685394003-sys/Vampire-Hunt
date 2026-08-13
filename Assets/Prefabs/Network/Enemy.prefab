@@ -50,6 +50,7 @@ GameObject:
   - component: {fileID: 587363983492430092}
   - component: {fileID: 8055327146337925123}
   - component: {fileID: 7342711397950216335}
+  - component: {fileID: 6491321377021572960}
   m_Layer: 7
   m_Name: Enemy
   m_TagString: Untagged
@@ -155,7 +156,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 51f339b32c5bb7649a7e13f1118f088d, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCombat
   EnemyAttackPoint: {fileID: 4721322173317540475}
 --- !u!114 &1715160732526446681
@@ -281,6 +282,19 @@ MonoBehaviour:
   animator: {fileID: 5581586193899444589}
   movingBlendValue: 5
   moveDampTime: 0.1
+--- !u!114 &6491321377021572960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6734190735489785284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03ba12759a76e3c4ea5b2b5e871c2b2c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyStatusVfxPresenter
+  configOverride: {fileID: 0}
 --- !u!1001 &2026429324098888956
 PrefabInstance:
   m_ObjectHideFlags: 0

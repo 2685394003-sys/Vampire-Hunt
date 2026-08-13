@@ -12,8 +12,6 @@ public struct FlowCell
     public CellState state;
     public int cost;
     public Vector3 flowDirection;
-    public Vector2Int nextCell;
-    public bool hasLineOfSight;
 }
 
 /// <summary>
@@ -27,6 +25,13 @@ public sealed class FlowFieldManager : MonoBehaviour
     public float cellSize = 1.2f;
     public int gridWidth = 120;
     public int gridHeight = 120;
+    [Tooltip("启动时根据指定地图根节点下的渲染器和碰撞体自动设置流场范围。")]
+    public bool fitToMapBounds = true;
+    [Tooltip("用于计算可玩区域的地图根节点。留空时继续使用手动网格设置。")]
+    public Transform mapBoundsSource;
+    [Min(0f)] public float mapBoundsPadding = 8f;
+    [Tooltip("自动适配时每条轴允许的最大格数；超出后会增大格子以限制重建开销。")]
+    [Min(32)] public int maxAutoCellsPerAxis = 256;
     [Tooltip("Legacy/offline fallback. Network AI uses NetworkPlayerRegistry.")]
     public Transform player;
     public LayerMask obstacleLayer;
@@ -48,6 +53,8 @@ public sealed class FlowFieldManager : MonoBehaviour
     private float refreshTimer;
     private float obstacleRescanTimer;
     private bool obstaclesDirty = true;
+    private Vector3 gridOrigin;
+    private int obstacleRevision;
 
     private const int StraightMoveCost = 10;
     private const int DiagonalMoveCost = 14;
@@ -77,12 +84,88 @@ public sealed class FlowFieldManager : MonoBehaviour
     {
         public Transform target;
         public FlowCell[,] cells;
+        public Vector2Int targetCell;
+        public int obstacleRevision;
+        public bool initialized;
     }
 
     private void Awake()
     {
+        ConfigureGridBounds();
         obstacleGrid = new CellState[gridWidth, gridHeight];
         ForceRescan();
+    }
+
+    private void ConfigureGridBounds()
+    {
+        gridOrigin = transform.position;
+        cellSize = Mathf.Max(0.1f, cellSize);
+        gridWidth = Mathf.Max(1, gridWidth);
+        gridHeight = Mathf.Max(1, gridHeight);
+
+        if (!fitToMapBounds || mapBoundsSource == null ||
+            !TryCalculateMapBounds(mapBoundsSource, out Bounds mapBounds))
+        {
+            return;
+        }
+
+        float minX = mapBounds.min.x - mapBoundsPadding;
+        float maxX = mapBounds.max.x + mapBoundsPadding;
+        float minZ = mapBounds.min.z - mapBoundsPadding;
+        float maxZ = mapBounds.max.z + mapBoundsPadding;
+        float spanX = Mathf.Max(0.1f, maxX - minX);
+        float spanZ = Mathf.Max(0.1f, maxZ - minZ);
+        int maxCells = Mathf.Max(32, maxAutoCellsPerAxis);
+
+        // Preserve authored resolution whenever possible. For exceptionally large
+        // maps, coarsen the cells instead of allowing every target field to grow
+        // without a bound and stall the server during its periodic rebuild.
+        cellSize = Mathf.Max(cellSize, spanX / maxCells, spanZ / maxCells);
+        gridOrigin = new Vector3(
+            Mathf.Floor(minX / cellSize) * cellSize,
+            transform.position.y,
+            Mathf.Floor(minZ / cellSize) * cellSize);
+        gridWidth = Mathf.Max(1, Mathf.CeilToInt((maxX - gridOrigin.x) / cellSize));
+        gridHeight = Mathf.Max(1, Mathf.CeilToInt((maxZ - gridOrigin.z) / cellSize));
+    }
+
+    private static bool TryCalculateMapBounds(Transform source, out Bounds bounds)
+    {
+        bounds = default;
+        bool hasBounds = false;
+
+        Renderer[] renderers = source.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer == null || renderer is ParticleSystemRenderer)
+                continue;
+            EncapsulateBounds(ref bounds, ref hasBounds, renderer.bounds);
+        }
+
+        Collider[] colliders = source.GetComponentsInChildren<Collider>(true);
+        foreach (Collider collider in colliders)
+        {
+            if (collider == null || collider is TerrainCollider)
+                continue;
+            EncapsulateBounds(ref bounds, ref hasBounds, collider.bounds);
+        }
+
+        return hasBounds;
+    }
+
+    private static void EncapsulateBounds(
+        ref Bounds combined,
+        ref bool hasBounds,
+        Bounds candidate)
+    {
+        if (!hasBounds)
+        {
+            combined = candidate;
+            hasBounds = true;
+            return;
+        }
+
+        combined.Encapsulate(candidate);
     }
 
     private void Update()
@@ -133,6 +216,7 @@ public sealed class FlowFieldManager : MonoBehaviour
 
         obstaclesDirty = false;
         obstacleRescanTimer = 0f;
+        obstacleRevision++;
     }
 
     private void RebuildPlayerFields()
@@ -169,6 +253,7 @@ public sealed class FlowFieldManager : MonoBehaviour
             return;
 
         int key = target.GetInstanceID();
+        Vector2Int targetCell = WorldToGrid(target.position);
         if (!targetFields.TryGetValue(key, out TargetFlowField field) ||
             field.cells.GetLength(0) != gridWidth ||
             field.cells.GetLength(1) != gridHeight)
@@ -181,10 +266,20 @@ public sealed class FlowFieldManager : MonoBehaviour
             targetFields[key] = field;
         }
 
-        BuildField(field.cells, target.position);
+        if (field.initialized &&
+            field.targetCell == targetCell &&
+            field.obstacleRevision == obstacleRevision)
+        {
+            return;
+        }
+
+        BuildField(field.cells, targetCell);
+        field.targetCell = targetCell;
+        field.obstacleRevision = obstacleRevision;
+        field.initialized = true;
     }
 
-    private void BuildField(FlowCell[,] cells, Vector3 targetPosition)
+    private void BuildField(FlowCell[,] cells, Vector2Int targetCell)
     {
         for (int x = 0; x < gridWidth; x++)
         {
@@ -193,12 +288,9 @@ public sealed class FlowFieldManager : MonoBehaviour
                 cells[x, z].state = obstacleGrid[x, z];
                 cells[x, z].cost = int.MaxValue;
                 cells[x, z].flowDirection = Vector3.zero;
-                cells[x, z].nextCell = new Vector2Int(x, z);
-                cells[x, z].hasLineOfSight = false;
             }
         }
 
-        Vector2Int targetCell = WorldToGrid(targetPosition);
         if (!IsInGrid(targetCell.x, targetCell.y))
             return;
 
@@ -206,8 +298,6 @@ public sealed class FlowFieldManager : MonoBehaviour
         // valid integration-field source, while the cached obstacle grid stays unchanged.
         cells[targetCell.x, targetCell.y].state = CellState.Walkable;
         cells[targetCell.x, targetCell.y].cost = 0;
-        cells[targetCell.x, targetCell.y].nextCell = targetCell;
-        cells[targetCell.x, targetCell.y].hasLineOfSight = true;
 
         frontier.Clear();
         PushFrontier(new FrontierNode(targetCell, 0));
@@ -241,48 +331,26 @@ public sealed class FlowFieldManager : MonoBehaviour
                 if (cells[x, z].state == CellState.Obstacle || cells[x, z].cost == int.MaxValue)
                     continue;
 
-                Vector2Int current = new(x, z);
-                Vector3 currentWorld = GridToWorld(current);
-                Vector3 targetDirection = PlanarDirection(currentWorld, targetPosition);
-                if (HasGridLineOfSight(cells, current, targetCell))
-                {
-                    cells[x, z].flowDirection = targetDirection;
-                    cells[x, z].nextCell = targetCell;
-                    cells[x, z].hasLineOfSight = true;
-                    continue;
-                }
-
-                int bestTotalCost = int.MaxValue;
-                float bestAlignment = float.NegativeInfinity;
-                Vector2Int bestNext = current;
+                Vector3 weightedDirection = Vector3.zero;
                 foreach (Vector2Int offset in Neighbours)
                 {
                     int nextX = x + offset.x;
                     int nextZ = z + offset.y;
-                    if (!CanTraverse(cells, x, z, offset) ||
-                        cells[nextX, nextZ].cost >= cells[x, z].cost)
+                    if (!CanTraverse(cells, x, z, offset))
                         continue;
 
-                    int totalCost = cells[nextX, nextZ].cost + GetMoveCost(offset);
+                    int moveCost = GetMoveCost(offset);
+                    if (cells[nextX, nextZ].cost > cells[x, z].cost - moveCost)
+                        continue;
+
                     Vector3 candidateDirection = new(offset.x, 0f, offset.y);
                     candidateDirection.Normalize();
-                    float alignment = Vector3.Dot(candidateDirection, targetDirection);
-                    if (totalCost > bestTotalCost ||
-                        (totalCost == bestTotalCost && alignment <= bestAlignment))
-                        continue;
-
-                    bestTotalCost = totalCost;
-                    bestAlignment = alignment;
-                    bestNext = new Vector2Int(nextX, nextZ);
+                    weightedDirection += candidateDirection * moveCost;
                 }
 
-                if (bestNext != current)
-                {
-                    cells[x, z].nextCell = bestNext;
-                    cells[x, z].flowDirection = PlanarDirection(
-                        currentWorld,
-                        GridToWorld(bestNext));
-                }
+                cells[x, z].flowDirection = weightedDirection.sqrMagnitude > 0.0001f
+                    ? weightedDirection.normalized
+                    : Vector3.zero;
             }
         }
     }
@@ -311,59 +379,6 @@ public sealed class FlowFieldManager : MonoBehaviour
                cells[fromX + offset.x, fromZ].state == CellState.Walkable &&
                cells[fromX, fromZ + offset.y].state == CellState.Walkable;
     }
-
-    private bool HasGridLineOfSight(
-        FlowCell[,] cells,
-        Vector2Int from,
-        Vector2Int to)
-    {
-        int x = from.x;
-        int z = from.y;
-        int deltaX = to.x - x;
-        int deltaZ = to.y - z;
-        int stepX = deltaX == 0 ? 0 : (deltaX > 0 ? 1 : -1);
-        int stepZ = deltaZ == 0 ? 0 : (deltaZ > 0 ? 1 : -1);
-        float tDeltaX = deltaX == 0 ? float.PositiveInfinity : 1f / Mathf.Abs(deltaX);
-        float tDeltaZ = deltaZ == 0 ? float.PositiveInfinity : 1f / Mathf.Abs(deltaZ);
-        float tMaxX = tDeltaX * 0.5f;
-        float tMaxZ = tDeltaZ * 0.5f;
-
-        while (x != to.x || z != to.y)
-        {
-            if (Mathf.Abs(tMaxX - tMaxZ) <= 0.0001f)
-            {
-                // Crossing a grid corner must not squeeze between two blocked cells.
-                if (!IsWalkable(cells, x + stepX, z) ||
-                    !IsWalkable(cells, x, z + stepZ))
-                {
-                    return false;
-                }
-
-                x += stepX;
-                z += stepZ;
-                tMaxX += tDeltaX;
-                tMaxZ += tDeltaZ;
-            }
-            else if (tMaxX < tMaxZ)
-            {
-                x += stepX;
-                tMaxX += tDeltaX;
-            }
-            else
-            {
-                z += stepZ;
-                tMaxZ += tDeltaZ;
-            }
-
-            if (!IsWalkable(cells, x, z))
-                return false;
-        }
-
-        return true;
-    }
-
-    private bool IsWalkable(FlowCell[,] cells, int x, int z) =>
-        IsInGrid(x, z) && cells[x, z].state == CellState.Walkable;
 
     private void PushFrontier(FrontierNode node)
     {
@@ -410,19 +425,17 @@ public sealed class FlowFieldManager : MonoBehaviour
 
     public Vector2Int WorldToGrid(Vector3 worldPosition)
     {
-        Vector3 origin = transform.position;
         return new Vector2Int(
-            Mathf.FloorToInt((worldPosition.x - origin.x) / cellSize),
-            Mathf.FloorToInt((worldPosition.z - origin.z) / cellSize));
+            Mathf.FloorToInt((worldPosition.x - gridOrigin.x) / cellSize),
+            Mathf.FloorToInt((worldPosition.z - gridOrigin.z) / cellSize));
     }
 
     public Vector3 GridToWorld(Vector2Int gridPosition)
     {
-        Vector3 origin = transform.position;
         return new Vector3(
-            origin.x + (gridPosition.x + 0.5f) * cellSize,
-            origin.y,
-            origin.z + (gridPosition.y + 0.5f) * cellSize);
+            gridOrigin.x + (gridPosition.x + 0.5f) * cellSize,
+            gridOrigin.y,
+            gridOrigin.z + (gridPosition.y + 0.5f) * cellSize);
     }
 
     public bool IsInGrid(int x, int z)
@@ -442,6 +455,19 @@ public sealed class FlowFieldManager : MonoBehaviour
             return;
         ScanObstacleGrid();
         RebuildPlayerFields();
+    }
+
+    [ContextMenu("重新适配地图并扫描 / Refit Map Bounds And Rescan")]
+    public void RefitMapBoundsAndRescan()
+    {
+        if (!NetworkAuthority.IsServerOrOffline())
+            return;
+
+        ConfigureGridBounds();
+        obstacleGrid = new CellState[gridWidth, gridHeight];
+        targetFields.Clear();
+        obstaclesDirty = true;
+        ForceRescan();
     }
 
     public Vector3 GetFlowDirection(Vector3 enemyWorldPosition)
@@ -470,13 +496,9 @@ public sealed class FlowFieldManager : MonoBehaviour
         FlowCell flowCell = field.cells[cell.x, cell.y];
         if (flowCell.state == CellState.Walkable && flowCell.cost != int.MaxValue)
         {
-            if (flowCell.hasLineOfSight)
-                return PlanarDirection(enemyWorldPosition, target.position);
-
-            if (flowCell.nextCell != cell)
-                return PlanarDirection(enemyWorldPosition, GridToWorld(flowCell.nextCell));
-
-            return flowCell.flowDirection;
+            return flowCell.flowDirection.sqrMagnitude > 0.0001f
+                ? flowCell.flowDirection
+                : PlanarDirection(enemyWorldPosition, target.position);
         }
 
         // An enemy can briefly occupy a newly blocked cell after a rescan. Guide it
@@ -546,19 +568,52 @@ public sealed class FlowFieldManager : MonoBehaviour
         return direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.zero;
     }
 
-    private void OnDrawGizmos()
+    private void OnDrawGizmosSelected()
     {
+        DrawConfiguredBoundsPreview();
+        if (!drawFlowArrows)
+            return;
+
         if (obstacleGrid == null)
             return;
-        for (int x = 0; x < gridWidth; x++)
+
+        const float MaxDebugCells = 2000f;
+        int stride = Mathf.Max(
+            1,
+            Mathf.CeilToInt(Mathf.Sqrt(gridWidth * (float)gridHeight / MaxDebugCells)));
+        for (int x = 0; x < gridWidth; x += stride)
         {
-            for (int z = 0; z < gridHeight; z++)
+            for (int z = 0; z < gridHeight; z += stride)
             {
                 Gizmos.color = obstacleGrid[x, z] == CellState.Obstacle ? Color.red : Color.green;
                 Gizmos.DrawWireCube(
                     GridToWorld(new Vector2Int(x, z)),
-                    Vector3.one * cellSize * 0.9f);
+                    Vector3.one * cellSize * stride * 0.9f);
             }
         }
+    }
+
+    private void DrawConfiguredBoundsPreview()
+    {
+        if (!fitToMapBounds || mapBoundsSource == null ||
+            !TryCalculateMapBounds(mapBoundsSource, out Bounds mapBounds))
+        {
+            return;
+        }
+
+        mapBounds.Expand(new Vector3(mapBoundsPadding * 2f, 0f, mapBoundsPadding * 2f));
+        Vector3 center = new(mapBounds.center.x, transform.position.y, mapBounds.center.z);
+        Vector3 size = new(mapBounds.size.x, 0.1f, mapBounds.size.z);
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireCube(center, size);
+    }
+
+    private void OnValidate()
+    {
+        cellSize = Mathf.Max(0.1f, cellSize);
+        gridWidth = Mathf.Max(1, gridWidth);
+        gridHeight = Mathf.Max(1, gridHeight);
+        mapBoundsPadding = Mathf.Max(0f, mapBoundsPadding);
+        maxAutoCellsPerAxis = Mathf.Max(32, maxAutoCellsPerAxis);
     }
 }

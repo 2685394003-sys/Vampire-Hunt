@@ -10,46 +10,20 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
 {
-    [Header("刷怪配置 / Spawn")]
-    [Tooltip("需要包含 FlowFieldEnemy、EnemyHealth 和 NetworkObject。")]
-    public GameObject enemyPrefab;
-    [Min(1)] public int monstersPerWave = 2;
-    [Min(0.1f)] public float spawnInterval = 4f;
-    [Min(0f)] public float firstSpawnDelay = 3f;
-    [Min(1)] public int maxAlive = 30;
+    [Header("刷怪配置 / Spawn Config")]
+    [Tooltip("留空时加载 Resources/GameBalance/MonsterSpawnConfig。")]
+    [SerializeField] private MonsterSpawnConfig config;
 
-    [Header("玩家周围范围 / Player Ring")]
-    [Tooltip("生成位置到所有存活玩家的最小距离。")]
-    [Min(0f)] public float minSpawnRadius = 15f;
-    [Tooltip("生成位置到本次选中玩家的最大距离。")]
-    [Min(0f)] public float maxSpawnRadius = 25f;
-    [Min(1)] public int maxSampleAttemptsPerMonster = 16;
-    [Min(0f)] public float spawnHeightOffset;
-    [Tooltip("同一波怪物之间的最小出生间距。")]
-    [Min(0f)] public float minWaveSpawnSeparation = 1f;
-
-    [Header("Boss 方向偏置 / Boss Direction Bias")]
-    [Tooltip("有 Boss 时，从 Boss 方向扇区采样的概率；剩余概率在整圈均匀采样。")]
-    [Range(0f, 1f)] public float bossDirectionProbability = 0.7f;
-    [Tooltip("Boss 方向扇区的半角。例如 55 表示 Boss 方向左右各 55 度。")]
-    [Range(0f, 180f)] public float bossDirectionHalfAngle = 55f;
+    [Header("场景引用 / Scene References")]
     [Tooltip("留空时自动查找场景中的 BossHealth。")]
     public BossHealth boss;
-    [Min(0.1f)] public float bossFindRetryInterval = 0.5f;
-    public bool pauseDuringBossTransition = true;
-    public bool stopWhenBossDies = true;
-    [Min(0f)] public float resumeDelayAfterPhase = 3f;
+    public MonsterSpawnConfig Config => config != null ? config : config = MonsterSpawnConfig.LoadDefault();
 
-    [Header("有效位置 / Validation")]
-    public bool requireWalkableCell = true;
-    [Tooltip("用于避免出生位置与障碍、玩家、Boss 或已有怪物重叠。默认检测 Obstacle、Player、Enemy。")]
-    public LayerMask spawnBlockingLayers = (1 << 3) | (1 << 6) | (1 << 7);
-    [Min(0f)] public float spawnClearanceRadius = 0.6f;
+    public void SetConfig(MonsterSpawnConfig value) => config = value;
+
+    private GameObject EnemyPrefab => Config != null ? Config.EnemyPrefab : null;
     [Tooltip("生成的怪物统一放在此父物体下；留空时自动创建 [SpawnedEnemies]（仅离线层级生效）。")]
     public Transform spawnParent;
-
-    [Header("调试 / Debug")]
-    public bool drawGizmos = true;
 
     private readonly List<PlayerNetworkState> alivePlayers = new(4);
     private readonly List<GameObject> spawnedEnemies = new();
@@ -63,19 +37,16 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
     private bool wasBossInvulnerable;
     private bool bossEverFound;
     private bool bossGone;
+    private float elapsedSpawnTime;
 
     private void Awake()
     {
-        NormalizeSettings();
         flowField = FindFirstObjectByType<FlowFieldManager>();
         offlinePlayer = flowField != null ? flowField.player : null;
-        spawnTimer = firstSpawnDelay;
+        spawnTimer = Config != null ? Config.FirstSpawnDelay : 3f;
+        if (Config != null)
+            NetworkSpawnUtility.ConfigurePool(EnemyPrefab, Config.PoolPrewarmCount, Config.MaxAlive);
         TryFindBoss();
-    }
-
-    private void OnValidate()
-    {
-        NormalizeSettings();
     }
 
     private void Update()
@@ -87,20 +58,13 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
         if (ShouldPauseForBoss())
             return;
 
+        elapsedSpawnTime += Time.deltaTime;
         spawnTimer -= Time.deltaTime;
         if (spawnTimer > 0f)
             return;
 
-        spawnTimer = spawnInterval;
+        spawnTimer = Config != null ? Config.SpawnInterval : 4f;
         TrySpawnWave();
-    }
-
-    private void NormalizeSettings()
-    {
-        minSpawnRadius = Mathf.Max(0f, minSpawnRadius);
-        maxSpawnRadius = Mathf.Max(minSpawnRadius, maxSpawnRadius);
-        spawnInterval = Mathf.Max(0.1f, spawnInterval);
-        maxSampleAttemptsPerMonster = Mathf.Max(1, maxSampleAttemptsPerMonster);
     }
 
     private void RefreshBossReference()
@@ -111,7 +75,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
             return;
         }
 
-        if (bossEverFound && stopWhenBossDies)
+        if (bossEverFound && Config != null && Config.StopWhenBossDies)
         {
             bossGone = true;
             return;
@@ -120,7 +84,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
         bossFindTimer -= Time.deltaTime;
         if (bossFindTimer <= 0f)
         {
-            bossFindTimer = bossFindRetryInterval;
+            bossFindTimer = Config != null ? Config.BossFindRetryInterval : 0.5f;
             TryFindBoss();
         }
     }
@@ -152,13 +116,13 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
         if (boss == null)
             return false;
 
-        if (boss.IsDead && stopWhenBossDies)
+        if (boss.IsDead && Config != null && Config.StopWhenBossDies)
         {
             bossGone = true;
             return true;
         }
 
-        if (pauseDuringBossTransition && boss.IsInvulnerable)
+        if (Config != null && Config.PauseDuringBossTransition && boss.IsInvulnerable)
         {
             wasBossInvulnerable = true;
             return true;
@@ -167,7 +131,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
         if (wasBossInvulnerable)
         {
             wasBossInvulnerable = false;
-            resumeBlockTimer = resumeDelayAfterPhase;
+            resumeBlockTimer = Config != null ? Config.ResumeDelayAfterPhase : 0f;
         }
 
         if (resumeBlockTimer <= 0f)
@@ -182,14 +146,21 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
     {
         if (!IsSpawnAuthorityReady())
             return;
-        if (enemyPrefab == null)
+        if (Config == null || EnemyPrefab == null)
         {
             Debug.LogWarning("[动态刷怪] 未配置 enemyPrefab，跳过本波。", this);
             return;
         }
 
         CleanupDestroyedEnemies();
-        int availableSlots = maxAlive - spawnedEnemies.Count;
+        int activePooledEnemies = NetworkSpawnUtility.GetActivePooledCount(EnemyPrefab);
+        int trackedActiveEnemies = 0;
+        for (int i = 0; i < spawnedEnemies.Count; i++)
+        {
+            if (spawnedEnemies[i] != null && spawnedEnemies[i].activeInHierarchy)
+                trackedActiveEnemies++;
+        }
+        int availableSlots = Config.MaxAlive - Mathf.Max(activePooledEnemies, trackedActiveEnemies);
         if (availableSlots <= 0)
             return;
 
@@ -198,7 +169,11 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
             return;
 
         wavePositions.Clear();
-        int count = Mathf.Min(monstersPerWave, availableSlots);
+        int growthSteps = Mathf.FloorToInt(elapsedSpawnTime / Config.WaveGrowthInterval);
+        int scaledWaveSize = Mathf.Min(
+            Config.MaxMonstersPerWave,
+            Config.MonstersPerWave + growthSteps * Config.MonstersAddedPerGrowth);
+        int count = Mathf.Min(scaledWaveSize, availableSlots);
         for (int i = 0; i < count; i++)
         {
             if (!TrySampleSpawnPosition(out Vector3 position, out Transform target))
@@ -210,7 +185,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
                 facing = Vector3.forward;
 
             GameObject instance = NetworkSpawnUtility.Spawn(
-                enemyPrefab,
+                EnemyPrefab,
                 position,
                 Quaternion.LookRotation(facing.normalized, Vector3.up),
                 GetSpawnParent());
@@ -238,25 +213,25 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
         if (target == null)
             return false;
 
-        for (int attempt = 0; attempt < maxSampleAttemptsPerMonster; attempt++)
+        for (int attempt = 0; attempt < Config.MaxSampleAttemptsPerMonster; attempt++)
         {
             Vector3 direction = SampleDirection(target.position);
             float radius = Mathf.Sqrt(Random.Range(
-                minSpawnRadius * minSpawnRadius,
-                maxSpawnRadius * maxSpawnRadius));
+                Config.MinSpawnRadius * Config.MinSpawnRadius,
+                Config.MaxSpawnRadius * Config.MaxSpawnRadius));
             Vector3 candidate = target.position + direction * radius;
-            candidate.y = target.position.y + spawnHeightOffset;
+            candidate.y = target.position.y + Config.SpawnHeightOffset;
 
             if (IsTooCloseToAnyPlayer(candidate))
                 continue;
             if (!IsSeparatedFromCurrentWave(candidate))
                 continue;
-            if (requireWalkableCell && !IsWalkable(candidate))
+            if (Config.RequireWalkableCell && !IsWalkable(candidate))
                 continue;
-            if (spawnClearanceRadius > 0f && Physics.CheckSphere(
-                    candidate + Vector3.up * spawnClearanceRadius,
-                    spawnClearanceRadius,
-                    spawnBlockingLayers,
+            if (Config.SpawnClearanceRadius > 0f && Physics.CheckSphere(
+                    candidate + Vector3.up * Config.SpawnClearanceRadius,
+                    Config.SpawnClearanceRadius,
+                    Config.SpawnBlockingLayers,
                     QueryTriggerInteraction.Ignore))
                 continue;
 
@@ -278,7 +253,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
     {
         bool useBossDirection = boss != null &&
                                 !boss.IsDead &&
-                                Random.value < bossDirectionProbability;
+                                Random.value < Config.BossDirectionProbability;
         if (!useBossDirection)
             return Quaternion.Euler(0f, Random.Range(0f, 360f), 0f) * Vector3.forward;
 
@@ -287,13 +262,13 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
         if (towardBoss.sqrMagnitude < 0.0001f)
             return Quaternion.Euler(0f, Random.Range(0f, 360f), 0f) * Vector3.forward;
 
-        float offset = Random.Range(-bossDirectionHalfAngle, bossDirectionHalfAngle);
+        float offset = Random.Range(-Config.BossDirectionHalfAngle, Config.BossDirectionHalfAngle);
         return Quaternion.Euler(0f, offset, 0f) * towardBoss.normalized;
     }
 
     private bool IsTooCloseToAnyPlayer(Vector3 position)
     {
-        float minimumDistanceSquared = minSpawnRadius * minSpawnRadius;
+        float minimumDistanceSquared = Config.MinSpawnRadius * Config.MinSpawnRadius;
         foreach (PlayerNetworkState player in alivePlayers)
         {
             if (player != null &&
@@ -310,7 +285,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
 
     private bool IsSeparatedFromCurrentWave(Vector3 position)
     {
-        float minimumDistanceSquared = minWaveSpawnSeparation * minWaveSpawnSeparation;
+        float minimumDistanceSquared = Config.MinWaveSpawnSeparation * Config.MinWaveSpawnSeparation;
         foreach (Vector3 other in wavePositions)
         {
             if ((other - position).sqrMagnitude < minimumDistanceSquared)
@@ -351,7 +326,7 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
     {
         for (int i = spawnedEnemies.Count - 1; i >= 0; i--)
         {
-            if (spawnedEnemies[i] == null)
+            if (spawnedEnemies[i] == null || !spawnedEnemies[i].activeInHierarchy)
                 spawnedEnemies.RemoveAt(i);
         }
     }
@@ -366,7 +341,8 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        if (!drawGizmos)
+        MonsterSpawnConfig settings = Config;
+        if (settings == null || !settings.DrawGizmos)
             return;
 
         FlowFieldManager manager = flowField != null
@@ -377,9 +353,9 @@ public sealed class PlayerProximityMonsterSpawner : MonoBehaviour
             return;
 
         Gizmos.color = new Color(1f, 0.65f, 0f, 0.8f);
-        DrawCircle(fallback.position, minSpawnRadius);
+        DrawCircle(fallback.position, settings.MinSpawnRadius);
         Gizmos.color = new Color(1f, 0.25f, 0.1f, 0.8f);
-        DrawCircle(fallback.position, maxSpawnRadius);
+        DrawCircle(fallback.position, settings.MaxSpawnRadius);
     }
 
     private static void DrawCircle(Vector3 center, float radius)

@@ -222,10 +222,14 @@ public static class VampireHuntNetworkSetup
                      FindObjectsInactive.Include,
                      FindObjectsSortMode.None))
         {
-            if (spawner.enemyPrefab == null)
+            if (spawner.Config == null)
             {
-                spawner.enemyPrefab = enemyPrefab;
-                EditorUtility.SetDirty(spawner);
+                MonsterSpawnConfig spawnConfig = MonsterSpawnConfig.LoadDefault();
+                if (spawnConfig != null)
+                {
+                    spawner.SetConfig(spawnConfig);
+                    EditorUtility.SetDirty(spawner);
+                }
             }
         }
     }
