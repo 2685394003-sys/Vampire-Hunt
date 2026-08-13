@@ -61,7 +61,8 @@ public sealed class EnemyHealth : NetworkBehaviour
 
     /// <summary>
     /// Applies damage and remembers its player source. The last damaging player
-    /// receives all rewards when this hit (or a later unattributed hit) kills it.
+    /// receives personal rewards when this hit (or a later unattributed hit)
+    /// kills it. Scarlet is shared by PlayerNetworkState in multiplayer.
     /// </summary>
     public void ChangeEnemyHealth(int amount, PlayerNetworkState damageDealer)
     {

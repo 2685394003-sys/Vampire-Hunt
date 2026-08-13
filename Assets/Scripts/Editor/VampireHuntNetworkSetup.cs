@@ -104,10 +104,15 @@ public static class VampireHuntNetworkSetup
         if (isPlayer) GetOrAdd<PlayerNetworkState>(actor);
 
         Animator animator = actor.GetComponentInChildren<Animator>(true);
-        if (animator != null)
+        bool replicatesEnemyState = actor.GetComponent<FlowFieldEnemy>() != null;
+        if (animator != null && !replicatesEnemyState)
         {
             NetworkAnimator networkAnimator = GetOrAdd<NetworkAnimator>(actor);
             networkAnimator.Animator = animator;
+        }
+        else if (replicatesEnemyState && actor.TryGetComponent(out NetworkAnimator networkAnimator))
+        {
+            Object.DestroyImmediate(networkAnimator);
         }
         EditorUtility.SetDirty(actor);
     }

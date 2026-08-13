@@ -14,6 +14,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 {
     public const float BloodPactScarletCost = 100f;
 
+    private static readonly List<PlayerNetworkState> ScarletShareRecipients = new();
+
     [SerializeField] private PlayerStatsConfig baseStats;
     [SerializeField] private bool hideVisualsWhenDead = true;
 
@@ -236,8 +238,35 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 
     public void AddScarlet(float amount)
     {
-        if (NetworkAuthority.IsServerOrOffline(this) && amount > 0f)
-            SetScarlet(CurrentScarlet + amount);
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            amount <= 0f ||
+            float.IsNaN(amount) ||
+            float.IsInfinity(amount))
+        {
+            return;
+        }
+
+        if (!NetworkAuthority.IsNetworkActive)
+        {
+            AddScarletDirect(amount);
+            return;
+        }
+
+        NetworkPlayerRegistry.GetPlayers(ScarletShareRecipients);
+        if (ScarletShareRecipients.Count == 0)
+        {
+            AddScarletDirect(amount);
+            return;
+        }
+
+        float share = amount / ScarletShareRecipients.Count;
+        foreach (PlayerNetworkState recipient in ScarletShareRecipients)
+        {
+            if (recipient != null && NetworkAuthority.IsServerOrOffline(recipient))
+            {
+                recipient.AddScarletDirect(share);
+            }
+        }
     }
 
     public void AddCoins(int amount)
@@ -348,7 +377,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 
         if (!pact.ApplyEffects(this))
         {
-            AddScarlet(BloodPactScarletCost);
+            AddScarletDirect(BloodPactScarletCost);
             return false;
         }
 
@@ -831,7 +860,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     private void SetMaxScarlet(float value)
     {
         SetRuntimeFloat(networkMaxScarlet, ref offlineMaxScarlet, value);
-        SetScarlet(Mathf.Min(CurrentScarlet, value));
     }
 
     private void SetHealth(int value)
@@ -861,13 +889,20 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 
     private void SetScarlet(float value)
     {
-        value = Mathf.Clamp(value, 0f, MaxScarlet);
+        if (float.IsNaN(value)) return;
+        value = float.IsPositiveInfinity(value) ? float.MaxValue : Mathf.Max(0f, value);
         if (UseNetworkValues) networkScarlet.Value = value;
         else if (!Mathf.Approximately(offlineScarlet, value))
         {
             offlineScarlet = value;
             ScarletChanged?.Invoke(offlineScarlet, offlineMaxScarlet);
         }
+    }
+
+    private void AddScarletDirect(float amount)
+    {
+        double nextValue = (double)CurrentScarlet + amount;
+        SetScarlet(nextValue >= float.MaxValue ? float.MaxValue : (float)nextValue);
     }
 
     private void SetCoins(int value)

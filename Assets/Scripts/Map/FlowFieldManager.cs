@@ -12,6 +12,8 @@ public struct FlowCell
     public CellState state;
     public int cost;
     public Vector3 flowDirection;
+    public Vector2Int nextCell;
+    public bool hasLineOfSight;
 }
 
 /// <summary>
@@ -47,12 +49,29 @@ public sealed class FlowFieldManager : MonoBehaviour
     private float obstacleRescanTimer;
     private bool obstaclesDirty = true;
 
+    private const int StraightMoveCost = 10;
+    private const int DiagonalMoveCost = 14;
+    private const int RecoverySearchRadius = 3;
+
     private static readonly Vector2Int[] Neighbours =
     {
-        new(-1, -1), new(0, -1), new(1, -1),
-        new(-1, 0),                new(1, 0),
-        new(-1, 1),  new(0, 1),  new(1, 1)
+        new(-1, 0), new(1, 0), new(0, -1), new(0, 1),
+        new(-1, -1), new(1, -1), new(-1, 1), new(1, 1)
     };
+
+    private readonly List<FrontierNode> frontier = new();
+
+    private readonly struct FrontierNode
+    {
+        public readonly Vector2Int cell;
+        public readonly int cost;
+
+        public FrontierNode(Vector2Int cell, int cost)
+        {
+            this.cell = cell;
+            this.cost = cost;
+        }
+    }
 
     private sealed class TargetFlowField
     {
@@ -174,6 +193,8 @@ public sealed class FlowFieldManager : MonoBehaviour
                 cells[x, z].state = obstacleGrid[x, z];
                 cells[x, z].cost = int.MaxValue;
                 cells[x, z].flowDirection = Vector3.zero;
+                cells[x, z].nextCell = new Vector2Int(x, z);
+                cells[x, z].hasLineOfSight = false;
             }
         }
 
@@ -182,26 +203,34 @@ public sealed class FlowFieldManager : MonoBehaviour
             return;
 
         // A player collider may share the obstacle mask. The target cell must be a
-        // valid BFS source but the cached obstacle grid itself stays unchanged.
+        // valid integration-field source, while the cached obstacle grid stays unchanged.
         cells[targetCell.x, targetCell.y].state = CellState.Walkable;
         cells[targetCell.x, targetCell.y].cost = 0;
+        cells[targetCell.x, targetCell.y].nextCell = targetCell;
+        cells[targetCell.x, targetCell.y].hasLineOfSight = true;
 
-        Queue<Vector2Int> queue = new();
-        queue.Enqueue(targetCell);
-        while (queue.Count > 0)
+        frontier.Clear();
+        PushFrontier(new FrontierNode(targetCell, 0));
+        while (frontier.Count > 0)
         {
-            Vector2Int current = queue.Dequeue();
-            int nextCost = cells[current.x, current.y].cost + 1;
+            FrontierNode node = PopFrontier();
+            Vector2Int current = node.cell;
+            if (node.cost != cells[current.x, current.y].cost)
+                continue;
+
             foreach (Vector2Int offset in Neighbours)
             {
                 int x = current.x + offset.x;
                 int z = current.y + offset.y;
-                if (!IsInGrid(x, z) || cells[x, z].state == CellState.Obstacle)
+                if (!CanTraverse(cells, current.x, current.y, offset))
                     continue;
+
+                int nextCost = node.cost + GetMoveCost(offset);
                 if (nextCost >= cells[x, z].cost)
                     continue;
+
                 cells[x, z].cost = nextCost;
-                queue.Enqueue(new Vector2Int(x, z));
+                PushFrontier(new FrontierNode(new Vector2Int(x, z), nextCost));
             }
         }
 
@@ -212,24 +241,171 @@ public sealed class FlowFieldManager : MonoBehaviour
                 if (cells[x, z].state == CellState.Obstacle || cells[x, z].cost == int.MaxValue)
                     continue;
 
-                int bestCost = cells[x, z].cost;
-                Vector3 bestDirection = Vector3.zero;
+                Vector2Int current = new(x, z);
+                Vector3 currentWorld = GridToWorld(current);
+                Vector3 targetDirection = PlanarDirection(currentWorld, targetPosition);
+                if (HasGridLineOfSight(cells, current, targetCell))
+                {
+                    cells[x, z].flowDirection = targetDirection;
+                    cells[x, z].nextCell = targetCell;
+                    cells[x, z].hasLineOfSight = true;
+                    continue;
+                }
+
+                int bestTotalCost = int.MaxValue;
+                float bestAlignment = float.NegativeInfinity;
+                Vector2Int bestNext = current;
                 foreach (Vector2Int offset in Neighbours)
                 {
                     int nextX = x + offset.x;
                     int nextZ = z + offset.y;
-                    if (!IsInGrid(nextX, nextZ) || cells[nextX, nextZ].state == CellState.Obstacle)
-                        continue;
-                    if (cells[nextX, nextZ].cost >= bestCost)
+                    if (!CanTraverse(cells, x, z, offset) ||
+                        cells[nextX, nextZ].cost >= cells[x, z].cost)
                         continue;
 
-                    bestCost = cells[nextX, nextZ].cost;
-                    bestDirection = (GridToWorld(new Vector2Int(nextX, nextZ)) -
-                                     GridToWorld(new Vector2Int(x, z))).normalized;
+                    int totalCost = cells[nextX, nextZ].cost + GetMoveCost(offset);
+                    Vector3 candidateDirection = new(offset.x, 0f, offset.y);
+                    candidateDirection.Normalize();
+                    float alignment = Vector3.Dot(candidateDirection, targetDirection);
+                    if (totalCost > bestTotalCost ||
+                        (totalCost == bestTotalCost && alignment <= bestAlignment))
+                        continue;
+
+                    bestTotalCost = totalCost;
+                    bestAlignment = alignment;
+                    bestNext = new Vector2Int(nextX, nextZ);
                 }
-                cells[x, z].flowDirection = bestDirection;
+
+                if (bestNext != current)
+                {
+                    cells[x, z].nextCell = bestNext;
+                    cells[x, z].flowDirection = PlanarDirection(
+                        currentWorld,
+                        GridToWorld(bestNext));
+                }
             }
         }
+    }
+
+    private static int GetMoveCost(Vector2Int offset) =>
+        offset.x != 0 && offset.y != 0 ? DiagonalMoveCost : StraightMoveCost;
+
+    private bool CanTraverse(
+        FlowCell[,] cells,
+        int fromX,
+        int fromZ,
+        Vector2Int offset)
+    {
+        int toX = fromX + offset.x;
+        int toZ = fromZ + offset.y;
+        if (!IsInGrid(toX, toZ) || cells[toX, toZ].state == CellState.Obstacle)
+            return false;
+
+        if (offset.x == 0 || offset.y == 0)
+            return true;
+
+        // A diagonal is valid only when both side cells are clear. This keeps an
+        // enemy capsule from taking a mathematical shortcut through a solid corner.
+        return IsInGrid(fromX + offset.x, fromZ) &&
+               IsInGrid(fromX, fromZ + offset.y) &&
+               cells[fromX + offset.x, fromZ].state == CellState.Walkable &&
+               cells[fromX, fromZ + offset.y].state == CellState.Walkable;
+    }
+
+    private bool HasGridLineOfSight(
+        FlowCell[,] cells,
+        Vector2Int from,
+        Vector2Int to)
+    {
+        int x = from.x;
+        int z = from.y;
+        int deltaX = to.x - x;
+        int deltaZ = to.y - z;
+        int stepX = deltaX == 0 ? 0 : (deltaX > 0 ? 1 : -1);
+        int stepZ = deltaZ == 0 ? 0 : (deltaZ > 0 ? 1 : -1);
+        float tDeltaX = deltaX == 0 ? float.PositiveInfinity : 1f / Mathf.Abs(deltaX);
+        float tDeltaZ = deltaZ == 0 ? float.PositiveInfinity : 1f / Mathf.Abs(deltaZ);
+        float tMaxX = tDeltaX * 0.5f;
+        float tMaxZ = tDeltaZ * 0.5f;
+
+        while (x != to.x || z != to.y)
+        {
+            if (Mathf.Abs(tMaxX - tMaxZ) <= 0.0001f)
+            {
+                // Crossing a grid corner must not squeeze between two blocked cells.
+                if (!IsWalkable(cells, x + stepX, z) ||
+                    !IsWalkable(cells, x, z + stepZ))
+                {
+                    return false;
+                }
+
+                x += stepX;
+                z += stepZ;
+                tMaxX += tDeltaX;
+                tMaxZ += tDeltaZ;
+            }
+            else if (tMaxX < tMaxZ)
+            {
+                x += stepX;
+                tMaxX += tDeltaX;
+            }
+            else
+            {
+                z += stepZ;
+                tMaxZ += tDeltaZ;
+            }
+
+            if (!IsWalkable(cells, x, z))
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool IsWalkable(FlowCell[,] cells, int x, int z) =>
+        IsInGrid(x, z) && cells[x, z].state == CellState.Walkable;
+
+    private void PushFrontier(FrontierNode node)
+    {
+        int index = frontier.Count;
+        frontier.Add(node);
+        while (index > 0)
+        {
+            int parent = (index - 1) / 2;
+            if (frontier[parent].cost <= node.cost)
+                break;
+            frontier[index] = frontier[parent];
+            index = parent;
+        }
+        frontier[index] = node;
+    }
+
+    private FrontierNode PopFrontier()
+    {
+        FrontierNode root = frontier[0];
+        int lastIndex = frontier.Count - 1;
+        FrontierNode last = frontier[lastIndex];
+        frontier.RemoveAt(lastIndex);
+        if (lastIndex == 0)
+            return root;
+
+        int index = 0;
+        while (true)
+        {
+            int left = index * 2 + 1;
+            if (left >= frontier.Count)
+                break;
+            int right = left + 1;
+            int child = right < frontier.Count && frontier[right].cost < frontier[left].cost
+                ? right
+                : left;
+            if (frontier[child].cost >= last.cost)
+                break;
+            frontier[index] = frontier[child];
+            index = child;
+        }
+        frontier[index] = last;
+        return root;
     }
 
     public Vector2Int WorldToGrid(Vector3 worldPosition)
@@ -291,10 +467,65 @@ public sealed class FlowFieldManager : MonoBehaviour
         if (field == null || !IsInGrid(cell.x, cell.y))
             return PlanarDirection(enemyWorldPosition, target.position);
 
-        Vector3 direction = field.cells[cell.x, cell.y].flowDirection;
-        return direction.sqrMagnitude > 0.0001f
-            ? direction
-            : PlanarDirection(enemyWorldPosition, target.position);
+        FlowCell flowCell = field.cells[cell.x, cell.y];
+        if (flowCell.state == CellState.Walkable && flowCell.cost != int.MaxValue)
+        {
+            if (flowCell.hasLineOfSight)
+                return PlanarDirection(enemyWorldPosition, target.position);
+
+            if (flowCell.nextCell != cell)
+                return PlanarDirection(enemyWorldPosition, GridToWorld(flowCell.nextCell));
+
+            return flowCell.flowDirection;
+        }
+
+        // An enemy can briefly occupy a newly blocked cell after a rescan. Guide it
+        // back to the nearest reachable cell instead of driving directly into the
+        // target (and deeper into the obstacle).
+        if (TryFindRecoveryCell(field.cells, cell, out Vector2Int recoveryCell))
+            return PlanarDirection(enemyWorldPosition, GridToWorld(recoveryCell));
+
+        return Vector3.zero;
+    }
+
+    private bool TryFindRecoveryCell(
+        FlowCell[,] cells,
+        Vector2Int origin,
+        out Vector2Int recoveryCell)
+    {
+        recoveryCell = origin;
+        float bestDistance = float.PositiveInfinity;
+        for (int radius = 1; radius <= RecoverySearchRadius; radius++)
+        {
+            bool foundAtRadius = false;
+            for (int x = origin.x - radius; x <= origin.x + radius; x++)
+            {
+                for (int z = origin.y - radius; z <= origin.y + radius; z++)
+                {
+                    if (Mathf.Max(Mathf.Abs(x - origin.x), Mathf.Abs(z - origin.y)) != radius ||
+                        !IsInGrid(x, z) ||
+                        cells[x, z].state == CellState.Obstacle ||
+                        cells[x, z].cost == int.MaxValue)
+                    {
+                        continue;
+                    }
+
+                    float distance = (GridToWorld(new Vector2Int(x, z)) -
+                                      GridToWorld(origin)).sqrMagnitude;
+                    if (distance >= bestDistance)
+                        continue;
+
+                    bestDistance = distance;
+                    recoveryCell = new Vector2Int(x, z);
+                    foundAtRadius = true;
+                }
+            }
+
+            if (foundAtRadius)
+                return true;
+        }
+
+        return false;
     }
 
     private void EnsureGridSize()
