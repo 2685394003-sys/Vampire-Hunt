@@ -72,7 +72,6 @@ public sealed class BloodPactSelectionController : MonoBehaviour
     [SerializeField, Min(0.5f)] private float networkResponseTimeout = 2f;
 
     private readonly BloodPactDefinition[] currentChoices = new BloodPactDefinition[ChoiceCount];
-    private readonly HashSet<string> locallySelectedPacts = new(StringComparer.Ordinal);
     private readonly List<BloodPactDefinition> candidateBuffer = new();
 
     private BloodPactConfig database;
@@ -185,15 +184,6 @@ public sealed class BloodPactSelectionController : MonoBehaviour
     {
         if (isPendingSelection && current + 0.0001f < PlayerNetworkState.BloodPactScarletCost)
         {
-            if (!string.IsNullOrEmpty(pendingPactId))
-            {
-                if (database != null &&
-                    database.TryGet(pendingPactId, out BloodPactDefinition selectedPact) &&
-                    !selectedPact.IsRepeatable)
-                {
-                    locallySelectedPacts.Add(pendingPactId);
-                }
-            }
             HideSelection();
             return;
         }
@@ -219,7 +209,7 @@ public sealed class BloodPactSelectionController : MonoBehaviour
 
         if (database == null || !RollChoices())
         {
-            Debug.LogWarning("[Blood Pact UI] Fewer than three available numeric player pacts remain.", this);
+            Debug.LogWarning("[Blood Pact UI] Fewer than three implemented player pacts remain.", this);
             return;
         }
 
@@ -251,8 +241,9 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         {
             if (pact != null &&
                 pact.IsPlayerPact &&
-                pact.HasNumericEffects &&
-                (pact.IsRepeatable || !locallySelectedPacts.Contains(pact.PactId)))
+                pact.IsRuntimeImplemented &&
+                (pact.IsRepeatable || boundPlayer == null ||
+                 !boundPlayer.HasBloodPact(pact.PactId)))
             {
                 candidateBuffer.Add(pact);
             }

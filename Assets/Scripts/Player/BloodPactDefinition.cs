@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// One design-authored blood pact row. SpecialEffect is descriptive data only;
-/// this class deliberately applies only the ordinary numeric columns.
+/// One design-authored blood pact row. Ordinary numeric columns and advanced
+/// GAS abilities share the same immutable run-balance asset.
 /// </summary>
 [Serializable]
 public sealed class BloodPactDefinition
@@ -23,6 +23,7 @@ public sealed class BloodPactDefinition
     [SerializeField] private float knockbackForce;
     [SerializeField] private float invincibleTime;
     [SerializeField, TextArea] private string specialEffect;
+    [SerializeField] private List<GameplayAbilityDefinition> gameplayAbilities = new();
 
     public string DisplayName => displayName;
     public string PactId => pactId;
@@ -32,6 +33,10 @@ public sealed class BloodPactDefinition
     public bool IsRepeatable => tier == 1;
     public string SpecialEffect => specialEffect;
     public bool HasSpecialEffect => !string.IsNullOrWhiteSpace(specialEffect);
+    public IReadOnlyList<GameplayAbilityDefinition> GameplayAbilities =>
+        gameplayAbilities ??
+        (IReadOnlyList<GameplayAbilityDefinition>)Array.Empty<GameplayAbilityDefinition>();
+    public bool HasGameplayAbilities => GameplayAbilities.Count > 0;
     public bool HasNumericEffects =>
         !Mathf.Approximately(moveSpeed, 0f) ||
         !Mathf.Approximately(attackPower, 0f) ||
@@ -43,6 +48,9 @@ public sealed class BloodPactDefinition
         !Mathf.Approximately(weaponRange, 0f) ||
         !Mathf.Approximately(knockbackForce, 0f) ||
         !Mathf.Approximately(invincibleTime, 0f);
+    public bool HasImplementedEffects => HasNumericEffects || HasGameplayAbilities;
+    public bool IsRuntimeImplemented =>
+        HasImplementedEffects && (!HasSpecialEffect || HasGameplayAbilities);
 
     public string BuildCardDescription()
     {
@@ -102,12 +110,40 @@ public sealed class BloodPactDefinition
         return true;
     }
 
+    /// <summary>Atomically installs numeric modifiers and advanced abilities.</summary>
+    public bool ApplyEffects(PlayerNetworkState player)
+    {
+        if (!NetworkAuthority.IsServerOrOffline() || !HasImplementedEffects) return false;
+        if (IsEnemyPact) return ApplyNumericEffects(player);
+        if (!IsPlayerPact || player == null ||
+            !player.AbilitySystem.CanGrant(GameplayAbilities))
+        {
+            return false;
+        }
+
+        if (!ApplyNumericEffects(player)) return false;
+        string sourceId = $"blood_pact:{pactId}";
+        if (player.AbilitySystem.GrantAbilities(GameplayAbilities, sourceId)) return true;
+
+        RemoveNumericEffects(player);
+        return false;
+    }
+
     public int RemoveNumericEffects(PlayerNetworkState player)
     {
         string sourceId = $"blood_pact:{pactId}";
         return IsPlayerPact
             ? player != null ? player.RemoveStatModifiersFromSource(sourceId) : 0
             : IsEnemyPact ? EnemyRunStats.RemoveModifiersFromSource(sourceId) : 0;
+    }
+
+    public int RemoveEffects(PlayerNetworkState player)
+    {
+        string sourceId = $"blood_pact:{pactId}";
+        int removed = RemoveNumericEffects(player);
+        if (IsPlayerPact && player?.AbilitySystem != null)
+            removed += player.AbilitySystem.RemoveAbilitiesBySource(sourceId);
+        return removed;
     }
 
     private void ApplyPlayerFlat(

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BloodPacts
   m_EditorClassIdentifier: Assembly-CSharp::BloodPactConfig
   pacts:
-  - displayName: 渡鸦之翼
+  - displayName: "\u6E21\u9E26\u4E4B\u7FFC"
     pactId: update_001
     tier: 1
     moveSpeed: 2
@@ -26,8 +26,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 芬里尔之牙
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u82AC\u91CC\u5C14\u4E4B\u7259"
     pactId: update_002
     tier: 1
     moveSpeed: 0
@@ -40,8 +41,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 约顿之躯
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u7EA6\u987F\u4E4B\u8EAF"
     pactId: update_003
     tier: 1
     moveSpeed: 0
@@ -54,8 +56,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 不朽之血
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u4E0D\u673D\u4E4B\u8840"
     pactId: update_004
     tier: 1
     moveSpeed: 0
@@ -68,8 +71,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 奥丁之眼
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u5965\u4E01\u4E4B\u773C"
     pactId: update_005
     tier: 1
     moveSpeed: 0
@@ -82,8 +86,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 处刑之刃
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u5904\u5211\u4E4B\u5203"
     pactId: update_006
     tier: 1
     moveSpeed: 0
@@ -96,8 +101,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 疾风之步
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u75BE\u98CE\u4E4B\u6B65"
     pactId: update_007
     tier: 1
     moveSpeed: 0
@@ -110,8 +116,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 长镰之锋
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u957F\u9570\u4E4B\u950B"
     pactId: update_008
     tier: 1
     moveSpeed: 0
@@ -124,8 +131,9 @@ MonoBehaviour:
     weaponRange: 0.5
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 雷神之锤
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u96F7\u795E\u4E4B\u9524"
     pactId: update_009
     tier: 1
     moveSpeed: 0
@@ -138,8 +146,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 2
     invincibleTime: 0
-    specialEffect:
-  - displayName: 嗜血之渴
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u55DC\u8840\u4E4B\u6E34"
     pactId: update_010
     tier: 1
     moveSpeed: 0
@@ -152,8 +161,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 占位符
-  - displayName: 铁壁之纹
+    specialEffect: "\u5360\u4F4D\u7B26"
+    gameplayAbilities: []
+  - displayName: "\u94C1\u58C1\u4E4B\u7EB9"
     pactId: update_011
     tier: 1
     moveSpeed: 0
@@ -166,8 +176,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0.2
-    specialEffect:
-  - displayName: 血潮之契
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u8840\u6F6E\u4E4B\u5951"
     pactId: update_012
     tier: 2
     moveSpeed: 0
@@ -180,8 +191,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 攻击敌人附加流血效果，流血可连锁传播
-  - displayName: 残月之契
+    specialEffect: "\u653B\u51FB\u654C\u4EBA\u9644\u52A0\u6D41\u8840\u6548\u679C\uFF0C\u6D41\u8840\u53EF\u8FDE\u9501\u4F20\u64AD"
+    gameplayAbilities: []
+  - displayName: "\u6B8B\u6708\u4E4B\u5951"
     pactId: update_013
     tier: 2
     moveSpeed: 0
@@ -194,8 +206,9 @@ MonoBehaviour:
     weaponRange: 1
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 攻击时散发弧形剑气，大幅延长攻击范围
-  - displayName: 荒芜之契
+    specialEffect: "\u653B\u51FB\u65F6\u6563\u53D1\u5F27\u5F62\u5251\u6C14\uFF0C\u5927\u5E45\u5EF6\u957F\u653B\u51FB\u8303\u56F4"
+    gameplayAbilities: []
+  - displayName: "\u8352\u829C\u4E4B\u5951"
     pactId: update_014
     tier: 2
     moveSpeed: 0
@@ -208,8 +221,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 以自身为中心产生领域，领域内敌人持续受到伤害
-  - displayName: 烬火之契
+    specialEffect: "\u4EE5\u81EA\u8EAB\u4E3A\u4E2D\u5FC3\u4EA7\u751F\u9886\u57DF\uFF0C\u9886\u57DF\u5185\u654C\u4EBA\u6301\u7EED\u53D7\u5230\u4F24\u5BB3"
+    gameplayAbilities: []
+  - displayName: "\u70EC\u706B\u4E4B\u5951"
     pactId: update_015
     tier: 2
     moveSpeed: 0
@@ -222,8 +236,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 攻击有几率触发灼烧，持续造成火焰伤害
-  - displayName: 霜息之契
+    specialEffect: "\u653B\u51FB\u6709\u51E0\u7387\u89E6\u53D1\u707C\u70E7\uFF0C\u6301\u7EED\u9020\u6210\u706B\u7130\u4F24\u5BB3"
+    gameplayAbilities: []
+  - displayName: "\u971C\u606F\u4E4B\u5951"
     pactId: update_016
     tier: 2
     moveSpeed: 0
@@ -236,8 +251,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 攻击有几率冻结敌人，使其无法移动
-  - displayName: 猩红之吻
+    specialEffect: "\u653B\u51FB\u6709\u51E0\u7387\u51BB\u7ED3\u654C\u4EBA\uFF0C\u4F7F\u5176\u65E0\u6CD5\u79FB\u52A8"
+    gameplayAbilities: []
+  - displayName: "\u7329\u7EA2\u4E4B\u543B"
     pactId: update_017
     tier: 2
     moveSpeed: 0
@@ -250,8 +266,39 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 攻击命中时回复生命值，吸血续航
-  - displayName: 猎杀之契
+    specialEffect: "\u653B\u51FB\u547D\u4E2D\u65F6\u56DE\u590D\u5B9E\u9645\u4F24\u5BB315%\u7684\u751F\u547D\u503C\uFF08\u81F3\u5C111\u70B9\uFF09"
+    gameplayAbilities:
+    - abilityId: blood_pact.scarlet_kiss
+      triggerEvent: 2
+      target: 0
+      chance: 1
+      internalCooldownSeconds: 0
+      requiredOwnerTags: []
+      blockedOwnerTags: []
+      effects:
+      - effectId: scarlet_kiss.heal_on_hit
+        durationPolicy: 0
+        durationSeconds: 0
+        periodSeconds: 0
+        executeOnApplication: 1
+        stackingPolicy: 0
+        maxStacks: 1
+        refreshOnEvent: 0
+        grantedTags: []
+        requiredTargetTags: []
+        blockedTargetTags: []
+        cueTag: GameplayCue.BloodPact.ScarletKiss
+        modifiers: []
+        executions:
+        - executionType: 0
+          magnitude:
+            source: 1
+            coefficient: 0.15
+            additive: 0
+            clampResult: 1
+            minimum: 1
+            maximum: 999999
+  - displayName: "\u730E\u6740\u4E4B\u5951"
     pactId: update_018
     tier: 2
     moveSpeed: 0
@@ -264,8 +311,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 暴击时触发追猎效果，对低血量敌人额外伤害
-  - displayName: 加姆之吠
+    specialEffect: "\u66B4\u51FB\u65F6\u89E6\u53D1\u8FFD\u730E\u6548\u679C\uFF0C\u5BF9\u4F4E\u8840\u91CF\u654C\u4EBA\u989D\u5916\u4F24\u5BB3"
+    gameplayAbilities: []
+  - displayName: "\u52A0\u59C6\u4E4B\u5420"
     pactId: update_019
     tier: 3
     moveSpeed: 0
@@ -278,8 +326,9 @@ MonoBehaviour:
     weaponRange: 0.5
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 攻击变为前方三段连击，每段范围递增
-  - displayName: 苏尔特之焰
+    specialEffect: "\u653B\u51FB\u53D8\u4E3A\u524D\u65B9\u4E09\u6BB5\u8FDE\u51FB\uFF0C\u6BCF\u6BB5\u8303\u56F4\u9012\u589E"
+    gameplayAbilities: []
+  - displayName: "\u82CF\u5C14\u7279\u4E4B\u7130"
     pactId: update_020
     tier: 3
     moveSpeed: 0
@@ -292,8 +341,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 所有攻击必定触发灼烧，灼烧伤害翻倍
-  - displayName: 狂战士之怒
+    specialEffect: "\u6240\u6709\u653B\u51FB\u5FC5\u5B9A\u89E6\u53D1\u707C\u70E7\uFF0C\u707C\u70E7\u4F24\u5BB3\u7FFB\u500D"
+    gameplayAbilities: []
+  - displayName: "\u72C2\u6218\u58EB\u4E4B\u6012"
     pactId: update_021
     tier: 3
     moveSpeed: 0
@@ -306,8 +356,50 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 生命值越低，攻击力和暴击率越高，残血爆发
-  - displayName: 诸神黄昏
+    specialEffect: "\u6BCF\u635F\u59311%\u751F\u547D\uFF0C\u653B\u51FB\u529B\u63D0\u9AD80.75%\u3001\u66B4\u51FB\u7387\u63D0\u9AD80.25%\uFF08\u6700\u9AD8+75%/+25%\uFF09"
+    gameplayAbilities:
+    - abilityId: blood_pact.berserker_rage
+      triggerEvent: 1
+      target: 0
+      chance: 1
+      internalCooldownSeconds: 0
+      requiredOwnerTags: []
+      blockedOwnerTags: []
+      effects:
+      - effectId: berserker_rage.missing_health_scaling
+        durationPolicy: 2
+        durationSeconds: 0
+        periodSeconds: 0
+        executeOnApplication: 0
+        stackingPolicy: 2
+        maxStacks: 1
+        refreshOnEvent: 5
+        grantedTags:
+        - State.BloodPact.Berserker
+        requiredTargetTags: []
+        blockedTargetTags: []
+        cueTag: GameplayCue.BloodPact.BerserkerRage
+        modifiers:
+        - stat: 4
+          operation: 1
+          magnitude:
+            source: 2
+            coefficient: 0.75
+            additive: 0
+            clampResult: 1
+            minimum: 0
+            maximum: 0.75
+        - stat: 9
+          operation: 0
+          magnitude:
+            source: 2
+            coefficient: 0.25
+            additive: 0
+            clampResult: 1
+            minimum: 0
+            maximum: 0.25
+        executions: []
+  - displayName: "\u8BF8\u795E\u9EC4\u660F"
     pactId: update_022
     tier: 3
     moveSpeed: 0
@@ -320,8 +412,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 猩红值满时进入爆发状态，全属性大幅提升
-  - displayName: 世界树之根
+    specialEffect: "\u7329\u7EA2\u503C\u6EE1\u65F6\u8FDB\u5165\u7206\u53D1\u72B6\u6001\uFF0C\u5168\u5C5E\u6027\u5927\u5E45\u63D0\u5347"
+    gameplayAbilities: []
+  - displayName: "\u4E16\u754C\u6811\u4E4B\u6839"
     pactId: update_023
     tier: 3
     moveSpeed: 0
@@ -334,8 +427,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 冲刺不消耗体力，击杀敌人重置冲刺冷却
-  - displayName: 饿狼之饥
+    specialEffect: "\u51B2\u523A\u4E0D\u6D88\u8017\u4F53\u529B\uFF0C\u51FB\u6740\u654C\u4EBA\u91CD\u7F6E\u51B2\u523A\u51B7\u5374"
+    gameplayAbilities: []
+  - displayName: "\u997F\u72FC\u4E4B\u9965"
     pactId: update_024
     tier: -1
     moveSpeed: 2
@@ -348,8 +442,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 凶兽之爪
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u51F6\u517D\u4E4B\u722A"
     pactId: update_025
     tier: -1
     moveSpeed: 0
@@ -362,8 +457,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 尸鬼之皮
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u5C38\u9B3C\u4E4B\u76AE"
     pactId: update_026
     tier: -1
     moveSpeed: 0
@@ -376,8 +472,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 长臂之握
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u957F\u81C2\u4E4B\u63E1"
     pactId: update_027
     tier: -1
     moveSpeed: 0
@@ -390,8 +487,9 @@ MonoBehaviour:
     weaponRange: 0.5
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 重击之拳
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u91CD\u51FB\u4E4B\u62F3"
     pactId: update_028
     tier: -1
     moveSpeed: 0
@@ -404,8 +502,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 1
     invincibleTime: 0
-    specialEffect:
-  - displayName: 迅捷之爪
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u8FC5\u6377\u4E4B\u722A"
     pactId: update_029
     tier: -1
     moveSpeed: 0
@@ -418,8 +517,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect:
-  - displayName: 龙鳞之铠
+    specialEffect: 
+    gameplayAbilities: []
+  - displayName: "\u9F99\u9CDE\u4E4B\u94E0"
     pactId: update_030
     tier: -2
     moveSpeed: 0
@@ -432,8 +532,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 精英怪获得装甲，需弹反破防后才能造成正常伤害
-  - displayName: 亡者之嚎
+    specialEffect: "\u7CBE\u82F1\u602A\u83B7\u5F97\u88C5\u7532\uFF0C\u9700\u5F39\u53CD\u7834\u9632\u540E\u624D\u80FD\u9020\u6210\u6B63\u5E38\u4F24\u5BB3"
+    gameplayAbilities: []
+  - displayName: "\u4EA1\u8005\u4E4B\u568E"
     pactId: update_031
     tier: -2
     moveSpeed: 0
@@ -446,8 +547,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 敌人死亡时有几率召唤一只近战小怪
-  - displayName: 爆裂之躯
+    specialEffect: "\u654C\u4EBA\u6B7B\u4EA1\u65F6\u6709\u51E0\u7387\u53EC\u5524\u4E00\u53EA\u8FD1\u6218\u5C0F\u602A"
+    gameplayAbilities: []
+  - displayName: "\u7206\u88C2\u4E4B\u8EAF"
     pactId: update_032
     tier: -2
     moveSpeed: 0
@@ -460,8 +562,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 敌人死亡时发生爆炸，对周围玩家造成范围伤害
-  - displayName: 霜冻之甲
+    specialEffect: "\u654C\u4EBA\u6B7B\u4EA1\u65F6\u53D1\u751F\u7206\u70B8\uFF0C\u5BF9\u5468\u56F4\u73A9\u5BB6\u9020\u6210\u8303\u56F4\u4F24\u5BB3"
+    gameplayAbilities: []
+  - displayName: "\u971C\u51BB\u4E4B\u7532"
     pactId: update_033
     tier: -2
     moveSpeed: 0
@@ -474,8 +577,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 敌人受击时有几率释放冰霜，减速玩家移动速度
-  - displayName: 诸神黄昏·末曲
+    specialEffect: "\u654C\u4EBA\u53D7\u51FB\u65F6\u6709\u51E0\u7387\u91CA\u653E\u51B0\u971C\uFF0C\u51CF\u901F\u73A9\u5BB6\u79FB\u52A8\u901F\u5EA6"
+    gameplayAbilities: []
+  - displayName: "\u8BF8\u795E\u9EC4\u660F\xB7\u672B\u66F2"
     pactId: update_034
     tier: -3
     moveSpeed: 0
@@ -488,8 +592,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 所有敌人攻击力提升50%，移动速度提升30%，狂暴化
-  - displayName: 苏尔特之降临
+    specialEffect: "\u6240\u6709\u654C\u4EBA\u653B\u51FB\u529B\u63D0\u534750%\uFF0C\u79FB\u52A8\u901F\u5EA6\u63D0\u534730%\uFF0C\u72C2\u66B4\u5316"
+    gameplayAbilities: []
+  - displayName: "\u82CF\u5C14\u7279\u4E4B\u964D\u4E34"
     pactId: update_035
     tier: -3
     moveSpeed: 0
@@ -502,8 +607,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 所有敌人的攻击附带灼烧效果，玩家受击后持续掉血
-  - displayName: 海拉之拥抱
+    specialEffect: "\u6240\u6709\u654C\u4EBA\u7684\u653B\u51FB\u9644\u5E26\u707C\u70E7\u6548\u679C\uFF0C\u73A9\u5BB6\u53D7\u51FB\u540E\u6301\u7EED\u6389\u8840"
+    gameplayAbilities: []
+  - displayName: "\u6D77\u62C9\u4E4B\u62E5\u62B1"
     pactId: update_036
     tier: -3
     moveSpeed: 0
@@ -516,8 +622,9 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 精英怪濒死时进入不死状态5秒，期间攻击力翻倍且无法被击退
-  - displayName: 血月之蚀
+    specialEffect: "\u7CBE\u82F1\u602A\u6FD2\u6B7B\u65F6\u8FDB\u5165\u4E0D\u6B7B\u72B6\u60015\u79D2\uFF0C\u671F\u95F4\u653B\u51FB\u529B\u7FFB\u500D\u4E14\u65E0\u6CD5\u88AB\u51FB\u9000"
+    gameplayAbilities: []
+  - displayName: "\u8840\u6708\u4E4B\u8680"
     pactId: update_037
     tier: -3
     moveSpeed: 0
@@ -530,4 +637,5 @@ MonoBehaviour:
     weaponRange: 0
     knockbackForce: 0
     invincibleTime: 0
-    specialEffect: 所有敌人最大生命值翻倍，击杀后掉落猩红资源和金币翻倍
+    specialEffect: "\u6240\u6709\u654C\u4EBA\u6700\u5927\u751F\u547D\u503C\u7FFB\u500D\uFF0C\u51FB\u6740\u540E\u6389\u843D\u7329\u7EA2\u8D44\u6E90\u548C\u91D1\u5E01\u7FFB\u500D"
+    gameplayAbilities: []

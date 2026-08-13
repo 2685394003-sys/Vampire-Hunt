@@ -65,12 +65,27 @@ public sealed class EnemyHealth : NetworkBehaviour
     /// </summary>
     public void ChangeEnemyHealth(int amount, PlayerNetworkState damageDealer)
     {
+        ApplyDamage(amount, damageDealer);
+    }
+
+    /// <summary>Returns the actual health removed, excluding overkill.</summary>
+    public int ApplyDamage(int amount, PlayerNetworkState damageDealer) =>
+        ApplyDamage(amount, damageDealer, out _);
+
+    /// <summary>Also captures lethality before network despawn destroys the target.</summary>
+    public int ApplyDamage(
+        int amount,
+        PlayerNetworkState damageDealer,
+        out bool killed)
+    {
+        killed = false;
         if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || IsDead)
         {
-            return;
+            return 0;
         }
 
         if (damageDealer != null) lastDamageDealer = damageDealer;
+        int previousHealth = CurrentHealth;
         SetHealth(Mathf.Max(0, CurrentHealth - amount));
         if (NetworkAuthority.IsNetworkActive)
         {
@@ -81,7 +96,13 @@ public sealed class EnemyHealth : NetworkBehaviour
             hurtFlash?.StartHurtFlash();
         }
 
-        if (CurrentHealth <= 0) ServerDie();
+        int damageDealt = previousHealth - CurrentHealth;
+        if (CurrentHealth <= 0)
+        {
+            killed = true;
+            ServerDie();
+        }
+        return damageDealt;
     }
 
     private void ServerDie()

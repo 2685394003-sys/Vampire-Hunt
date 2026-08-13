@@ -29,11 +29,14 @@ public sealed class BloodPactConfig : ScriptableObject
         return false;
     }
 
-    public bool TryApplyNumericEffects(string pactId, PlayerNetworkState player)
+    public bool TryApplyEffects(string pactId, PlayerNetworkState player)
     {
         return TryGet(pactId, out BloodPactDefinition pact) &&
-               pact.ApplyNumericEffects(player);
+               pact.ApplyEffects(player);
     }
+
+    public bool TryApplyNumericEffects(string pactId, PlayerNetworkState player) =>
+        TryApplyEffects(pactId, player);
 
     public static BloodPactConfig LoadDefault() =>
         Resources.Load<BloodPactConfig>(DefaultResourcePath);
