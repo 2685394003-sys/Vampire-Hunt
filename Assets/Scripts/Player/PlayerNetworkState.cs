@@ -410,7 +410,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         IGameplayAbilitySystemHost target,
         float damageDealt,
         bool wasCritical,
-        Vector3 position)
+        Vector3 position,
+        int combatTextTargetKey = 0)
     {
         if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0f) return;
 
@@ -423,6 +424,12 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
             position);
         abilitySystem.SendEvent(in hit);
 
+        BroadcastDamageText(
+            Mathf.Max(1, Mathf.RoundToInt(damageDealt)),
+            wasCritical,
+            position,
+            combatTextTargetKey);
+
         if (!wasCritical) return;
         GameplayEventData critical = new(
             GameplayEventType.CriticalHit,
@@ -432,6 +439,36 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
             true,
             position);
         abilitySystem.SendEvent(in critical);
+    }
+
+    private void BroadcastDamageText(
+        int damage,
+        bool wasCritical,
+        Vector3 position,
+        int targetKey)
+    {
+        ulong sourceKey = UseNetworkValues
+            ? OwnerClientId
+            : unchecked((ulong)(uint)GetInstanceID());
+
+        if (UseNetworkValues)
+        {
+            ShowDamageTextRpc(damage, wasCritical, position, targetKey, sourceKey);
+            return;
+        }
+
+        CombatTextService.ShowDamage(damage, wasCritical, position, targetKey, sourceKey);
+    }
+
+    [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Unreliable)]
+    private void ShowDamageTextRpc(
+        int damage,
+        bool wasCritical,
+        Vector3 position,
+        int targetKey,
+        ulong sourceKey)
+    {
+        CombatTextService.ShowDamage(damage, wasCritical, position, targetKey, sourceKey);
     }
 
     public void ReportEnemyKilled(Vector3 position)
@@ -454,7 +491,10 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         SetAlive(false);
     }
 
-    /// <summary>Rolls one server-authoritative damage value for a whole swing.</summary>
+    /// <summary>
+    /// Rolls one server-authoritative damage value for one hit target. Multi-target
+    /// attacks must call this once per unique target so each target rolls crit alone.
+    /// </summary>
     public int RollAttackDamage(out bool wasCritical)
     {
         wasCritical = NetworkAuthority.IsServerOrOffline(this) &&

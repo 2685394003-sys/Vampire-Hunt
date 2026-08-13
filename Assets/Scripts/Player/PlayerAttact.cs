@@ -152,7 +152,6 @@ public sealed class PlayerAttact : MonoBehaviour
         }
 
         lastResolvedAttackSequence = sequence;
-        int attackDamage = playerState.RollAttackDamage(out bool wasCritical);
         Collider[] hits = Physics.OverlapSphere(
             AttackPoint.position,
             playerState.WeaponRange,
@@ -175,17 +174,25 @@ public sealed class PlayerAttact : MonoBehaviour
                     continue;
                 }
 
-                int previousBossHealth = damageComponent is BossHealth boss
-                    ? boss.CurrentHealth
-                    : 0;
-                damageable.TakeDamage(attackDamage);
-                if (damageComponent is BossHealth damagedBoss)
+                Vector3 damagePosition = damageComponent != null
+                    ? damageComponent.transform.position
+                    : hit.transform.position;
+                int bossCombatTextTargetKey = damageComponent != null
+                    ? damageComponent.GetInstanceID()
+                    : hit.GetInstanceID();
+                int bossAttackDamage = playerState.RollAttackDamage(out bool bossWasCritical);
+                bool tracksHealth = TryReadCurrentHealth(damageComponent, out int previousHealth);
+                damageable.TakeDamage(bossAttackDamage);
+                if (tracksHealth &&
+                    damageComponent != null &&
+                    TryReadCurrentHealth(damageComponent, out int currentHealth))
                 {
                     playerState.ReportAttackHit(
                         null,
-                        Mathf.Max(0, previousBossHealth - damagedBoss.CurrentHealth),
-                        wasCritical,
-                        damagedBoss.transform.position);
+                        Mathf.Max(0, previousHealth - currentHealth),
+                        bossWasCritical,
+                        damagePosition,
+                        bossCombatTextTargetKey);
                 }
                 if (playerState.KnockbackForce > 0f &&
                     BossCombatTarget.TryGetInParent<IKnockbackReceiver>(hit, out IKnockbackReceiver receiver))
@@ -205,15 +212,18 @@ public sealed class PlayerAttact : MonoBehaviour
             }
 
             Vector3 enemyPosition = enemyHealth.transform.position;
+            int combatTextTargetKey = enemyHealth.GetInstanceID();
+            int enemyAttackDamage = playerState.RollAttackDamage(out bool enemyWasCritical);
             int damageDealt = enemyHealth.ApplyDamage(
-                attackDamage,
+                enemyAttackDamage,
                 playerState,
                 out bool killed);
             playerState.ReportAttackHit(
                 null,
                 damageDealt,
-                wasCritical,
-                enemyPosition);
+                enemyWasCritical,
+                enemyPosition,
+                combatTextTargetKey);
             if (killed)
             {
                 playerState.ReportEnemyKilled(enemyPosition);
@@ -227,6 +237,22 @@ public sealed class PlayerAttact : MonoBehaviour
                     playerState.StunTime,
                     playerState.KnockbackTime);
             }
+        }
+    }
+
+    private static bool TryReadCurrentHealth(Component damageComponent, out int currentHealth)
+    {
+        switch (damageComponent)
+        {
+            case BossHealth bossHealth:
+                currentHealth = bossHealth.CurrentHealth;
+                return true;
+            case BossGuard bossGuard:
+                currentHealth = bossGuard.CurrentHealth;
+                return true;
+            default:
+                currentHealth = 0;
+                return false;
         }
     }
 
