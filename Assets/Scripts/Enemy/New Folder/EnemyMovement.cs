@@ -56,7 +56,9 @@ public class EnemyMovement : MonoBehaviour
             }
 
 
-            if (player != null && enemyState == EnemyState.isChasing && Vector2.Distance(transform.position, player.position) > stats.attackRange)
+            if (player != null && enemyState == EnemyState.isChasing &&
+                Vector2.Distance(transform.position, player.position) >
+                EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange))
             {
                 Chase();
             }
@@ -77,14 +79,15 @@ public class EnemyMovement : MonoBehaviour
         {
             player = hits[0].transform;
         
-            if(Vector2.Distance(transform.position, player.position) <= stats.attackRange && attackCooldownTimer <= 0)
+            float attackRange = EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange);
+            if(Vector2.Distance(transform.position, player.position) <= attackRange && attackCooldownTimer <= 0)
             {
                 Stop();
                 ChangeState(EnemyState.isAttacking);
-               attackCooldownTimer = stats.attackCooldown;
+               attackCooldownTimer = EnemyRunStats.GetValue(stats, EnemyStatType.AttackCooldown);
             }
 
-            else if(Vector2.Distance(transform.position, player.position) > stats.attackRange && enemyState != EnemyState.isAttacking)
+            else if(Vector2.Distance(transform.position, player.position) > attackRange && enemyState != EnemyState.isAttacking)
             {
                 ChangeState(EnemyState.isChasing);
                 // 玩家重新进入，立刻停止减速协程，恢复追逐
@@ -150,14 +153,16 @@ public class EnemyMovement : MonoBehaviour
 
     void Chase()
     {
-        if(Vector2.Distance(transform.position, player.transform.position) <= stats.attackRange && attackCooldownTimer <= 0)
+        if(Vector2.Distance(transform.position, player.transform.position) <=
+            EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange) &&
+            attackCooldownTimer <= 0)
         {
             ChangeState(EnemyState.isAttacking);
-            attackCooldownTimer = stats.attackCooldown;
+            attackCooldownTimer = EnemyRunStats.GetValue(stats, EnemyStatType.AttackCooldown);
         }
 
         Vector2 direction = (player.position - transform.position).normalized;
-        rb.linearVelocity = direction * stats.moveSpeed;
+        rb.linearVelocity = direction * EnemyRunStats.GetValue(stats, EnemyStatType.MoveSpeed);
 
         // 翻转逻辑
         float dirX = player.position.x - transform.position.x;

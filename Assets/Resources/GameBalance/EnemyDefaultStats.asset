@@ -12,25 +12,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1030303030303030303030303030303, type: 3}
   m_Name: EnemyDefaultStats
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStatsConfig
-  maxHealth: 2
-  damage: 2
-  attackRange: 2
-  weaponRange: 2
-  attackCooldown: 2
-  knockbackForce: 2
-  knockbackTime: 2
-  stunTime: 2
-  moveSpeed: 2
+  enemyId: enemy_0001
+  enemyName: "\u8FD1\u6218\u5C0F\u602A"
+  maxHealth: 30
+  damage: 3
+  moveSpeed: 4
+  weaponRange: 1.5
+  knockbackForce: 0
+  knockbackTime: 0
+  attackCooldown: 3.05
+  stunTime: 0.3
+  canBeParried: 0
+  parryWindupTime: 0
+  redResourceDropAmount: 15
+  coinDropAmount: 5
+  healthPackDropChance: 0.3
+  isRanged: 0
+  projectileDamage: 0
+  enhancedProjectileDamage: 0
+  shootCooldown: 0
+  projectileLifetime: 0
+  projectileSpeed: 0
+  shootWaitTime: 0
+  shootRange: 0
+  inRangeAttackCooldown: 0
+  rangedPatrolRange: 0
+  hurtFlashDuration: 0.2
+  hurtFlashSpeed: 15
   playerDetectRange: 5
   slowDeceleration: 3
   playerLayer:
     serializedVersion: 2
     m_Bits: 64
-  projectileDamage: 2
-  shootCooldown: 2
-  projectileLifetime: 2
-  projectileSpeed: 2
-  shootWaitTime: 2
-  shootRange: 2
-  hurtFlashDuration: 0.3
-  hurtFlashSpeed: 0.08

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -9,8 +10,10 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
-public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
+public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGameplayAbilitySystemHost
 {
+    public const float BloodPactScarletCost = 100f;
+
     [SerializeField] private PlayerStatsConfig baseStats;
     [SerializeField] private bool hideVisualsWhenDead = true;
 
@@ -23,6 +26,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private readonly NetworkVariable<float> networkDamage = ServerVariable(10f);
     private readonly NetworkVariable<float> networkWeaponRange = ServerVariable(2f);
     private readonly NetworkVariable<float> networkMoveSpeed = ServerVariable(5f);
+    private readonly NetworkVariable<float> networkDashSpeedMultiplier = ServerVariable(2f);
+    private readonly NetworkVariable<float> networkDashDuration = ServerVariable(0.15f);
     private readonly NetworkVariable<float> networkAttackCooldown = ServerVariable(1f);
     private readonly NetworkVariable<float> networkKnockbackForce = ServerVariable(5f);
     private readonly NetworkVariable<float> networkCritRate = ServerVariable(0.05f);
@@ -31,6 +36,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private readonly NetworkVariable<float> networkFlashSpeed = ServerVariable(10f);
     private readonly NetworkVariable<float> networkMaxScarlet = ServerVariable(100f);
     private readonly NetworkVariable<float> networkScarlet = ServerVariable(0f);
+    private readonly NetworkVariable<int> networkCoins = ServerVariable(0);
     private readonly NetworkVariable<bool> networkAlive = ServerVariable(true);
     private readonly NetworkVariable<bool> networkInitialized = ServerVariable(false);
 
@@ -43,6 +49,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private float offlineDamage;
     private float offlineWeaponRange;
     private float offlineMoveSpeed;
+    private float offlineDashSpeedMultiplier;
+    private float offlineDashDuration;
     private float offlineAttackCooldown;
     private float offlineKnockbackForce;
     private float offlineCritRate;
@@ -51,17 +59,25 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private float offlineFlashSpeed;
     private float offlineMaxScarlet;
     private float offlineScarlet;
+    private int offlineCoins;
     private bool offlineAlive;
     private bool staminaRecoveryPaused;
+    private GameplayAbilitySystem abilitySystem;
+    private NetworkList<NetworkBloodPactState> networkBloodPacts;
+    private readonly List<NetworkBloodPactState> offlineBloodPacts = new();
     private readonly PlayerStatModifierCollection runModifiers = new();
     private readonly HashSet<PlayerStatType> changedStatsScratch = new();
+    private readonly HashSet<string> selectedBloodPacts = new(StringComparer.Ordinal);
     private int generatedModifierSequence;
 
     public event Action<int, int> HealthChanged;
     public event Action<float, float> StaminaChanged;
     public event Action<float, float> ScarletChanged;
+    public event Action<int> CoinsChanged;
     public event Action<bool> AliveChanged;
     public event Action<PlayerStatType> RunStatChanged;
+    public event Action BloodPactsChanged;
+    public event Action<GameplayCueEvent> GameplayCueRequested;
 
     public PlayerStatsConfig BaseStats => ResolveBaseStats();
     public string PlayerId => BaseStats != null ? BaseStats.PlayerId : "player_missing_config";
@@ -74,6 +90,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     public float Damage => Read(networkDamage, offlineDamage);
     public float WeaponRange => Read(networkWeaponRange, offlineWeaponRange);
     public float MoveSpeed => Read(networkMoveSpeed, offlineMoveSpeed);
+    public float DashSpeedMultiplier => Read(networkDashSpeedMultiplier, offlineDashSpeedMultiplier);
+    public float DashDuration => Read(networkDashDuration, offlineDashDuration);
     public float AttackCooldown => Read(networkAttackCooldown, offlineAttackCooldown);
     public float KnockbackForce => Read(networkKnockbackForce, offlineKnockbackForce);
     public float CritRate => Read(networkCritRate, offlineCritRate);
@@ -82,7 +100,16 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     public float FlashSpeed => Read(networkFlashSpeed, offlineFlashSpeed);
     public float MaxScarlet => Read(networkMaxScarlet, offlineMaxScarlet);
     public float CurrentScarlet => Read(networkScarlet, offlineScarlet);
+    public int CurrentCoins => UseNetworkValues ? networkCoins.Value : offlineCoins;
     public bool IsAlive => UseNetworkValues ? networkAlive.Value : offlineAlive;
+    public GameplayAbilitySystem AbilitySystem => abilitySystem;
+    public string GameplayOwnerId => PlayerId;
+    public float GameplayHealthRatio => MaxHealth > 0
+        ? Mathf.Clamp01((float)CurrentHealth / MaxHealth)
+        : 0f;
+    public int ActiveBloodPactCount => UseNetworkValues
+        ? networkBloodPacts?.Count ?? 0
+        : offlineBloodPacts.Count;
 
     // These two supplemental timings are intentionally baseline-only until design
     // adds them to the progression sheet.
@@ -116,6 +143,11 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
 
     private void Awake()
     {
+        networkBloodPacts = new NetworkList<NetworkBloodPactState>(
+            null,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+        abilitySystem = new GameplayAbilitySystem(this);
         ResolveBaseStats();
         InitializeOfflineState();
     }
@@ -127,13 +159,16 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     {
         NetworkPlayerRegistry.Register(this);
         SubscribeNetworkEvents();
+        networkBloodPacts.OnListChanged += HandleBloodPactListChanged;
 
         if (IsServer && !networkInitialized.Value) InitializeNetworkState();
         PublishAll();
+        BloodPactsChanged?.Invoke();
     }
 
     public override void OnNetworkDespawn()
     {
+        networkBloodPacts.OnListChanged -= HandleBloodPactListChanged;
         UnsubscribeNetworkEvents();
         NetworkPlayerRegistry.Unregister(this);
     }
@@ -141,6 +176,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private void Update()
     {
         if (!NetworkAuthority.IsServerOrOffline(this)) return;
+
+        abilitySystem?.Tick(Time.deltaTime);
 
         changedStatsScratch.Clear();
         if (runModifiers.Tick(Time.deltaTime, changedStatsScratch) > 0)
@@ -203,6 +240,126 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             SetScarlet(CurrentScarlet + amount);
     }
 
+    public void AddCoins(int amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0) return;
+
+        long nextValue = (long)CurrentCoins + amount;
+        SetCoins((int)Math.Min(int.MaxValue, nextValue));
+    }
+
+    public int RestoreHealth(int amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || !IsAlive)
+            return 0;
+
+        int previous = CurrentHealth;
+        SetHealth(Mathf.Min(MaxHealth, previous + amount));
+        return CurrentHealth - previous;
+    }
+
+    public bool HasBloodPact(string pactId) => GetBloodPactStacks(pactId) > 0;
+
+    public int GetBloodPactStacks(string pactId)
+    {
+        if (string.IsNullOrWhiteSpace(pactId)) return 0;
+        if (UseNetworkValues)
+        {
+            for (int index = 0; index < networkBloodPacts.Count; index++)
+                if (string.Equals(
+                        networkBloodPacts[index].PactId.ToString(),
+                        pactId,
+                        StringComparison.Ordinal))
+                    return networkBloodPacts[index].Stacks;
+            return 0;
+        }
+
+        for (int index = 0; index < offlineBloodPacts.Count; index++)
+            if (string.Equals(
+                    offlineBloodPacts[index].PactId.ToString(),
+                    pactId,
+                    StringComparison.Ordinal))
+                return offlineBloodPacts[index].Stacks;
+        return 0;
+    }
+
+    public bool TrySpendCoins(int amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            amount < 0 ||
+            CurrentCoins < amount)
+        {
+            return false;
+        }
+
+        SetCoins(CurrentCoins - amount);
+        return true;
+    }
+
+    /// <summary>
+    /// Requests a server-authoritative blood-pact purchase. The server owns the
+    /// fixed cost and validates the pact database entry and duplicate state.
+    /// </summary>
+    public bool RequestBloodPactSelection(string pactId)
+    {
+        if (string.IsNullOrWhiteSpace(pactId) || pactId.Length > 64)
+        {
+            return false;
+        }
+
+        if (!NetworkAuthority.IsNetworkActive)
+        {
+            return ServerTrySelectBloodPact(pactId.Trim());
+        }
+
+        if (!IsSpawned || !IsOwner)
+        {
+            return false;
+        }
+
+        RequestBloodPactSelectionRpc(new FixedString64Bytes(pactId.Trim()));
+        return true;
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestBloodPactSelectionRpc(FixedString64Bytes pactId)
+    {
+        ServerTrySelectBloodPact(pactId.ToString());
+    }
+
+    private bool ServerTrySelectBloodPact(string pactId)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            CurrentScarlet + 0.0001f < BloodPactScarletCost)
+        {
+            return false;
+        }
+
+        BloodPactConfig database = BloodPactConfig.LoadDefault();
+        if (database == null ||
+            !database.TryGet(pactId, out BloodPactDefinition pact) ||
+            !pact.IsPlayerPact ||
+            !pact.IsRuntimeImplemented ||
+            (!pact.IsRepeatable && selectedBloodPacts.Contains(pactId)) ||
+            !TryConsumeScarlet(BloodPactScarletCost))
+        {
+            return false;
+        }
+
+        if (!pact.ApplyEffects(this))
+        {
+            AddScarlet(BloodPactScarletCost);
+            return false;
+        }
+
+        if (!pact.IsRepeatable)
+        {
+            selectedBloodPacts.Add(pactId);
+        }
+        AddOrStackBloodPactSnapshot(pactId);
+        return true;
+    }
+
     public bool ApplyDamage(int amount)
     {
         if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || !IsAlive)
@@ -218,6 +375,47 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         if (!NetworkAuthority.IsServerOrOffline(this)) return;
         SetHealth(MaxHealth);
         SetAlive(true);
+    }
+
+    public void ReportAttackHit(
+        IGameplayAbilitySystemHost target,
+        float damageDealt,
+        bool wasCritical,
+        Vector3 position)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0f) return;
+
+        GameplayEventData hit = new(
+            GameplayEventType.AttackHit,
+            this,
+            target,
+            damageDealt,
+            wasCritical,
+            position);
+        abilitySystem.SendEvent(in hit);
+
+        if (!wasCritical) return;
+        GameplayEventData critical = new(
+            GameplayEventType.CriticalHit,
+            this,
+            target,
+            damageDealt,
+            true,
+            position);
+        abilitySystem.SendEvent(in critical);
+    }
+
+    public void ReportEnemyKilled(Vector3 position)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
+        GameplayEventData killed = new(
+            GameplayEventType.EnemyKilled,
+            this,
+            null,
+            1f,
+            false,
+            position);
+        abilitySystem.SendEvent(in killed);
     }
 
     public void ForceDeath()
@@ -241,7 +439,10 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     {
         if (!NetworkAuthority.IsServerOrOffline(this)) return;
 
+        abilitySystem?.Clear();
         runModifiers.Clear();
+        selectedBloodPacts.Clear();
+        ClearBloodPactSnapshots();
         generatedModifierSequence = 0;
         staminaRecoveryPaused = false;
 
@@ -288,6 +489,59 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
 
         RecalculateStat(changedStat);
         return true;
+    }
+
+    public bool AddGameplayModifier(
+        string modifierId,
+        string sourceId,
+        PlayerStatType stat,
+        PlayerModifierOperation operation,
+        float value)
+    {
+        return AddStatModifier(new PlayerStatModifier(
+            modifierId,
+            sourceId,
+            stat,
+            operation,
+            value));
+    }
+
+    public bool RemoveGameplayModifier(string modifierId) =>
+        RemoveStatModifier(modifierId);
+
+    public int HealGameplay(int amount) => RestoreHealth(amount);
+    public void AddScarletGameplay(float amount) => AddScarlet(amount);
+    public void AddCoinsGameplay(int amount) => AddCoins(amount);
+
+    public void EmitGameplayCue(in GameplayCueEvent cueEvent)
+    {
+        if (string.IsNullOrWhiteSpace(cueEvent.CueTag)) return;
+        if (NetworkAuthority.IsNetworkActive && IsSpawned)
+        {
+            if (!IsServer) return;
+            if (cueEvent.CueTag.Length > 60)
+            {
+                Debug.LogWarning($"[GAS] Cue tag is too long for network transport: {cueEvent.CueTag}", this);
+                return;
+            }
+            GameplayCueRpc(
+                new FixedString64Bytes(cueEvent.CueTag),
+                (byte)cueEvent.Type,
+                cueEvent.Magnitude);
+            return;
+        }
+
+        GameplayCueRequested?.Invoke(cueEvent);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void GameplayCueRpc(FixedString64Bytes cueTag, byte eventType, float magnitude)
+    {
+        GameplayCueEvent cue = new(
+            cueTag.ToString(),
+            (GameplayCueEventType)eventType,
+            magnitude);
+        GameplayCueRequested?.Invoke(cue);
     }
 
     public bool RemoveStatModifier(string modifierId)
@@ -359,6 +613,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         offlineDamage = config != null ? config.BaseAttack : 10f;
         offlineWeaponRange = config != null ? config.AttackRange : 2f;
         offlineMoveSpeed = config != null ? config.MoveSpeed : 5f;
+        offlineDashSpeedMultiplier = config != null ? config.DashSpeedMultiplier : 2f;
+        offlineDashDuration = config != null ? config.DashDuration : 0.15f;
         offlineAttackCooldown = config != null ? config.AttackInterval : 1f;
         offlineKnockbackForce = config != null ? config.KnockbackForce : 5f;
         offlineCritRate = config != null ? config.CritRate : 0.05f;
@@ -367,7 +623,9 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         offlineFlashSpeed = config != null ? config.FlashSpeed : 10f;
         offlineMaxScarlet = config != null ? config.MaxScarlet : 100f;
         offlineScarlet = 0f;
+        offlineCoins = 0;
         offlineAlive = true;
+        offlineBloodPacts.Clear();
     }
 
     private void InitializeNetworkState()
@@ -382,6 +640,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkDamage.Value = config != null ? config.BaseAttack : 10f;
         networkWeaponRange.Value = config != null ? config.AttackRange : 2f;
         networkMoveSpeed.Value = config != null ? config.MoveSpeed : 5f;
+        networkDashSpeedMultiplier.Value = config != null ? config.DashSpeedMultiplier : 2f;
+        networkDashDuration.Value = config != null ? config.DashDuration : 0.15f;
         networkAttackCooldown.Value = config != null ? config.AttackInterval : 1f;
         networkKnockbackForce.Value = config != null ? config.KnockbackForce : 5f;
         networkCritRate.Value = config != null ? config.CritRate : 0.05f;
@@ -390,7 +650,9 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkFlashSpeed.Value = config != null ? config.FlashSpeed : 10f;
         networkMaxScarlet.Value = config != null ? config.MaxScarlet : 100f;
         networkScarlet.Value = 0f;
+        networkCoins.Value = 0;
         networkAlive.Value = true;
+        networkBloodPacts.Clear();
         networkInitialized.Value = true;
     }
 
@@ -410,6 +672,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             PlayerStatType.AttackInterval => config.AttackInterval,
             PlayerStatType.KnockbackForce => config.KnockbackForce,
             PlayerStatType.MoveSpeed => config.MoveSpeed,
+            PlayerStatType.DashSpeedMultiplier => config.DashSpeedMultiplier,
+            PlayerStatType.DashDuration => config.DashDuration,
             PlayerStatType.CritRate => config.CritRate,
             PlayerStatType.CritDamage => config.CritDamage,
             PlayerStatType.InvincibleTime => config.InvincibleTime,
@@ -454,6 +718,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
                 break;
             case PlayerStatType.AttackInterval:
             case PlayerStatType.FlashSpeed:
+            case PlayerStatType.DashSpeedMultiplier:
+            case PlayerStatType.DashDuration:
                 minimum = 0.01f;
                 break;
             case PlayerStatType.CritRate:
@@ -506,6 +772,18 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             case PlayerStatType.MoveSpeed:
                 SetRuntimeFloat(networkMoveSpeed, ref offlineMoveSpeed, Mathf.Max(0f, value));
                 break;
+            case PlayerStatType.DashSpeedMultiplier:
+                SetRuntimeFloat(
+                    networkDashSpeedMultiplier,
+                    ref offlineDashSpeedMultiplier,
+                    Mathf.Max(0.01f, value));
+                break;
+            case PlayerStatType.DashDuration:
+                SetRuntimeFloat(
+                    networkDashDuration,
+                    ref offlineDashDuration,
+                    Mathf.Max(0.01f, value));
+                break;
             case PlayerStatType.CritRate:
                 SetRuntimeFloat(networkCritRate, ref offlineCritRate, Mathf.Clamp01(value));
                 break;
@@ -527,6 +805,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private void SetMaxHealth(int value)
     {
         int previous = MaxHealth;
+        int previousHealth = CurrentHealth;
         int delta = value - previous;
         if (UseNetworkValues)
         {
@@ -539,6 +818,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             offlineHealth = Mathf.Clamp(offlineHealth + Mathf.Max(0, delta), 0, value);
             HealthChanged?.Invoke(offlineHealth, offlineMaxHealth);
         }
+        NotifyGameplayHealthChanged(previousHealth);
     }
 
     private void SetMaxStamina(float value)
@@ -557,12 +837,15 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     private void SetHealth(int value)
     {
         value = Mathf.Clamp(value, 0, MaxHealth);
+        int previous = CurrentHealth;
+        if (previous == value) return;
         if (UseNetworkValues) networkHealth.Value = value;
-        else if (offlineHealth != value)
+        else
         {
             offlineHealth = value;
             HealthChanged?.Invoke(offlineHealth, offlineMaxHealth);
         }
+        NotifyGameplayHealthChanged(previous);
     }
 
     private void SetStamina(float value)
@@ -587,6 +870,17 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         }
     }
 
+    private void SetCoins(int value)
+    {
+        value = Mathf.Max(0, value);
+        if (UseNetworkValues) networkCoins.Value = value;
+        else if (offlineCoins != value)
+        {
+            offlineCoins = value;
+            CoinsChanged?.Invoke(offlineCoins);
+        }
+    }
+
     private void SetAlive(bool value)
     {
         if (UseNetworkValues) networkAlive.Value = value;
@@ -596,6 +890,67 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
             ApplyAlivePresentation(value);
             AliveChanged?.Invoke(value);
         }
+    }
+
+    private void AddOrStackBloodPactSnapshot(string pactId)
+    {
+        if (string.IsNullOrWhiteSpace(pactId)) return;
+
+        if (UseNetworkValues)
+        {
+            for (int index = 0; index < networkBloodPacts.Count; index++)
+            {
+                NetworkBloodPactState state = networkBloodPacts[index];
+                if (!string.Equals(state.PactId.ToString(), pactId, StringComparison.Ordinal))
+                    continue;
+                state.Stacks = (ushort)Math.Min(ushort.MaxValue, state.Stacks + 1);
+                networkBloodPacts[index] = state;
+                return;
+            }
+            networkBloodPacts.Add(new NetworkBloodPactState(pactId));
+            return;
+        }
+
+        for (int index = 0; index < offlineBloodPacts.Count; index++)
+        {
+            NetworkBloodPactState state = offlineBloodPacts[index];
+            if (!string.Equals(state.PactId.ToString(), pactId, StringComparison.Ordinal))
+                continue;
+            state.Stacks = (ushort)Math.Min(ushort.MaxValue, state.Stacks + 1);
+            offlineBloodPacts[index] = state;
+            BloodPactsChanged?.Invoke();
+            return;
+        }
+        offlineBloodPacts.Add(new NetworkBloodPactState(pactId));
+        BloodPactsChanged?.Invoke();
+    }
+
+    private void ClearBloodPactSnapshots()
+    {
+        if (UseNetworkValues) networkBloodPacts.Clear();
+        else
+        {
+            offlineBloodPacts.Clear();
+            BloodPactsChanged?.Invoke();
+        }
+    }
+
+    private void NotifyGameplayHealthChanged(int previousHealth)
+    {
+        if (abilitySystem == null || previousHealth == CurrentHealth ||
+            !NetworkAuthority.IsServerOrOffline(this))
+        {
+            return;
+        }
+
+        GameplayEventData healthChanged = new(
+            GameplayEventType.HealthChanged,
+            this,
+            this,
+            CurrentHealth - previousHealth,
+            false,
+            transform.position);
+        abilitySystem.SendEvent(in healthChanged);
     }
 
     private float Read(NetworkVariable<float> networkValue, float offlineValue) =>
@@ -618,12 +973,15 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkMaxStamina.OnValueChanged += HandleNetworkMaxStaminaChanged;
         networkScarlet.OnValueChanged += HandleNetworkScarletChanged;
         networkMaxScarlet.OnValueChanged += HandleNetworkMaxScarletChanged;
+        networkCoins.OnValueChanged += HandleNetworkCoinsChanged;
         networkAlive.OnValueChanged += HandleNetworkAliveChanged;
         networkDashStaminaCost.OnValueChanged += HandleDashCostChanged;
         networkStaminaRecovery.OnValueChanged += HandleStaminaRecoveryChanged;
         networkDamage.OnValueChanged += HandleDamageChanged;
         networkWeaponRange.OnValueChanged += HandleAttackRangeChanged;
         networkMoveSpeed.OnValueChanged += HandleMoveSpeedChanged;
+        networkDashSpeedMultiplier.OnValueChanged += HandleDashSpeedMultiplierChanged;
+        networkDashDuration.OnValueChanged += HandleDashDurationChanged;
         networkAttackCooldown.OnValueChanged += HandleAttackIntervalChanged;
         networkKnockbackForce.OnValueChanged += HandleKnockbackChanged;
         networkCritRate.OnValueChanged += HandleCritRateChanged;
@@ -640,12 +998,15 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         networkMaxStamina.OnValueChanged -= HandleNetworkMaxStaminaChanged;
         networkScarlet.OnValueChanged -= HandleNetworkScarletChanged;
         networkMaxScarlet.OnValueChanged -= HandleNetworkMaxScarletChanged;
+        networkCoins.OnValueChanged -= HandleNetworkCoinsChanged;
         networkAlive.OnValueChanged -= HandleNetworkAliveChanged;
         networkDashStaminaCost.OnValueChanged -= HandleDashCostChanged;
         networkStaminaRecovery.OnValueChanged -= HandleStaminaRecoveryChanged;
         networkDamage.OnValueChanged -= HandleDamageChanged;
         networkWeaponRange.OnValueChanged -= HandleAttackRangeChanged;
         networkMoveSpeed.OnValueChanged -= HandleMoveSpeedChanged;
+        networkDashSpeedMultiplier.OnValueChanged -= HandleDashSpeedMultiplierChanged;
+        networkDashDuration.OnValueChanged -= HandleDashDurationChanged;
         networkAttackCooldown.OnValueChanged -= HandleAttackIntervalChanged;
         networkKnockbackForce.OnValueChanged -= HandleKnockbackChanged;
         networkCritRate.OnValueChanged -= HandleCritRateChanged;
@@ -670,6 +1031,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
     }
     private void HandleNetworkScarletChanged(float previous, float current) =>
         ScarletChanged?.Invoke(current, MaxScarlet);
+    private void HandleNetworkCoinsChanged(int previous, int current) =>
+        CoinsChanged?.Invoke(current);
     private void HandleNetworkMaxScarletChanged(float previous, float current)
     {
         ScarletChanged?.Invoke(CurrentScarlet, current);
@@ -681,11 +1044,18 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         AliveChanged?.Invoke(current);
     }
 
+    private void HandleBloodPactListChanged(
+        NetworkListEvent<NetworkBloodPactState> change) =>
+        BloodPactsChanged?.Invoke();
+
     private void HandleDashCostChanged(float p, float c) => Notify(PlayerStatType.DashStaminaCost);
     private void HandleStaminaRecoveryChanged(float p, float c) => Notify(PlayerStatType.StaminaRecovery);
     private void HandleDamageChanged(float p, float c) => Notify(PlayerStatType.BaseAttack);
     private void HandleAttackRangeChanged(float p, float c) => Notify(PlayerStatType.AttackRange);
     private void HandleMoveSpeedChanged(float p, float c) => Notify(PlayerStatType.MoveSpeed);
+    private void HandleDashSpeedMultiplierChanged(float p, float c) =>
+        Notify(PlayerStatType.DashSpeedMultiplier);
+    private void HandleDashDurationChanged(float p, float c) => Notify(PlayerStatType.DashDuration);
     private void HandleAttackIntervalChanged(float p, float c) => Notify(PlayerStatType.AttackInterval);
     private void HandleKnockbackChanged(float p, float c) => Notify(PlayerStatType.KnockbackForce);
     private void HandleCritRateChanged(float p, float c) => Notify(PlayerStatType.CritRate);
@@ -700,6 +1070,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats
         HealthChanged?.Invoke(CurrentHealth, MaxHealth);
         StaminaChanged?.Invoke(CurrentStamina, MaxStamina);
         ScarletChanged?.Invoke(CurrentScarlet, MaxScarlet);
+        CoinsChanged?.Invoke(CurrentCoins);
         AliveChanged?.Invoke(IsAlive);
     }
 

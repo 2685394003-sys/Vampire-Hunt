@@ -4,6 +4,13 @@ public sealed class Shoot : MonoBehaviour
 {
     public Transform targetPlayer;
     private Rigidbody2D body;
+    private EnemyStatsConfig sourceStats;
+
+    public void Configure(Transform target, EnemyStatsConfig stats)
+    {
+        targetPlayer = target;
+        sourceStats = stats;
+    }
 
     private void Start()
     {
@@ -20,7 +27,7 @@ public sealed class Shoot : MonoBehaviour
             targetPlayer = target != null ? target.transform : null;
         }
 
-        EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
+        EnemyStatsConfig stats = ResolveStats();
         if (targetPlayer != null && body != null && stats != null)
         {
             Vector2 direction = (targetPlayer.position - transform.position).normalized;
@@ -39,8 +46,10 @@ public sealed class Shoot : MonoBehaviour
         PlayerHealth playerHealth = hit.GetComponentInParent<PlayerHealth>();
         if (playerHealth != null)
         {
-            EnemyStatsConfig stats = EnemyStatsResolver.Resolve(this);
-            int damage = stats != null ? stats.projectileDamage : 1;
+            EnemyStatsConfig stats = ResolveStats();
+            int damage = stats != null
+                ? EnemyRunStats.GetRoundedValue(stats, EnemyStatType.ProjectileDamage)
+                : 1;
             playerHealth.ChangeHealth(damage);
             NetworkSpawnUtility.Despawn(gameObject);
             return;
@@ -54,4 +63,7 @@ public sealed class Shoot : MonoBehaviour
     {
         NetworkSpawnUtility.Despawn(gameObject);
     }
+
+    private EnemyStatsConfig ResolveStats() =>
+        sourceStats != null ? sourceStats : EnemyStatsResolver.Resolve(this);
 }

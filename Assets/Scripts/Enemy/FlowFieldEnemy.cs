@@ -97,7 +97,9 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float attackRange = stats != null ? stats.attackRange : 1f;
+        float attackRange = stats != null
+            ? EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange)
+            : 1f;
         float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
         if (distance <= attackRange)
         {
@@ -105,7 +107,9 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             {
                 StopMovement();
                 ChangeState(EnemyState.isAttacking);
-                attackCooldownTimer = stats != null ? stats.attackCooldown : 1f;
+                attackCooldownTimer = stats != null
+                    ? EnemyRunStats.GetValue(stats, EnemyStatType.AttackCooldown)
+                    : 1f;
             }
             else if (enemyState != EnemyState.isAttacking)
             {
@@ -139,7 +143,9 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             smoothDirection,
             rawDirection.normalized,
             Time.deltaTime * dirBlendSpeed);
-        float speed = stats != null ? stats.moveSpeed : 1f;
+        float speed = stats != null
+            ? EnemyRunStats.GetValue(stats, EnemyStatType.MoveSpeed)
+            : 1f;
         SetVelocity(smoothDirection.normalized * speed);
 
         if (smoothDirection.sqrMagnitude > 0.001f)
@@ -160,7 +166,9 @@ public sealed class FlowFieldEnemy : NetworkBehaviour
             return;
         }
 
-        float range = stats != null ? stats.attackRange : 1f;
+        float range = stats != null
+            ? EnemyRunStats.GetValue(stats, EnemyStatType.WeaponRange)
+            : 1f;
         ChangeState(Vector3.Distance(transform.position, targetPlayer.transform.position) <= range
             ? EnemyState.Idle
             : EnemyState.isChasing);

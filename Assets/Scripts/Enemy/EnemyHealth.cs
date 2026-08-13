@@ -6,23 +6,26 @@ using UnityEngine;
 public sealed class EnemyHealth : NetworkBehaviour
 {
     [SerializeField] private EnemyStatsConfig stats;
-    public GameObject healthPackPrefab;
-    [Range(0f, 1f)] public float healthPackDropChance = 0.2f;
-    public GameObject coinPrefab;
-    [Range(0f, 1f)] public float coinDropChance = 0.5f;
 
     private readonly NetworkVariable<int> networkHealth = new(
-        1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        1,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<bool> networkDead = new(
-        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
 
     private EnemyHurtFlash hurtFlash;
+    private PlayerNetworkState lastDamageDealer;
     private int offlineHealth;
     private bool offlineDead;
+    private int cachedMaxHealth;
 
     public int CurrentHealth => UseNetworkValues ? networkHealth.Value : offlineHealth;
     public bool IsDead => UseNetworkValues ? networkDead.Value : offlineDead;
-    public EnemyStatsConfig Config => stats != null ? stats : stats = EnemyStatsConfig.LoadDefault();
+    public EnemyStatsConfig Config =>
+        stats != null ? stats : stats = EnemyStatsConfig.LoadDefault();
     private bool UseNetworkValues => NetworkAuthority.IsNetworkActive && IsSpawned;
 
     private void Awake()
@@ -33,25 +36,56 @@ public sealed class EnemyHealth : NetworkBehaviour
         }
 
         hurtFlash = GetComponent<EnemyHurtFlash>();
-        offlineHealth = GetConfiguredMaxHealth();
+        cachedMaxHealth = GetConfiguredMaxHealth();
+        offlineHealth = cachedMaxHealth;
     }
+
+    private void OnEnable() => EnemyRunStats.StatChanged += HandleRunStatChanged;
+    private void OnDisable() => EnemyRunStats.StatChanged -= HandleRunStatChanged;
 
     public override void OnNetworkSpawn()
     {
-        if (IsServer)
-        {
-            networkHealth.Value = GetConfiguredMaxHealth();
-            networkDead.Value = false;
-        }
+        if (!IsServer) return;
+
+        cachedMaxHealth = GetConfiguredMaxHealth();
+        networkHealth.Value = cachedMaxHealth;
+        networkDead.Value = false;
+        lastDamageDealer = null;
     }
 
+    /// <summary>Compatibility entry point for non-player or legacy damage.</summary>
     public void ChangeEnemyHealth(int amount)
     {
+        ChangeEnemyHealth(amount, null);
+    }
+
+    /// <summary>
+    /// Applies damage and remembers its player source. The last damaging player
+    /// receives all rewards when this hit (or a later unattributed hit) kills it.
+    /// </summary>
+    public void ChangeEnemyHealth(int amount, PlayerNetworkState damageDealer)
+    {
+        ApplyDamage(amount, damageDealer);
+    }
+
+    /// <summary>Returns the actual health removed, excluding overkill.</summary>
+    public int ApplyDamage(int amount, PlayerNetworkState damageDealer) =>
+        ApplyDamage(amount, damageDealer, out _);
+
+    /// <summary>Also captures lethality before network despawn destroys the target.</summary>
+    public int ApplyDamage(
+        int amount,
+        PlayerNetworkState damageDealer,
+        out bool killed)
+    {
+        killed = false;
         if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || IsDead)
         {
-            return;
+            return 0;
         }
 
+        if (damageDealer != null) lastDamageDealer = damageDealer;
+        int previousHealth = CurrentHealth;
         SetHealth(Mathf.Max(0, CurrentHealth - amount));
         if (NetworkAuthority.IsNetworkActive)
         {
@@ -62,35 +96,53 @@ public sealed class EnemyHealth : NetworkBehaviour
             hurtFlash?.StartHurtFlash();
         }
 
+        int damageDealt = previousHealth - CurrentHealth;
         if (CurrentHealth <= 0)
         {
+            killed = true;
             ServerDie();
         }
+        return damageDealt;
     }
 
     private void ServerDie()
     {
-        if (IsDead || !NetworkAuthority.IsServerOrOffline(this))
-        {
-            return;
-        }
+        if (IsDead || !NetworkAuthority.IsServerOrOffline(this)) return;
 
         SetDead(true);
-        ServerTryDrop(healthPackPrefab, healthPackDropChance);
-        ServerTryDrop(coinPrefab, coinDropChance);
+        RewardPlayerDirectly(Config);
         NetworkSpawnUtility.Despawn(gameObject);
     }
 
-    private void ServerTryDrop(GameObject prefab, float chance)
+    private void RewardPlayerDirectly(EnemyStatsConfig config)
     {
-        if (prefab == null || Random.value > chance)
+        PlayerNetworkState recipient = lastDamageDealer;
+        if (recipient == null ||
+            !recipient.IsAlive ||
+            !recipient.gameObject.activeInHierarchy)
         {
+            recipient = NetworkPlayerRegistry.GetClosestAlive(transform.position);
+        }
+
+        if (recipient == null)
+        {
+            Debug.LogWarning(
+                $"[Enemy Reward] '{name}' died without an available player recipient.",
+                this);
             return;
         }
 
-        Vector2 offset = Random.insideUnitCircle * 0.5f;
-        Vector3 position = transform.position + new Vector3(offset.x, 0f, offset.y);
-        NetworkSpawnUtility.Spawn(prefab, position, Quaternion.identity);
+        if (config == null) return;
+        recipient.AddScarlet(config.redResourceDropAmount);
+        recipient.AddCoins(config.coinDropAmount);
+
+        // Existing health packs restored the player directly. With world drops
+        // removed, a successful drop roll now performs that recovery immediately.
+        if (config.healthPackDropChance > 0f &&
+            Random.value <= config.healthPackDropChance)
+        {
+            recipient.HealToFull();
+        }
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -114,6 +166,26 @@ public sealed class EnemyHealth : NetworkBehaviour
     private int GetConfiguredMaxHealth()
     {
         EnemyStatsConfig config = Config;
-        return Mathf.Max(1, config != null ? config.maxHealth : 1);
+        return Mathf.Max(
+            1,
+            EnemyRunStats.GetRoundedValue(config, EnemyStatType.MaxHealth));
+    }
+
+    private void HandleRunStatChanged(EnemyStatType statType)
+    {
+        if (statType != EnemyStatType.MaxHealth ||
+            !NetworkAuthority.IsServerOrOffline(this) ||
+            IsDead)
+        {
+            return;
+        }
+
+        int nextMaxHealth = GetConfiguredMaxHealth();
+        int delta = nextMaxHealth - cachedMaxHealth;
+        cachedMaxHealth = nextMaxHealth;
+        SetHealth(Mathf.Clamp(
+            CurrentHealth + Mathf.Max(0, delta),
+            0,
+            nextMaxHealth));
     }
 }

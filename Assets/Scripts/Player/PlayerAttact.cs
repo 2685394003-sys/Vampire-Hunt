@@ -152,7 +152,7 @@ public sealed class PlayerAttact : MonoBehaviour
         }
 
         lastResolvedAttackSequence = sequence;
-        int attackDamage = playerState.RollAttackDamage(out _);
+        int attackDamage = playerState.RollAttackDamage(out bool wasCritical);
         Collider[] hits = Physics.OverlapSphere(
             AttackPoint.position,
             playerState.WeaponRange,
@@ -175,7 +175,18 @@ public sealed class PlayerAttact : MonoBehaviour
                     continue;
                 }
 
+                int previousBossHealth = damageComponent is BossHealth boss
+                    ? boss.CurrentHealth
+                    : 0;
                 damageable.TakeDamage(attackDamage);
+                if (damageComponent is BossHealth damagedBoss)
+                {
+                    playerState.ReportAttackHit(
+                        null,
+                        Mathf.Max(0, previousBossHealth - damagedBoss.CurrentHealth),
+                        wasCritical,
+                        damagedBoss.transform.position);
+                }
                 if (playerState.KnockbackForce > 0f &&
                     BossCombatTarget.TryGetInParent<IKnockbackReceiver>(hit, out IKnockbackReceiver receiver))
                 {
@@ -193,13 +204,29 @@ public sealed class PlayerAttact : MonoBehaviour
                 continue;
             }
 
-            enemyHealth.ChangeEnemyHealth(attackDamage);
-            EnemyKnockBack enemyKnockBack = hit.GetComponentInParent<EnemyKnockBack>();
-            enemyKnockBack?.EnemyKnockback(
-                transform,
-                playerState.KnockbackForce,
-                playerState.StunTime,
-                playerState.KnockbackTime);
+            Vector3 enemyPosition = enemyHealth.transform.position;
+            int damageDealt = enemyHealth.ApplyDamage(
+                attackDamage,
+                playerState,
+                out bool killed);
+            playerState.ReportAttackHit(
+                null,
+                damageDealt,
+                wasCritical,
+                enemyPosition);
+            if (killed)
+            {
+                playerState.ReportEnemyKilled(enemyPosition);
+            }
+            else
+            {
+                EnemyKnockBack enemyKnockBack = hit.GetComponentInParent<EnemyKnockBack>();
+                enemyKnockBack?.EnemyKnockback(
+                    transform,
+                    playerState.KnockbackForce,
+                    playerState.StunTime,
+                    playerState.KnockbackTime);
+            }
         }
     }
 

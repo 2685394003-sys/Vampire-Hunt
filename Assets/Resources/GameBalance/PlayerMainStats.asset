@@ -19,16 +19,18 @@ MonoBehaviour:
   staminaRecoverSpeed: 15
   maxScarlet: 100
   baseAtk: 10
-  attackRange: 2
+  attackRange: 5
   attackInterval: 1
   knockbackForce: 5
   critRate: 0.05
   critDamage: 2
   moveSpeed: 5
+  dashSpeedMultiplier: 2
+  dashDuration: 0.15
   invincibleTime: 0.8
   flashSpeed: 10
-  knockbackDuration: 2
-  stunDuration: 2
+  knockbackDuration: 0.2
+  stunDuration: 0.2
   enemyLayer:
     serializedVersion: 2
     m_Bits: 128

@@ -1,3 +1,336 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:58eec35473dbf9bbc99ddaa65aeedda2562c0b1d9e0c4e2a4305e3c9b8090f03
-size 2936
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de640fe3d0db1804a85f9fc8f5cadab6, type: 3}
+  m_Name: PC_Renderer
+  m_EditorClassIdentifier: 
+  debugShaders:
+    debugReplacementPS: {fileID: 4800000, guid: cf852408f2e174538bcd9b7fda1c5ae7, type: 3}
+    hdrDebugViewPS: {fileID: 4800000, guid: 573620ae32aec764abd4d728906d2587, type: 3}
+    probeVolumeSamplingDebugComputeShader: {fileID: 7200000, guid: 53626a513ea68ce47b59dc1299fe3959, type: 3}
+  probeVolumeResources:
+    probeVolumeDebugShader: {fileID: 4800000, guid: e5c6678ed2aaa91408dd3df699057aae, type: 3}
+    probeVolumeFragmentationDebugShader: {fileID: 4800000, guid: 03cfc4915c15d504a9ed85ecc404e607, type: 3}
+    probeVolumeOffsetDebugShader: {fileID: 4800000, guid: 53a11f4ebaebf4049b3638ef78dc9664, type: 3}
+    probeVolumeSamplingDebugShader: {fileID: 4800000, guid: 8f96cd657dc40064aa21efcc7e50a2e7, type: 3}
+    probeSamplingDebugMesh: {fileID: -3555484719484374845, guid: 57d7c4c16e2765b47a4d2069b311bffe, type: 3}
+    probeSamplingDebugTexture: {fileID: 2800000, guid: 24ec0e140fb444a44ab96ee80844e18e, type: 3}
+    probeVolumeBlendStatesCS: {fileID: 7200000, guid: b9a23f869c4fd45f19c5ada54dd82176, type: 3}
+  m_RendererFeatures:
+  - {fileID: 7833122117494664109}
+  - {fileID: 1182820653582025065}
+  m_RendererFeatureMap: ad6b866f10d7b46c6981c0191e396a10
+  m_UseNativeRenderPass: 1
+  xrSystemData: {fileID: 0}
+  postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
+  m_AssetVersion: 3
+  m_PrepassLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_OpaqueLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_TransparentLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_DefaultStencilState:
+    overrideStencilState: 0
+    stencilReference: 1
+    stencilCompareFunction: 3
+    passOperation: 2
+    failOperation: 0
+    zFailOperation: 0
+  m_ShadowTransparentReceive: 1
+  m_RenderingMode: 2
+  m_DepthPrimingMode: 0
+  m_CopyDepthMode: 0
+  m_DepthAttachmentFormat: 0
+  m_DepthTextureFormat: 0
+  m_AccurateGbufferNormals: 0
+  m_IntermediateTextureMode: 0
+--- !u!114 &1182820653582025065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c84bc65d5ff384346933d8450733e90a, type: 3}
+  m_Name: PixelArtRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::PixelArtRendererFeature
+  m_Active: 0
+  m_TargetWidth: 320
+  m_TargetHeight: 180
+  m_EnablePaletteMapping: 1
+  m_PaletteShader: {fileID: 0}
+  m_GradientPaletteSize: 64
+  m_PaletteGradients:
+  - serializedVersion: 2
+    key0: {r: 0.12156863, g: 0.11764706, b: 0.10980392, a: 1}
+    key1: {r: 0.34117648, g: 0.3137255, b: 0.28627452, a: 1}
+    key2: {r: 0.34901962, g: 0.31764707, b: 0.22745098, a: 0}
+    key3: {r: 0.45882353, g: 0.41960785, b: 0.36862746, a: 0}
+    key4: {r: 0.48235294, g: 0.4392157, b: 0.3529412, a: 0}
+    key5: {r: 0.6431373, g: 0.4, b: 0.19607843, a: 0}
+    key6: {r: 0.5058824, g: 0.47058824, b: 0.43529412, a: 0}
+    key7: {r: 0.5568628, g: 0.52156866, b: 0.47058824, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.20784314, g: 0.20392157, b: 0.14117648, a: 1}
+    key1: {r: 0.48235294, g: 0.4627451, b: 0.22745098, a: 1}
+    key2: {r: 0.5137255, g: 0.48235294, b: 0.3529412, a: 0}
+    key3: {r: 0.5137255, g: 0.49019608, b: 0.23137255, a: 0}
+    key4: {r: 0.5137255, g: 0.5058824, b: 0.23137255, a: 0}
+    key5: {r: 0.53333336, g: 0.53333336, b: 0.2627451, a: 0}
+    key6: {r: 0.6, g: 0.5803922, b: 0.42745098, a: 0}
+    key7: {r: 0.7372549, g: 0.6901961, b: 0.5529412, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.37254903, g: 0.38039216, b: 0.1764706, a: 1}
+    key1: {r: 0.4627451, g: 0.4745098, b: 0.21176471, a: 1}
+    key2: {r: 0.52156866, g: 0.52156866, b: 0.2784314, a: 0}
+    key3: {r: 0.5254902, g: 0.53333336, b: 0.23921569, a: 0}
+    key4: {r: 0.5568628, g: 0.5647059, b: 0.2784314, a: 0}
+    key5: {r: 0.5647059, g: 0.5686275, b: 0.3137255, a: 0}
+    key6: {r: 0.59607846, g: 0.59607846, b: 0.35686275, a: 0}
+    key7: {r: 0.63529414, g: 0.6392157, b: 0.3764706, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.32156864, g: 0.33333334, b: 0.16078432, a: 1}
+    key1: {r: 0.3882353, g: 0.39607844, b: 0.24705882, a: 1}
+    key2: {r: 0.41960785, g: 0.43137255, b: 0.19607843, a: 0}
+    key3: {r: 0.44705883, g: 0.45490196, b: 0.2627451, a: 0}
+    key4: {r: 0.4862745, g: 0.5058824, b: 0.22352941, a: 0}
+    key5: {r: 0.52156866, g: 0.54509807, b: 0.23921569, a: 0}
+    key6: {r: 0.56078434, g: 0.5647059, b: 0.34901962, a: 0}
+    key7: {r: 0.6117647, g: 0.61960787, b: 0.38431373, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.13333334, g: 0.14509805, b: 0.09019608, a: 1}
+    key1: {r: 0.18431373, g: 0.20392157, b: 0.10980392, a: 1}
+    key2: {r: 0.22352941, g: 0.23921569, b: 0.13725491, a: 0}
+    key3: {r: 0.26666668, g: 0.2784314, b: 0.13725491, a: 0}
+    key4: {r: 0.30588236, g: 0.31764707, b: 0.20392157, a: 0}
+    key5: {r: 0.49019608, g: 0.5058824, b: 0.32156864, a: 0}
+    key6: {r: 0.6039216, g: 0.6156863, b: 0.42745098, a: 0}
+    key7: {r: 0.67058825, g: 0.70980394, b: 0.4745098, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.08627451, g: 0.09803922, b: 0.06666667, a: 1}
+    key1: {r: 0.09411765, g: 0.11372549, b: 0.07450981, a: 1}
+    key2: {r: 0.15294118, g: 0.17254902, b: 0.09803922, a: 0}
+    key3: {r: 0.24313726, g: 0.2901961, b: 0.17254902, a: 0}
+    key4: {r: 0.2901961, g: 0.3529412, b: 0.20392157, a: 0}
+    key5: {r: 0.3647059, g: 0.43529412, b: 0.2509804, a: 0}
+    key6: {r: 0.4392157, g: 0.5372549, b: 0.3137255, a: 0}
+    key7: {r: 0.5686275, g: 0.65882355, b: 0.4, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.02745098, g: 0.03137255, b: 0.023529412, a: 1}
+    key1: {r: 0.05490196, g: 0.06666667, b: 0.047058824, a: 1}
+    key2: {r: 0.10980392, g: 0.21568628, b: 0.1882353, a: 0}
+    key3: {r: 0.14901961, g: 0.29411766, b: 0.2509804, a: 0}
+    key4: {r: 0.18039216, g: 0.35686275, b: 0.3019608, a: 0}
+    key5: {r: 0.20392157, g: 0.39607844, b: 0.3372549, a: 0}
+    key6: {r: 0.21960784, g: 0.42745098, b: 0.36862746, a: 0}
+    key7: {r: 0.23921569, g: 0.46666667, b: 0.40392157, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.05882353, g: 0.11372549, b: 0.105882354, a: 1}
+    key1: {r: 0.13725491, g: 0.14901961, b: 0.16470589, a: 1}
+    key2: {r: 0.18039216, g: 0.13333334, b: 0.18039216, a: 0}
+    key3: {r: 0.2509804, g: 0.23921569, b: 0.24313726, a: 0}
+    key4: {r: 0.42745098, g: 0.42745098, b: 0.4392157, a: 0}
+    key5: {r: 0.6666667, g: 0.5254902, b: 0.62352943, a: 0}
+    key6: {r: 0.6117647, g: 0.6039216, b: 0.6117647, a: 0}
+    key7: {r: 0.8235294, g: 0.8392157, b: 0.8666667, a: 0}
+    ctime0: 0
+    ctime1: 9362
+    ctime2: 18724
+    ctime3: 28086
+    ctime4: 37449
+    ctime5: 46811
+    ctime6: 56173
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  m_ApplyToSceneView: 0
+--- !u!114 &7833122117494664109
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f62c9c65cf3354c93be831c8bc075510, type: 3}
+  m_Name: ScreenSpaceAmbientOcclusion
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  m_Settings:
+    AOMethod: 0
+    Downsample: 0
+    AfterOpaque: 0
+    Source: 1
+    NormalSamples: 1
+    Intensity: 0.4
+    DirectLightingStrength: 0.25
+    Radius: 0.3
+    Samples: 1
+    BlurQuality: 0
+    Falloff: 100
+    SampleCount: -1
