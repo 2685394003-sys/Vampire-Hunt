@@ -117,7 +117,12 @@ public sealed class EnemyStatusVfxPresenter : MonoBehaviour
             }
         }
 
+        // Disable before binding so OverlayFX performs its first material injection
+        // only when the status is actually applied, not during prefab construction.
+        root.SetActive(false);
         ParticleSystem[] particles = root.GetComponentsInChildren<ParticleSystem>(true);
+        OverlayFX[] overlayEffects = root.GetComponentsInChildren<OverlayFX>(true);
+        BindOverlayTargets(root.transform, overlayEffects);
 
         StatusVisual visual = new()
         {
@@ -126,8 +131,67 @@ public sealed class EnemyStatusVfxPresenter : MonoBehaviour
             Material = material
         };
         visuals.Add(cueTag, visual);
-        root.SetActive(false);
         return visual;
+    }
+
+    private void BindOverlayTargets(
+        Transform effectRoot,
+        OverlayFX[] overlayEffects)
+    {
+        if (overlayEffects == null || overlayEffects.Length == 0) return;
+
+        Renderer targetRenderer = FindPrimaryMeshRenderer(effectRoot);
+        if (targetRenderer == null)
+        {
+            Debug.LogWarning(
+                $"[Enemy Status VFX] '{name}' has OverlayFX but no compatible " +
+                "SkinnedMeshRenderer or MeshRenderer target.",
+                this);
+            return;
+        }
+
+        for (int index = 0; index < overlayEffects.Length; index++)
+        {
+            OverlayFX overlay = overlayEffects[index];
+            if (overlay != null) overlay.SetTargetRenderer(targetRenderer);
+        }
+    }
+
+    private Renderer FindPrimaryMeshRenderer(Transform effectRoot)
+    {
+        SkinnedMeshRenderer[] skinnedRenderers =
+            GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        Renderer best = FindLargestRenderer(skinnedRenderers, effectRoot);
+        if (best != null) return best;
+
+        MeshRenderer[] meshRenderers = GetComponentsInChildren<MeshRenderer>(true);
+        return FindLargestRenderer(meshRenderers, effectRoot);
+    }
+
+    private static Renderer FindLargestRenderer<T>(
+        T[] candidates,
+        Transform excludedRoot)
+        where T : Renderer
+    {
+        Renderer best = null;
+        float bestScore = -1f;
+        if (candidates == null) return null;
+
+        for (int index = 0; index < candidates.Length; index++)
+        {
+            Renderer candidate = candidates[index];
+            if (candidate == null ||
+                (excludedRoot != null && candidate.transform.IsChildOf(excludedRoot)))
+            {
+                continue;
+            }
+
+            float score = candidate.localBounds.size.sqrMagnitude;
+            if (score <= bestScore) continue;
+            best = candidate;
+            bestScore = score;
+        }
+        return best;
     }
 
     private static void PlayParticles(ParticleSystem[] particles)

@@ -35,6 +35,11 @@ there once; each presenter instantiates a local copy only while that enemy needs
 status. Empty slots retain the generated-particle fallback. A presenter-level config
 override is available only for exceptional enemy variants.
 
+Status prefabs that contain Piloto Studio `OverlayFX` components are rebound at
+runtime to the enemy's largest `SkinnedMeshRenderer`, falling back to its largest
+`MeshRenderer`. Overlay materials are removed when the status ends, and separate
+burning/frozen overlays can coexist on the same renderer.
+
 Periodic damage reports its actual server-confirmed health loss through the combat
 text presentation channel. It deliberately does not emit another `AttackHit` event,
 so burning ticks cannot recursively trigger on-hit blood pacts.

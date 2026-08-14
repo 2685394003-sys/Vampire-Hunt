@@ -230,6 +230,7 @@ public static class GameplayAbilityFrameworkValidator
 
             Require(enemy.AbilitySystem.Tags.Has("State.Debuff.Burning"),
                 "burning gameplay tag was not applied to enemy");
+            ValidateOverlayTargets(enemy);
             if (!Application.isBatchMode)
             {
                 Require(enemy.StatusVfxPresenter.IsStatusVisible(
@@ -326,6 +327,20 @@ public static class GameplayAbilityFrameworkValidator
             blockedOwnerTags: source.BlockedOwnerTags as string[]);
     }
 
+    private static void ValidateOverlayTargets(EnemyHealth enemy)
+    {
+        OverlayFX[] overlays = enemy.GetComponentsInChildren<OverlayFX>(true);
+        if (overlays.Length == 0) return;
+
+        MeshRenderer expected = enemy.GetComponent<MeshRenderer>();
+        Require(expected != null, "enemy overlay validation mesh is missing");
+        for (int index = 0; index < overlays.Length; index++)
+        {
+            Require(overlays[index].targetRenderer == expected,
+                "status OverlayFX was not bound to the enemy mesh renderer");
+        }
+    }
+
     private static PlayerNetworkState CreatePlayer(string name)
     {
         GameObject gameObject = new(name);
@@ -342,7 +357,8 @@ public static class GameplayAbilityFrameworkValidator
 
     private static EnemyHealth CreateEnemy(string name)
     {
-        GameObject gameObject = new(name);
+        GameObject gameObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        gameObject.name = name;
         EnemyHealth enemy = gameObject.AddComponent<EnemyHealth>();
         if (enemy.AbilitySystem == null)
         {
