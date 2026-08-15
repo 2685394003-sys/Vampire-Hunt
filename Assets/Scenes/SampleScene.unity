@@ -11035,8 +11035,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowFieldManager
   cellSize: 1
-  gridWidth: 120
-  gridHeight: 120
+  gridWidth: 200
+  gridHeight: 200
   fitToMapBounds: 1
   mapBoundsSource: {fileID: 1758360420}
   mapBoundsPadding: 8
