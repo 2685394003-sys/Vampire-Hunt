@@ -1716,6 +1716,7 @@ GameObject:
   - component: {fileID: 170438463}
   - component: {fileID: 170438462}
   - component: {fileID: 170438461}
+  - component: {fileID: 170438464}
   m_Layer: 0
   m_Name: CinemachineCamera
   m_TagString: Untagged
@@ -1829,6 +1830,23 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!114 &170438464
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 170438459}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a1d9e7c3b4f4a6ebfd05d6a8c237941, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CinemachineScrollZoom
+  zoomedOutOffset: {x: 0, y: 10.5, z: -3.18}
+  zoomedInOffset: {x: 0, y: 1, z: -3}
+  initialZoom: 0
+  scrollSensitivity: 0.05
+  smoothSpeed: 14
 --- !u!1001 &182942515
 PrefabInstance:
   m_ObjectHideFlags: 0
