@@ -39,7 +39,7 @@ public enum BossCommandResult
 /// </summary>
 public readonly struct BossSnapshot
 {
-    public int InstanceId { get; }
+    public EntityId EntityId { get; }
     public BossState State { get; }
     public bool CombatEnabled { get; }
     public int CurrentHealth { get; }
@@ -56,7 +56,7 @@ public readonly struct BossSnapshot
         : 0f;
 
     public BossSnapshot(
-        int instanceId,
+        EntityId entityId,
         BossState state,
         bool combatEnabled,
         int currentHealth,
@@ -68,7 +68,7 @@ public readonly struct BossSnapshot
         Vector3 position,
         BossAttackType? lastAttack)
     {
-        InstanceId = instanceId;
+        EntityId = entityId;
         State = state;
         CombatEnabled = combatEnabled;
         CurrentHealth = currentHealth;

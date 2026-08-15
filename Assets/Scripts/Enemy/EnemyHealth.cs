@@ -38,7 +38,7 @@ public sealed class EnemyHealth : NetworkBehaviour, IGameplayAbilitySystemHost, 
         stats != null ? stats : stats = EnemyStatsConfig.LoadDefault();
     public EnemyStatusVfxPresenter StatusVfxPresenter => statusVfxPresenter;
     public string GameplayOwnerId =>
-        $"{(Config != null ? Config.enemyId : "enemy_missing_config")}:{(IsSpawned ? NetworkObjectId : (ulong)(uint)GetInstanceID())}";
+        $"{(Config != null ? Config.enemyId : "enemy_missing_config")}:{(IsSpawned ? NetworkObjectId.ToString() : GetEntityId().ToString())}";
     public float GameplayHealthRatio => cachedMaxHealth > 0
         ? Mathf.Clamp01((float)CurrentHealth / cachedMaxHealth)
         : 0f;
@@ -292,7 +292,7 @@ public sealed class EnemyHealth : NetworkBehaviour, IGameplayAbilitySystemHost, 
     public int DamageGameplay(int amount, IGameplayAbilitySystemHost source)
     {
         Vector3 deathPosition = transform.position;
-        int combatTextTargetKey = GetInstanceID();
+        int combatTextTargetKey = GetEntityId().GetHashCode();
         PlayerNetworkState playerSource = source as PlayerNetworkState;
         int dealt = ApplyDamage(amount, playerSource, out bool killed);
         playerSource?.ReportGameplayEffectDamage(

@@ -468,7 +468,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     {
         ulong sourceKey = UseNetworkValues
             ? OwnerClientId
-            : unchecked((ulong)(uint)GetInstanceID());
+            : unchecked((ulong)(uint)GetEntityId().GetHashCode());
 
         if (UseNetworkValues)
         {

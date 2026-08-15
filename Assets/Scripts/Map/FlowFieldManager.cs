@@ -46,9 +46,9 @@ public sealed class FlowFieldManager : MonoBehaviour
     public bool drawFlowArrows = true;
     public float arrowScale = 0.4f;
 
-    private readonly Dictionary<int, TargetFlowField> targetFields = new();
+    private readonly Dictionary<EntityId, TargetFlowField> targetFields = new();
     private readonly List<PlayerNetworkState> alivePlayers = new(4);
-    private readonly List<int> staleKeys = new();
+    private readonly List<EntityId> staleKeys = new();
     private CellState[,] obstacleGrid;
     private float refreshTimer;
     private float obstacleRescanTimer;
@@ -228,7 +228,7 @@ public sealed class FlowFieldManager : MonoBehaviour
         }
 
         staleKeys.Clear();
-        foreach (KeyValuePair<int, TargetFlowField> pair in targetFields)
+        foreach (KeyValuePair<EntityId, TargetFlowField> pair in targetFields)
             staleKeys.Add(pair.Key);
 
         foreach (PlayerNetworkState playerState in alivePlayers)
@@ -237,13 +237,13 @@ public sealed class FlowFieldManager : MonoBehaviour
                 continue;
             Transform target = playerState.transform;
             BuildOrRefreshField(target);
-            staleKeys.Remove(target.GetInstanceID());
+            staleKeys.Remove(target.GetEntityId());
         }
 
         if (player != null)
-            staleKeys.Remove(player.GetInstanceID());
+            staleKeys.Remove(player.GetEntityId());
 
-        foreach (int key in staleKeys)
+        foreach (EntityId key in staleKeys)
             targetFields.Remove(key);
     }
 
@@ -252,7 +252,7 @@ public sealed class FlowFieldManager : MonoBehaviour
         if (target == null)
             return;
 
-        int key = target.GetInstanceID();
+        EntityId key = target.GetEntityId();
         Vector2Int targetCell = WorldToGrid(target.position);
         if (!targetFields.TryGetValue(key, out TargetFlowField field) ||
             field.cells.GetLength(0) != gridWidth ||
@@ -482,7 +482,7 @@ public sealed class FlowFieldManager : MonoBehaviour
         if (target == null)
             return Vector3.zero;
 
-        int key = target.GetInstanceID();
+        EntityId key = target.GetEntityId();
         if (!targetFields.TryGetValue(key, out TargetFlowField field))
         {
             BuildOrRefreshField(target);

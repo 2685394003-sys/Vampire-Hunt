@@ -242,8 +242,8 @@ public sealed class PlayerAttact : MonoBehaviour
                     ? damageComponent.transform.position
                     : hit.transform.position;
                 int bossCombatTextTargetKey = damageComponent != null
-                    ? damageComponent.GetInstanceID()
-                    : hit.GetInstanceID();
+                    ? damageComponent.GetEntityId().GetHashCode()
+                    : hit.GetEntityId().GetHashCode();
                 int bossAttackDamage = playerState.RollAttackDamage(out bool bossWasCritical);
                 bool tracksHealth = TryReadCurrentHealth(damageComponent, out int previousHealth);
                 damageable.TakeDamage(bossAttackDamage);
@@ -276,7 +276,7 @@ public sealed class PlayerAttact : MonoBehaviour
             }
 
             Vector3 enemyPosition = enemyHealth.transform.position;
-            int combatTextTargetKey = enemyHealth.GetInstanceID();
+            int combatTextTargetKey = enemyHealth.GetEntityId().GetHashCode();
             int enemyAttackDamage = playerState.RollAttackDamage(out bool enemyWasCritical);
             int damageDealt = enemyHealth.ApplyDamage(
                 enemyAttackDamage,

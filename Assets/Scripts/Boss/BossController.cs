@@ -772,7 +772,7 @@ public sealed class BossController : MonoBehaviour, IBossController
     private BossSnapshot CreateSnapshot()
     {
         return new BossSnapshot(
-            GetInstanceID(),
+            GetEntityId(),
             CurrentState,
             combatEnabled,
             bossHealth != null ? bossHealth.CurrentHealth : 0,
