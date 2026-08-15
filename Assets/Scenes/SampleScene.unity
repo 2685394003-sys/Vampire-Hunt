@@ -10951,6 +10951,10 @@ MonoBehaviour:
   cellSize: 1
   gridWidth: 120
   gridHeight: 120
+  fitToMapBounds: 1
+  mapBoundsSource: {fileID: 1758360420}
+  mapBoundsPadding: 8
+  maxAutoCellsPerAxis: 256
   player: {fileID: 243226377}
   obstacleLayer:
     serializedVersion: 2
@@ -10958,7 +10962,7 @@ MonoBehaviour:
   refreshInterval: 0.2
   periodicallyRescanDynamicObstacles: 0
   dynamicObstacleRescanInterval: 1
-  drawFlowArrows: 1
+  drawFlowArrows: 0
   arrowScale: 0.4
 --- !u!4 &961027276
 Transform:
@@ -11594,30 +11598,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 070c2c19068695845ba3f78d725ce474, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerProximityMonsterSpawner
-  enemyPrefab: {fileID: 6734190735489785284, guid: 6793cd89dde2e17408b488e66bbb9226, type: 3}
-  monstersPerWave: 2
-  spawnInterval: 4
-  firstSpawnDelay: 3
-  maxAlive: 30
-  minSpawnRadius: 15
-  maxSpawnRadius: 25
-  maxSampleAttemptsPerMonster: 16
-  spawnHeightOffset: 0
-  minWaveSpawnSeparation: 1
-  bossDirectionProbability: 0.7
-  bossDirectionHalfAngle: 55
+  config: {fileID: 11400000, guid: 2b909db7e2ac41ea899e39b5b7aed9df, type: 2}
   boss: {fileID: 0}
-  bossFindRetryInterval: 0.5
-  pauseDuringBossTransition: 1
-  stopWhenBossDies: 1
-  resumeDelayAfterPhase: 3
-  requireWalkableCell: 1
-  spawnBlockingLayers:
-    serializedVersion: 2
-    m_Bits: 200
-  spawnClearanceRadius: 0.6
   spawnParent: {fileID: 0}
-  drawGizmos: 1
 --- !u!4 &992700473 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 462672734963133294, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}

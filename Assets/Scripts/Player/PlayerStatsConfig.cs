@@ -25,6 +25,7 @@ public sealed class PlayerStatsConfig : ScriptableObject
     [Header("战斗 / Combat")]
     [SerializeField, Min(0f)] private float baseAtk = 10f;
     [SerializeField, Min(0f)] private float attackRange = 2f;
+    [SerializeField, Range(1f, 179f)] private float attackConeAngle = 110f;
     [SerializeField, Min(0.01f)] private float attackInterval = 1f;
     [SerializeField, Min(0f)] private float knockbackForce = 5f;
     [SerializeField, Range(0f, 1f)] private float critRate = 0.05f;
@@ -51,6 +52,7 @@ public sealed class PlayerStatsConfig : ScriptableObject
     public float StaminaRecoverSpeed => staminaRecoverSpeed;
     public float BaseAttack => baseAtk;
     public float AttackRange => attackRange;
+    public float AttackConeAngle => attackConeAngle;
     public float AttackInterval => attackInterval;
     public float KnockbackForce => knockbackForce;
     public float MoveSpeed => moveSpeed;
@@ -77,6 +79,7 @@ public sealed class PlayerStatsConfig : ScriptableObject
         staminaRecoverSpeed = Mathf.Max(0f, staminaRecoverSpeed);
         baseAtk = Mathf.Max(0f, baseAtk);
         attackRange = Mathf.Max(0f, attackRange);
+        attackConeAngle = Mathf.Clamp(attackConeAngle, 1f, 179f);
         attackInterval = Mathf.Max(0.01f, attackInterval);
         knockbackForce = Mathf.Max(0f, knockbackForce);
         moveSpeed = Mathf.Max(0f, moveSpeed);

@@ -78,6 +78,24 @@ public static class NetworkPlayerRegistry
         }
     }
 
+    /// <summary>
+    /// Copies every currently registered player into the caller-owned buffer.
+    /// Unlike GetAlivePlayers, this includes dead players so shared run rewards
+    /// remain fair while a teammate is waiting to revive.
+    /// </summary>
+    public static void GetPlayers(List<PlayerNetworkState> buffer)
+    {
+        buffer.Clear();
+        PruneDestroyed();
+        foreach (PlayerNetworkState player in Players)
+        {
+            if (player != null)
+            {
+                buffer.Add(player);
+            }
+        }
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
     {

@@ -14,6 +14,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 {
     public const float BloodPactScarletCost = 100f;
 
+    private static readonly List<PlayerNetworkState> ScarletShareRecipients = new();
+
     [SerializeField] private PlayerStatsConfig baseStats;
     [SerializeField] private bool hideVisualsWhenDead = true;
 
@@ -111,10 +113,11 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         ? networkBloodPacts?.Count ?? 0
         : offlineBloodPacts.Count;
 
-    // These two supplemental timings are intentionally baseline-only until design
-    // adds them to the progression sheet.
+    // Supplemental combat settings stay baseline-only until design adds them
+    // to the progression sheet.
     public float KnockbackTime => BaseStats != null ? BaseStats.KnockbackDuration : 0f;
     public float StunTime => BaseStats != null ? BaseStats.StunDuration : 0f;
+    public float AttackConeAngle => BaseStats != null ? BaseStats.AttackConeAngle : 110f;
     public LayerMask EnemyLayer => BaseStats != null ? BaseStats.EnemyLayer : 0;
 
     private bool UseNetworkValues => NetworkAuthority.IsNetworkActive && IsSpawned;
@@ -236,8 +239,35 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 
     public void AddScarlet(float amount)
     {
-        if (NetworkAuthority.IsServerOrOffline(this) && amount > 0f)
-            SetScarlet(CurrentScarlet + amount);
+        if (!NetworkAuthority.IsServerOrOffline(this) ||
+            amount <= 0f ||
+            float.IsNaN(amount) ||
+            float.IsInfinity(amount))
+        {
+            return;
+        }
+
+        if (!NetworkAuthority.IsNetworkActive)
+        {
+            AddScarletDirect(amount);
+            return;
+        }
+
+        NetworkPlayerRegistry.GetPlayers(ScarletShareRecipients);
+        if (ScarletShareRecipients.Count == 0)
+        {
+            AddScarletDirect(amount);
+            return;
+        }
+
+        float share = amount / ScarletShareRecipients.Count;
+        foreach (PlayerNetworkState recipient in ScarletShareRecipients)
+        {
+            if (recipient != null && NetworkAuthority.IsServerOrOffline(recipient))
+            {
+                recipient.AddScarletDirect(share);
+            }
+        }
     }
 
     public void AddCoins(int amount)
@@ -348,7 +378,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 
         if (!pact.ApplyEffects(this))
         {
-            AddScarlet(BloodPactScarletCost);
+            AddScarletDirect(BloodPactScarletCost);
             return false;
         }
 
@@ -381,7 +411,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         IGameplayAbilitySystemHost target,
         float damageDealt,
         bool wasCritical,
-        Vector3 position)
+        Vector3 position,
+        int combatTextTargetKey = 0)
     {
         if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0f) return;
 
@@ -394,6 +425,12 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
             position);
         abilitySystem.SendEvent(in hit);
 
+        BroadcastDamageText(
+            Mathf.Max(1, Mathf.RoundToInt(damageDealt)),
+            wasCritical,
+            position,
+            combatTextTargetKey);
+
         if (!wasCritical) return;
         GameplayEventData critical = new(
             GameplayEventType.CriticalHit,
@@ -403,6 +440,54 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
             true,
             position);
         abilitySystem.SendEvent(in critical);
+    }
+
+    /// <summary>
+    /// Broadcasts server-confirmed effect damage without producing AttackHit or
+    /// CriticalHit events. Periodic effects must use this path to avoid retriggering
+    /// on-hit abilities from their own damage ticks.
+    /// </summary>
+    public void ReportGameplayEffectDamage(
+        int damageDealt,
+        Vector3 position,
+        int combatTextTargetKey = 0)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0) return;
+        BroadcastDamageText(
+            damageDealt,
+            false,
+            position,
+            combatTextTargetKey);
+    }
+
+    private void BroadcastDamageText(
+        int damage,
+        bool wasCritical,
+        Vector3 position,
+        int targetKey)
+    {
+        ulong sourceKey = UseNetworkValues
+            ? OwnerClientId
+            : unchecked((ulong)(uint)GetInstanceID());
+
+        if (UseNetworkValues)
+        {
+            ShowDamageTextRpc(damage, wasCritical, position, targetKey, sourceKey);
+            return;
+        }
+
+        CombatTextService.ShowDamage(damage, wasCritical, position, targetKey, sourceKey);
+    }
+
+    [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Unreliable)]
+    private void ShowDamageTextRpc(
+        int damage,
+        bool wasCritical,
+        Vector3 position,
+        int targetKey,
+        ulong sourceKey)
+    {
+        CombatTextService.ShowDamage(damage, wasCritical, position, targetKey, sourceKey);
     }
 
     public void ReportEnemyKilled(Vector3 position)
@@ -425,7 +510,10 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         SetAlive(false);
     }
 
-    /// <summary>Rolls one server-authoritative damage value for a whole swing.</summary>
+    /// <summary>
+    /// Rolls one server-authoritative damage value for one hit target. Multi-target
+    /// attacks must call this once per unique target so each target rolls crit alone.
+    /// </summary>
     public int RollAttackDamage(out bool wasCritical)
     {
         wasCritical = NetworkAuthority.IsServerOrOffline(this) &&
@@ -494,20 +582,27 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     public bool AddGameplayModifier(
         string modifierId,
         string sourceId,
-        PlayerStatType stat,
+        GameplayAttributeType stat,
         PlayerModifierOperation operation,
         float value)
     {
+        if (!Enum.IsDefined(typeof(PlayerStatType), (int)stat)) return false;
         return AddStatModifier(new PlayerStatModifier(
             modifierId,
             sourceId,
-            stat,
+            (PlayerStatType)(int)stat,
             operation,
             value));
     }
 
     public bool RemoveGameplayModifier(string modifierId) =>
         RemoveStatModifier(modifierId);
+
+    public int DamageGameplay(int amount, IGameplayAbilitySystemHost source)
+    {
+        int previous = CurrentHealth;
+        return ApplyDamage(amount) ? previous - CurrentHealth : 0;
+    }
 
     public int HealGameplay(int amount) => RestoreHealth(amount);
     public void AddScarletGameplay(float amount) => AddScarlet(amount);
@@ -831,7 +926,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     private void SetMaxScarlet(float value)
     {
         SetRuntimeFloat(networkMaxScarlet, ref offlineMaxScarlet, value);
-        SetScarlet(Mathf.Min(CurrentScarlet, value));
     }
 
     private void SetHealth(int value)
@@ -861,13 +955,20 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
 
     private void SetScarlet(float value)
     {
-        value = Mathf.Clamp(value, 0f, MaxScarlet);
+        if (float.IsNaN(value)) return;
+        value = float.IsPositiveInfinity(value) ? float.MaxValue : Mathf.Max(0f, value);
         if (UseNetworkValues) networkScarlet.Value = value;
         else if (!Mathf.Approximately(offlineScarlet, value))
         {
             offlineScarlet = value;
             ScarletChanged?.Invoke(offlineScarlet, offlineMaxScarlet);
         }
+    }
+
+    private void AddScarletDirect(float amount)
+    {
+        double nextValue = (double)CurrentScarlet + amount;
+        SetScarlet(nextValue >= float.MaxValue ? float.MaxValue : (float)nextValue);
     }
 
     private void SetCoins(int value)

@@ -19,7 +19,8 @@ MonoBehaviour:
   staminaRecoverSpeed: 15
   maxScarlet: 100
   baseAtk: 10
-  attackRange: 5
+  attackRange: 3
+  attackConeAngle: 110
   attackInterval: 1
   knockbackForce: 5
   critRate: 0.05

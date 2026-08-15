@@ -168,6 +168,7 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         UnbindPlayer();
         boundPlayer = player;
         boundPlayer.ScarletChanged += HandleScarletChanged;
+        boundPlayer.BloodPactsChanged += HandleBloodPactsChanged;
         HandleScarletChanged(boundPlayer.CurrentScarlet, boundPlayer.MaxScarlet);
     }
 
@@ -176,6 +177,7 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         if (boundPlayer != null)
         {
             boundPlayer.ScarletChanged -= HandleScarletChanged;
+            boundPlayer.BloodPactsChanged -= HandleBloodPactsChanged;
         }
         boundPlayer = null;
     }
@@ -195,6 +197,18 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         }
 
         if (!isShowing && current + 0.0001f >= PlayerNetworkState.BloodPactScarletCost)
+        {
+            ShowSelection();
+        }
+    }
+
+    private void HandleBloodPactsChanged()
+    {
+        if (!isPendingSelection) return;
+
+        HideSelection();
+        if (boundPlayer != null &&
+            boundPlayer.CurrentScarlet + 0.0001f >= PlayerNetworkState.BloodPactScarletCost)
         {
             ShowSelection();
         }

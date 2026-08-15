@@ -19,10 +19,30 @@ and captured context always live in runtime specs or active effects.
 
 ## Authority and replication
 
-`PlayerNetworkState` owns the player's ability system. Only the server/offline host
-sends gameplay events or mutates effects. Existing derived stat `NetworkVariable`s
-remain the authoritative replicated values. A compact `NetworkList` of pact IDs and
-stacks supports UI and late joiners. Cues use RPCs and are explicitly cosmetic.
+`PlayerNetworkState` and `EnemyHealth` own their respective ability systems. Only
+the server/offline host sends gameplay events, changes attributes or ticks periodic
+effects. Existing player stat `NetworkVariable`s remain authoritative. Enemies layer
+per-instance modifiers over `EnemyRunStats`, so a slow or vulnerability affects only
+its target instead of every spawned enemy.
+
+A compact player `NetworkList` of pact IDs/stacks supports UI. Each enemy also keeps
+a persistent cue list for active debuffs, allowing late joiners to reconstruct burning,
+frozen and future status VFX. Executed cue pulses use RPCs and remain cosmetic.
+
+All ordinary enemies resolve the shared
+`Resources/GameVFX/EnemyStatusVfxConfig` asset. Assign burning and frozen prefabs
+there once; each presenter instantiates a local copy only while that enemy needs the
+status. Empty slots retain the generated-particle fallback. A presenter-level config
+override is available only for exceptional enemy variants.
+
+Status prefabs that contain Piloto Studio `OverlayFX` components are rebound at
+runtime to the enemy's largest `SkinnedMeshRenderer`, falling back to its largest
+`MeshRenderer`. Overlay materials are removed when the status ends, and separate
+burning/frozen overlays can coexist on the same renderer.
+
+Periodic damage reports its actual server-confirmed health loss through the combat
+text presentation channel. It deliberately does not emit another `AttackHit` event,
+so burning ticks cannot recursively trigger on-hit blood pacts.
 
 ## Adding a blood pact
 
@@ -35,9 +55,14 @@ stacks supports UI and late joiners. Cues use RPCs and are explicitly cosmetic.
 
 Currently implemented advanced pacts:
 
+- `update_015` Ember Fire: 30% on-hit chance, four seconds of burning and two
+  server-authoritative damage each second.
+- `update_016` Frost Breath: 20% on-hit chance to freeze movement and attacks for
+  two seconds.
 - `update_017` Scarlet Kiss: heals 15% of actual attack damage, minimum one.
 - `update_021` Berserker Rage: missing-health attack/crit scaling refreshed on
   authoritative health changes.
 
 Run `Vampire Hunt/Validation/Validate Gameplay Ability Framework` after editing
-the framework or either pact.
+the framework or an implemented pact. The validator covers enemy damage periods,
+control-tag expiry and persistent status VFX lifecycle in addition to player effects.

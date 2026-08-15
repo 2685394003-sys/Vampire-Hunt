@@ -48,6 +48,13 @@ public sealed class UILoader : MonoBehaviour
 
     private IEnumerator Start()
     {
+        // The scene may have finished loading between CreateLoader and Start.
+        if (SceneManager.GetSceneByName(UISceneName).isLoaded)
+        {
+            Destroy(gameObject);
+            yield break;
+        }
+
         AsyncOperation loadOperation = SceneManager.LoadSceneAsync(
             UISceneName,
             LoadSceneMode.Additive);
