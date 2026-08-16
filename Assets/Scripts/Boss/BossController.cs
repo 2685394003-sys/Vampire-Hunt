@@ -43,6 +43,8 @@ public sealed class BossController : MonoBehaviour, IBossController
     public Transform Target => player;
     public BossState State => CurrentState;
     public BossSnapshot Snapshot => CreateSnapshot();
+    public BossEncounterMode EncounterMode => encounterMode;
+    public BossStaggerState StaggerState => staggerState;
 
     public event Action<float> ContractCountdownChanged;
     public event Action ContractCountdownExpired;
@@ -54,12 +56,22 @@ public sealed class BossController : MonoBehaviour, IBossController
     public event Action<IBossController, BossAttackType> AttackStarted;
     public event Action<IBossController, BossAttackType> AttackCompleted;
     public event Action<IBossController, BossAttackType> AttackCancelled;
+    public event Action<IBossController, BossEncounterMode, BossEncounterMode> EncounterModeChanged;
+    public event Action<IBossController, BossStaggerState, BossStaggerState> StaggerStateChanged;
+    public event Action<IBossController, Transform, int> StaggerExecuted;
     public event Action<IBossController> Defeated;
 
     private BossMovementMotor movement;
+    private BossBehaviorPolicy behaviorPolicy;
     private BossPresentationGateway presentation;
     private Camera viewCamera;
     private Coroutine phaseChangeCoroutine;
+    private Coroutine staggerCoroutine;
+    private BossEncounterMode encounterMode;
+    private BossStaggerState staggerState;
+    private bool staggerExecutionRequested;
+    private Transform staggerExecutor;
+    private int staggerExecutionDamage;
     private bool combatEnabled;
     private bool contractCountdownTriggered;
     private bool runtimeSetupValidated;
@@ -69,16 +81,19 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void Awake()
     {
-        ResolveComponentReferences(true);
-        EnsureRuntimeMounts();
+        ResolveComponentReferences();
         FindAndConfigureGuards();
-        attackController.ConfigureGuards(leftGuard, rightGuard);
+        attackController?.ConfigureGuards(leftGuard, rightGuard);
 
         movement = new BossMovementMotor(
             transform,
             bossRigidbody,
             bossCollider,
             stats);
+        behaviorPolicy = new BossBehaviorPolicy(stats);
+        encounterMode = stats != null
+            ? stats.initialEncounterMode
+            : BossEncounterMode.Hunt;
         presentation = new BossPresentationGateway(
             transform,
             stats,
@@ -153,7 +168,8 @@ public sealed class BossController : MonoBehaviour, IBossController
             player == null ||
             bossHealth == null ||
             bossHealth.IsDead ||
-            CurrentState == BossState.PhaseChange)
+            CurrentState == BossState.PhaseChange ||
+            staggerState != BossStaggerState.None)
         {
             movement.Stop();
             if (!combatEnabled && CurrentState != BossState.Dead)
@@ -176,7 +192,14 @@ public sealed class BossController : MonoBehaviour, IBossController
 
         viewCamera ??= Camera.main;
         bool bossVisible = movement.IsVisible(viewCamera);
-        if (attackController.TryStartAttack(
+        BossBehaviorDecision decision = behaviorPolicy.Evaluate(
+            encounterMode,
+            bossVisible,
+            distance,
+            toPlayer,
+            bossHealth.CurrentPhase);
+
+        if (decision.AllowAttack && attackController.TryStartAttack(
                 bossHealth.CurrentPhase,
                 bossVisible,
                 distance))
@@ -186,23 +209,25 @@ public sealed class BossController : MonoBehaviour, IBossController
             return;
         }
 
-        if (!bossVisible)
+        TransitionTo(decision.State);
+        switch (decision.Movement)
         {
-            TransitionTo(BossState.OffscreenIdle);
-            movement.Stop();
-            return;
+            case BossMovementIntent.Approach:
+                movement.Move(
+                    decision.Direction,
+                    bossHealth.CurrentPhase,
+                    Time.fixedDeltaTime);
+                break;
+            case BossMovementIntent.Retreat:
+                movement.MoveAtSpeed(
+                    decision.Direction,
+                    ResolveHuntRetreatSpeed(),
+                    Time.fixedDeltaTime);
+                break;
+            default:
+                movement.Stop();
+                break;
         }
-
-        TransitionTo(BossState.Chase);
-        if ((stats.stationaryAfterFirstPhase && bossHealth.CurrentPhase >= 1) ||
-            distance <= stats.stoppingDistance ||
-            toPlayer.sqrMagnitude < 0.001f)
-        {
-            movement.Stop();
-            return;
-        }
-
-        movement.Move(toPlayer, bossHealth.CurrentPhase, Time.fixedDeltaTime);
     }
 
     public BossCommandResult AssignTarget(Transform target)
@@ -258,6 +283,7 @@ public sealed class BossController : MonoBehaviour, IBossController
         }
 
         combatCommandReceived = true;
+        behaviorPolicy?.Reset();
         SetCombatEnabled(true);
         return BossCommandResult.Succeeded;
     }
@@ -277,8 +303,10 @@ public sealed class BossController : MonoBehaviour, IBossController
         }
 
         combatCommandReceived = true;
+        behaviorPolicy?.Reset();
         SetCombatEnabled(false);
         attackController?.CancelCurrentAttack();
+        CancelStagger();
         movement?.Stop();
         TransitionTo(BossState.Dormant);
         return BossCommandResult.Succeeded;
@@ -376,7 +404,9 @@ public sealed class BossController : MonoBehaviour, IBossController
             return BossCommandResult.TargetMissing;
         }
 
-        if (CurrentState == BossState.PhaseChange || attackController.IsBusy)
+        if (CurrentState == BossState.PhaseChange ||
+            staggerState != BossStaggerState.None ||
+            attackController.IsBusy)
         {
             return BossCommandResult.Busy;
         }
@@ -386,12 +416,188 @@ public sealed class BossController : MonoBehaviour, IBossController
             : BossCommandResult.Rejected;
     }
 
+    public BossCommandResult SetEncounterMode(BossEncounterMode mode)
+    {
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+        if (!Enum.IsDefined(typeof(BossEncounterMode), mode))
+        {
+            return BossCommandResult.InvalidArgument;
+        }
+        if (bossHealth == null || attackController == null)
+        {
+            return BossCommandResult.NotReady;
+        }
+        if (bossHealth.IsDead) return BossCommandResult.Dead;
+        if (CurrentState == BossState.PhaseChange ||
+            staggerState != BossStaggerState.None)
+        {
+            return BossCommandResult.Busy;
+        }
+        if (encounterMode == mode) return BossCommandResult.Succeeded;
+
+        BossEncounterMode previous = encounterMode;
+        encounterMode = mode;
+        behaviorPolicy?.Reset();
+        attackController.CancelCurrentAttack();
+        movement?.Stop();
+        EncounterModeChanged?.Invoke(this, previous, encounterMode);
+        TransitionTo(combatEnabled ? GetRecoveryState() : BossState.Dormant);
+        PublishSnapshot();
+        return BossCommandResult.Succeeded;
+    }
+
+    public BossCommandResult RequestStagger()
+    {
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+        if (bossHealth == null || attackController == null || stats == null)
+        {
+            return BossCommandResult.NotReady;
+        }
+        if (bossHealth.IsDead) return BossCommandResult.Dead;
+        if (!combatEnabled) return BossCommandResult.CombatDisabled;
+        if (player == null) return BossCommandResult.TargetMissing;
+        if (CurrentState == BossState.PhaseChange ||
+            attackController.IsBusy ||
+            staggerState != BossStaggerState.None)
+        {
+            return BossCommandResult.Busy;
+        }
+
+        float distance = movement.GetPlanarOffset(player).magnitude;
+        if (distance > stats.staggerActivationDistance)
+        {
+            return BossCommandResult.Rejected;
+        }
+
+        staggerCoroutine = StartCoroutine(StaggerRoutine());
+        return BossCommandResult.Succeeded;
+    }
+
+    public BossCommandResult ExecuteStagger(int damage, Transform executor)
+    {
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+        if (damage < 0) return BossCommandResult.InvalidArgument;
+        if (bossHealth == null) return BossCommandResult.NotReady;
+        if (bossHealth.IsDead) return BossCommandResult.Dead;
+        if (staggerState != BossStaggerState.Vulnerable)
+        {
+            return BossCommandResult.Rejected;
+        }
+        if (bossHealth.IsInvulnerable) return BossCommandResult.Invulnerable;
+
+        staggerExecutionRequested = true;
+        staggerExecutor = executor;
+        staggerExecutionDamage = damage;
+        SetStaggerState(BossStaggerState.Executed);
+        StaggerExecuted?.Invoke(this, staggerExecutor, staggerExecutionDamage);
+
+        if (damage > 0)
+        {
+            Vector3 source = executor != null
+                ? executor.position
+                : player != null ? player.position : transform.position;
+            bossHealth.TakeDamage(damage, source);
+        }
+
+        PublishSnapshot();
+        return BossCommandResult.Succeeded;
+    }
+
+    public BossCommandResult TeleportToArena()
+    {
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
+        if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
+        if (bossHealth == null || movement == null || attackController == null)
+        {
+            return BossCommandResult.NotReady;
+        }
+        if (bossHealth.IsDead) return BossCommandResult.Dead;
+        if (CurrentState == BossState.PhaseChange ||
+            staggerState != BossStaggerState.None ||
+            attackController.IsBusy)
+        {
+            return BossCommandResult.Busy;
+        }
+
+        return movement.TryTeleportToArena(player)
+            ? BossCommandResult.Succeeded
+            : BossCommandResult.Rejected;
+    }
+
+    private IEnumerator StaggerRoutine()
+    {
+        staggerExecutionRequested = false;
+        staggerExecutor = null;
+        staggerExecutionDamage = 0;
+        SetStaggerState(BossStaggerState.Telegraph);
+        movement.Stop();
+
+        if (stats.playPreStaggerAttack)
+        {
+            BossAttackType preStaggerAttack = SelectPreStaggerAttack();
+            if (attackController.TryForceAttack(preStaggerAttack))
+            {
+                while (attackController.IsBusy &&
+                       bossHealth != null &&
+                       !bossHealth.IsDead &&
+                       CurrentState != BossState.PhaseChange)
+                {
+                    yield return null;
+                }
+            }
+        }
+
+        if (bossHealth == null || bossHealth.IsDead ||
+            CurrentState == BossState.PhaseChange || !combatEnabled)
+        {
+            staggerCoroutine = null;
+            SetStaggerState(BossStaggerState.None);
+            yield break;
+        }
+
+        TransitionTo(BossState.Stagger);
+        SetStaggerState(BossStaggerState.Vulnerable);
+        float remaining = stats.staggerWindowDuration;
+        while (remaining > 0f && !staggerExecutionRequested)
+        {
+            remaining -= Time.deltaTime;
+            yield return null;
+        }
+
+        bool executed = staggerExecutionRequested;
+        staggerCoroutine = null;
+        if (bossHealth != null &&
+            !bossHealth.IsDead &&
+            CurrentState != BossState.PhaseChange &&
+            encounterMode == BossEncounterMode.Hunt &&
+            ((executed && stats.teleportAfterStaggerExecution) ||
+             (!executed && stats.teleportAfterStaggerTimeout)))
+        {
+            movement.TryTeleportToArena(player);
+        }
+
+        staggerExecutionRequested = false;
+        staggerExecutor = null;
+        staggerExecutionDamage = 0;
+        SetStaggerState(BossStaggerState.None);
+        if (bossHealth != null && !bossHealth.IsDead &&
+            CurrentState != BossState.PhaseChange)
+        {
+            TransitionTo(combatEnabled ? GetRecoveryState() : BossState.Dormant);
+        }
+    }
+
     private void HandlePhaseChangeStarted(int newPhase)
     {
         if (bossHealth.IsDead)
         {
             return;
         }
+
+        CancelStagger();
 
         if (stats.logCombatEvents)
         {
@@ -483,7 +689,7 @@ public sealed class BossController : MonoBehaviour, IBossController
         PublishSnapshot();
         if (phaseChangeCoroutine == null && !bossHealth.IsDead)
         {
-            TransitionTo(combatEnabled ? BossState.Chase : BossState.Dormant);
+            TransitionTo(combatEnabled ? GetRecoveryState() : BossState.Dormant);
         }
     }
 
@@ -539,6 +745,7 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void HandleDeath()
     {
+        CancelStagger();
         if (!NetworkAuthority.IsServerOrOffline())
         {
             presentation.SetRenderersEnabled(true);
@@ -615,7 +822,7 @@ public sealed class BossController : MonoBehaviour, IBossController
         AttackCompleted?.Invoke(this, attackType);
         if (combatEnabled && !bossHealth.IsDead && CurrentState == BossState.Attack)
         {
-            TransitionTo(BossState.Chase);
+            TransitionTo(GetRecoveryState());
         }
         PublishSnapshot();
     }
@@ -627,9 +834,77 @@ public sealed class BossController : MonoBehaviour, IBossController
             !bossHealth.IsDead &&
             CurrentState != BossState.PhaseChange)
         {
-            TransitionTo(BossState.Chase);
+            TransitionTo(GetRecoveryState());
         }
         PublishSnapshot();
+    }
+
+    private float ResolveHuntRetreatSpeed()
+    {
+        float speed = stats != null ? stats.huntFallbackRetreatSpeed : 0f;
+        if (stats != null && stats.huntMatchTargetMoveSpeed && player != null)
+        {
+            PlayerNetworkState playerState =
+                player.GetComponentInParent<PlayerNetworkState>();
+            if (playerState != null)
+            {
+                speed = playerState.MoveSpeed;
+            }
+        }
+
+        float multiplier = stats != null ? stats.huntRetreatSpeedMultiplier : 1f;
+        return Mathf.Max(0f, speed * multiplier);
+    }
+
+    private BossAttackType SelectPreStaggerAttack()
+    {
+        int phase = bossHealth != null ? bossHealth.CurrentPhase : 0;
+        if (phase <= 0)
+        {
+            return BossAttackType.Format2;
+        }
+
+        if (phase == 1)
+        {
+            return UnityEngine.Random.value < 0.5f
+                ? BossAttackType.Format2
+                : BossAttackType.Format4;
+        }
+
+        int roll = UnityEngine.Random.Range(0, 3);
+        return roll switch
+        {
+            0 => BossAttackType.Format2,
+            1 => BossAttackType.Format3,
+            _ => BossAttackType.Format4
+        };
+    }
+
+    private void SetStaggerState(BossStaggerState nextState)
+    {
+        if (staggerState == nextState)
+        {
+            return;
+        }
+
+        BossStaggerState previous = staggerState;
+        staggerState = nextState;
+        StaggerStateChanged?.Invoke(this, previous, staggerState);
+        PublishSnapshot();
+    }
+
+    private void CancelStagger()
+    {
+        if (staggerCoroutine != null)
+        {
+            StopCoroutine(staggerCoroutine);
+            staggerCoroutine = null;
+        }
+
+        staggerExecutionRequested = false;
+        staggerExecutor = null;
+        staggerExecutionDamage = 0;
+        SetStaggerState(BossStaggerState.None);
     }
 
     private void ResolveTargetWhenNeeded()
@@ -665,6 +940,7 @@ public sealed class BossController : MonoBehaviour, IBossController
         }
 
         player = newTarget;
+        behaviorPolicy?.Reset();
         attackController?.SetPlayer(player);
         TargetChanged?.Invoke(this, player);
         PublishSnapshot();
@@ -756,6 +1032,13 @@ public sealed class BossController : MonoBehaviour, IBossController
         PublishSnapshot();
     }
 
+    private BossState GetRecoveryState()
+    {
+        return encounterMode == BossEncounterMode.Hunt
+            ? BossState.OffscreenIdle
+            : BossState.BattleIdle;
+    }
+
     private void TransitionTo(BossState nextState)
     {
         if (CurrentState == nextState)
@@ -782,7 +1065,9 @@ public sealed class BossController : MonoBehaviour, IBossController
             bossHealth != null && bossHealth.IsDead,
             RemainingContractSeconds,
             transform.position,
-            attackController != null ? attackController.LastAttack : null);
+            attackController != null ? attackController.LastAttack : null,
+            encounterMode,
+            staggerState);
     }
 
     private void PublishSnapshot()
@@ -830,52 +1115,17 @@ public sealed class BossController : MonoBehaviour, IBossController
         eventsBound = false;
     }
 
-    private void ResolveComponentReferences(bool createMissingCollider)
+    private void ResolveComponentReferences()
     {
         stats ??= GetComponent<BossConfig>();
         bossHealth ??= GetComponent<BossHealth>();
         attackController ??= GetComponent<BossAttackController>();
         bossRigidbody ??= GetComponent<Rigidbody>();
         bossCollider ??= GetComponent<Collider>();
-        if (bossCollider == null && createMissingCollider)
-        {
-            CapsuleCollider generatedCollider = gameObject.AddComponent<CapsuleCollider>();
-            generatedCollider.radius = 0.6f;
-            generatedCollider.height = 2.5f;
-            generatedCollider.center = Vector3.zero;
-            bossCollider = generatedCollider;
-        }
-
         animator ??= GetComponentInChildren<Animator>(true);
         audioSource ??= GetComponent<AudioSource>();
         visualRoot ??= transform.Find("Visual");
         vfxRoot ??= transform.Find("VFXRoot");
-    }
-
-    private void EnsureRuntimeMounts()
-    {
-        visualRoot ??= FindOrCreateChild("Visual", Vector3.zero);
-        Transform meleePoint = FindOrCreateChild(
-            "MeleePoint",
-            new Vector3(0f, 0f, 2f));
-        Transform projectileOrigin = FindOrCreateChild(
-            "ProjectileOrigin",
-            new Vector3(0f, 0.8f, 1.2f));
-        Transform groundIndicator = FindOrCreateChild(
-            "GroundIndicator",
-            Vector3.zero);
-        vfxRoot ??= FindOrCreateChild(
-            "VFXRoot",
-            new Vector3(0f, 0.5f, 0f));
-
-        animator ??= visualRoot.GetComponentInChildren<Animator>(true);
-        animator ??= GetComponent<Animator>();
-        attackController.ConfigureMounts(
-            meleePoint,
-            projectileOrigin,
-            groundIndicator,
-            vfxRoot,
-            animator);
     }
 
     private void FindAndConfigureGuards()
@@ -912,9 +1162,9 @@ public sealed class BossController : MonoBehaviour, IBossController
         runtimeSetupValidated = true;
         if (player == null)
         {
-            Debug.LogError(
-                "[Boss 配置] 找不到玩家。请设置 Player Tag，或把玩家放到 " +
-                "BossConfig.playerLayer 指定的层。",
+            Debug.LogWarning(
+                "[Boss 目标] 当前尚未生成可用玩家，Boss 将保持休眠并持续等待 " +
+                "PlayerNetworkState、Player Tag 或 BossConfig.playerLayer 中的目标。",
                 this);
         }
 
@@ -930,13 +1180,14 @@ public sealed class BossController : MonoBehaviour, IBossController
                 "[Boss 配置] 未找到 Animator。战斗逻辑可运行，但不会播放动画。",
                 this);
         }
-        else if (animator.runtimeAnimatorController == null)
+        else if (animator.runtimeAnimatorController == null &&
+                 GetComponent<Boss3DAnimationPresenter>() == null)
         {
             Debug.LogWarning(
-                "[Boss 配置] Animator 没有绑定 Controller；动画触发器暂不生效。",
+                "[Boss 配置] Animator 没有绑定 Controller，且未配置 3D 动画表现器。",
                 animator);
         }
-        else
+        else if (animator.runtimeAnimatorController != null)
         {
             ValidateAnimatorParameter(
                 stats.phaseParameter,
@@ -973,7 +1224,7 @@ public sealed class BossController : MonoBehaviour, IBossController
                 $"[Boss] 初始化完成。目标=" +
                 $"{(player != null ? player.name : "未找到")}，" +
                 $"Animator=" +
-                $"{(animator != null && animator.runtimeAnimatorController != null ? "已配置" : "未配置")}。",
+                $"{(animator != null ? "已配置" : "未配置")}。",
                 this);
         }
     }
@@ -1009,52 +1260,13 @@ public sealed class BossController : MonoBehaviour, IBossController
             animator);
     }
 
-    [ContextMenu("Boss/自动配置五个子节点")]
-    private void ConfigureFiveChildNodes()
+    [ContextMenu("Boss/验证场景绑定")]
+    private void ValidateSceneBindings()
     {
-        ResolveComponentReferences(false);
-        EnsureRuntimeMounts();
+        ResolveComponentReferences();
         FindAndConfigureGuards();
-        attackController.ConfigureGuards(leftGuard, rightGuard);
-
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-        {
-            UnityEditor.EditorUtility.SetDirty(this);
-            UnityEditor.EditorUtility.SetDirty(attackController);
-        }
-#endif
-
-        Debug.Log(
-            "[Boss 配置] 五个子节点已连线：Visual、MeleePoint、" +
-            "ProjectileOrigin、GroundIndicator、VFXRoot。",
-            this);
-    }
-
-    private Transform FindOrCreateChild(
-        string childName,
-        Vector3 defaultLocalPosition)
-    {
-        Transform child = transform.Find(childName);
-        if (child != null)
-        {
-            return child;
-        }
-
-        GameObject childObject = new(childName);
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-        {
-            UnityEditor.Undo.RegisterCreatedObjectUndo(
-                childObject,
-                $"创建 {childName}");
-        }
-#endif
-        childObject.layer = gameObject.layer;
-        child = childObject.transform;
-        child.SetParent(transform, false);
-        child.localPosition = defaultLocalPosition;
-        return child;
+        attackController?.ConfigureGuards(leftGuard, rightGuard);
+        ValidateRuntimeSetup();
     }
 
     private static bool IsSupportedAttack(BossAttackType attackType)
@@ -1152,6 +1364,7 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void OnDisable()
     {
+        CancelStagger();
         attackController?.CancelCurrentAttack();
         movement?.Stop();
         BossRegistry.Unregister(this);

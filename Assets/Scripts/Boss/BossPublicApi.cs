@@ -7,12 +7,36 @@ using UnityEngine;
 /// </summary>
 public enum BossState
 {
-    Dormant,
-    OffscreenIdle,
-    Chase,
-    Attack,
-    PhaseChange,
-    Dead
+    Dormant = 0,
+    OffscreenIdle = 1,
+    Chase = 2,
+    Attack = 3,
+    PhaseChange = 4,
+    Dead = 5,
+    Retreat = 6,
+    Stagger = 7,
+    BattleIdle = 8
+}
+
+/// <summary>
+/// High-level encounter mode. Hunt is the world-exploration loop where the
+/// Boss keeps its distance; Battle enables the compact arena combat loop.
+/// </summary>
+public enum BossEncounterMode
+{
+    Hunt = 0,
+    Battle = 1
+}
+
+/// <summary>
+/// Public stagger lifecycle used by Scarlet/progression systems.
+/// </summary>
+public enum BossStaggerState
+{
+    None = 0,
+    Telegraph = 1,
+    Vulnerable = 2,
+    Executed = 3
 }
 
 /// <summary>
@@ -50,6 +74,8 @@ public readonly struct BossSnapshot
     public float RemainingContractSeconds { get; }
     public Vector3 Position { get; }
     public BossAttackType? LastAttack { get; }
+    public BossEncounterMode EncounterMode { get; }
+    public BossStaggerState StaggerState { get; }
 
     public float HealthNormalized => MaxHealth > 0
         ? (float)CurrentHealth / MaxHealth
@@ -66,7 +92,9 @@ public readonly struct BossSnapshot
         bool isDead,
         float remainingContractSeconds,
         Vector3 position,
-        BossAttackType? lastAttack)
+        BossAttackType? lastAttack,
+        BossEncounterMode encounterMode,
+        BossStaggerState staggerState)
     {
         EntityId = entityId;
         State = state;
@@ -79,6 +107,8 @@ public readonly struct BossSnapshot
         RemainingContractSeconds = remainingContractSeconds;
         Position = position;
         LastAttack = lastAttack;
+        EncounterMode = encounterMode;
+        StaggerState = staggerState;
     }
 }
 
@@ -95,6 +125,8 @@ public interface IBossController
     BossHealth Health { get; }
     BossAttackController Attacks { get; }
     BossSnapshot Snapshot { get; }
+    BossEncounterMode EncounterMode { get; }
+    BossStaggerState StaggerState { get; }
 
     event Action<IBossController, BossState, BossState> StateChanged;
     event Action<IBossController, Transform> TargetChanged;
@@ -103,6 +135,9 @@ public interface IBossController
     event Action<IBossController, BossAttackType> AttackStarted;
     event Action<IBossController, BossAttackType> AttackCompleted;
     event Action<IBossController, BossAttackType> AttackCancelled;
+    event Action<IBossController, BossEncounterMode, BossEncounterMode> EncounterModeChanged;
+    event Action<IBossController, BossStaggerState, BossStaggerState> StaggerStateChanged;
+    event Action<IBossController, Transform, int> StaggerExecuted;
     event Action<IBossController> Defeated;
 
     BossCommandResult AssignTarget(Transform target);
@@ -112,6 +147,10 @@ public interface IBossController
     BossCommandResult ApplyDamage(int amount, Vector3 damageSource);
     BossCommandResult SetInvulnerable(bool value);
     BossCommandResult TryForceAttack(BossAttackType attackType);
+    BossCommandResult SetEncounterMode(BossEncounterMode mode);
+    BossCommandResult RequestStagger();
+    BossCommandResult ExecuteStagger(int damage, Transform executor);
+    BossCommandResult TeleportToArena();
 }
 
 /// <summary>

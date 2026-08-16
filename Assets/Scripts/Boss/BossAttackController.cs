@@ -24,7 +24,6 @@ public sealed class BossAttackController : MonoBehaviour
     [SerializeField] private Rigidbody bossRigidbody;
     [SerializeField] private Animator animator;
     [SerializeField] private AudioSource audioSource;
-    [SerializeField] private SpriteRenderer bossSpriteRenderer;
     [SerializeField] private BossGuard leftGuard;
     [SerializeField] private BossGuard rightGuard;
 
@@ -46,8 +45,6 @@ public sealed class BossAttackController : MonoBehaviour
     private Coroutine attackCoroutine;
     private NetworkAnimator networkAnimator;
     private float nextDecisionTime;
-    private Color format3OriginalBossColor = Color.white;
-    private bool format3BossTintActive;
 
     private void Awake()
     {
@@ -56,9 +53,6 @@ public sealed class BossAttackController : MonoBehaviour
         animator ??= GetComponentInChildren<Animator>(true);
         networkAnimator = GetComponent<NetworkAnimator>();
         audioSource ??= GetComponent<AudioSource>();
-        bossSpriteRenderer ??= animator != null
-            ? animator.GetComponent<SpriteRenderer>()
-            : transform.Find("Visual")?.GetComponent<SpriteRenderer>();
         meleePoint ??= transform.Find("MeleePoint");
         projectileOrigin ??= transform.Find("ProjectileOrigin");
         groundIndicator ??= transform.Find("GroundIndicator");
@@ -243,7 +237,10 @@ public sealed class BossAttackController : MonoBehaviour
 
         if (!bossVisible)
         {
-            return HasAnyWorkingGuard() && IsReady(BossAttackType.Format1);
+            // The hunt design keeps an off-screen Boss stationary. A radial
+            // barrage communicates its direction without requiring melee range.
+            chosen = BossAttackType.Format2;
+            return IsReady(chosen);
         }
 
         List<BossAttackType> candidates = new();
@@ -427,7 +424,6 @@ public sealed class BossAttackController : MonoBehaviour
 
     private IEnumerator Format3Routine()
     {
-        BeginFormat3BossTint();
         Vector3 center = GetGroundPosition(transform.position);
         Vector3 forward = Vector3.ProjectOnPlane(player.position - center, Vector3.up).normalized;
         if (forward.sqrMagnitude < 0.001f)
@@ -471,7 +467,6 @@ public sealed class BossAttackController : MonoBehaviour
             new[] { chargeCircle, forwardFill, rightFill });
 
         ApplyCrossDamage(center, forward, right);
-        RestoreFormat3BossTint();
     }
 
     private IEnumerator Format4Routine()
@@ -882,13 +877,11 @@ public sealed class BossAttackController : MonoBehaviour
             SetFilledTelegraphAlpha(
                 fills,
                 Mathf.Lerp(0f, targetFillAlpha, progress));
-            UpdateFormat3BossTint(progress);
             yield return null;
         }
 
         SetTelegraphAlpha(outlines, targetOutlineAlpha);
         SetFilledTelegraphAlpha(fills, targetFillAlpha);
-        UpdateFormat3BossTint(1f);
     }
 
     private void SetFilledTelegraphAlpha(IEnumerable<MeshRenderer> renderers, float alpha)
@@ -904,44 +897,6 @@ public sealed class BossAttackController : MonoBehaviour
             color.a = Mathf.Clamp01(alpha);
             meshRenderer.sharedMaterial.color = color;
         }
-    }
-
-    private void BeginFormat3BossTint()
-    {
-        bossSpriteRenderer ??= animator != null
-            ? animator.GetComponent<SpriteRenderer>()
-            : transform.Find("Visual")?.GetComponent<SpriteRenderer>();
-        if (bossSpriteRenderer == null)
-        {
-            return;
-        }
-
-        format3OriginalBossColor = bossSpriteRenderer.color;
-        format3BossTintActive = true;
-    }
-
-    private void UpdateFormat3BossTint(float progress)
-    {
-        if (!format3BossTintActive || bossSpriteRenderer == null)
-        {
-            return;
-        }
-
-        Color chargeColor = new(1f, 0.06f, 0.08f, format3OriginalBossColor.a);
-        bossSpriteRenderer.color = Color.Lerp(
-            format3OriginalBossColor,
-            chargeColor,
-            Mathf.Clamp01(progress) * 0.85f);
-    }
-
-    private void RestoreFormat3BossTint()
-    {
-        if (format3BossTintActive && bossSpriteRenderer != null)
-        {
-            bossSpriteRenderer.color = format3OriginalBossColor;
-        }
-
-        format3BossTintActive = false;
     }
 
     private IEnumerator GrowCircleRoutine(
@@ -1330,7 +1285,6 @@ public sealed class BossAttackController : MonoBehaviour
 
     private void CleanupTelegraphs()
     {
-        RestoreFormat3BossTint();
         foreach (GameObject telegraph in activeTelegraphs)
         {
             if (telegraph != null)
