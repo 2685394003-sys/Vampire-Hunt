@@ -41,10 +41,21 @@ public sealed class BossConfig : MonoBehaviour
     [Min(0f)] public float offscreenAttackInterval = 2.5f;
     [Min(0f)] public float globalAttackInterval = 0.35f;
 
+    [Header("Boss - 追猎与踉跄 / Hunt & Stagger")]
+    public BossEncounterMode initialEncounterMode = BossEncounterMode.Hunt;
+    [Min(0.1f)] public float huntRetreatStartDistance = 7f;
+    [Min(0.1f)] public float huntRetreatStopDistance = 9f;
+    public bool huntMatchTargetMoveSpeed = true;
+    [Min(0f)] public float huntFallbackRetreatSpeed = 5f;
+    [Min(0f)] public float huntRetreatSpeedMultiplier = 1f;
+    public bool playPreStaggerAttack = true;
+    [Min(0.1f)] public float staggerActivationDistance = 3.5f;
+    [Min(0.1f)] public float staggerWindowDuration = 4f;
+    public bool teleportAfterStaggerTimeout = true;
+    public bool teleportAfterStaggerExecution = true;
+
     [Header("Boss - 玩家与表现 / Player & Presentation")]
     public LayerMask playerLayer = 1 << 6;
-    public bool createDebugVisualIfMissing = true;
-    public Color debugBossColor = new(0.55f, 0.03f, 0.08f, 1f);
     public Color warningColor = new(1f, 0.08f, 0.08f, 0.9f);
     public Color projectileColor = new(0.65f, 0.02f, 0.12f, 1f);
     [Min(0f)] public float telegraphHeight = 0.05f;
@@ -161,12 +172,22 @@ public sealed class BossConfig : MonoBehaviour
 
     private void OnValidate()
     {
+        if (!System.Enum.IsDefined(typeof(BossEncounterMode), initialEncounterMode))
+        {
+            initialEncounterMode = BossEncounterMode.Hunt;
+        }
         phase1HealthRate = Mathf.Clamp(phase1HealthRate, 0.02f, 0.99f);
         phase2HealthRate = Mathf.Clamp(phase2HealthRate, 0.01f, phase1HealthRate - 0.01f);
         phase3HealthRate = Mathf.Clamp(phase3HealthRate, 0.001f, phase2HealthRate - 0.01f);
         format5TriggerHealthRate = Mathf.Clamp01(format5TriggerHealthRate);
         minimumEffectHeight = Mathf.Max(minimumEffectHeight, -0.99f);
         telegraphHeight = Mathf.Max(telegraphHeight, minimumEffectHeight);
+        huntRetreatStartDistance = Mathf.Max(0.1f, huntRetreatStartDistance);
+        huntRetreatStopDistance = Mathf.Max(
+            huntRetreatStartDistance + 0.1f,
+            huntRetreatStopDistance);
+        staggerActivationDistance = Mathf.Max(0.1f, staggerActivationDistance);
+        staggerWindowDuration = Mathf.Max(0.1f, staggerWindowDuration);
     }
 
     public float GetEffectHeight()

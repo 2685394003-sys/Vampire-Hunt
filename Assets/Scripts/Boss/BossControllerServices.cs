@@ -48,6 +48,15 @@ internal sealed class BossMovementMotor
 
     public void Move(Vector3 planarDirection, int phase, float deltaTime)
     {
+        float speed = config != null ? config.GetMoveSpeed(phase) : 0f;
+        MoveAtSpeed(planarDirection, speed, deltaTime);
+    }
+
+    public void MoveAtSpeed(
+        Vector3 planarDirection,
+        float speed,
+        float deltaTime)
+    {
         if (planarDirection.sqrMagnitude < 0.001f || config == null)
         {
             Stop();
@@ -57,7 +66,7 @@ internal sealed class BossMovementMotor
         Vector3 current = body != null ? body.position : actor.position;
         Vector3 next = current +
                        planarDirection.normalized *
-                       (config.GetMoveSpeed(phase) * deltaTime);
+                       (Mathf.Max(0f, speed) * deltaTime);
         next.y = current.y;
 
         if (body != null)
@@ -151,7 +160,7 @@ internal sealed class BossMovementMotor
             return;
         }
 
-        LevelGenerator generator = Object.FindFirstObjectByType<LevelGenerator>();
+        LevelGenerator generator = Object.FindAnyObjectByType<LevelGenerator>();
         generator?.RemoveObstaclesNear(actor.position, config.phaseClearObstacleRadius);
         if (NetworkAuthority.IsNetworkActive)
         {
@@ -204,7 +213,6 @@ internal sealed class BossMovementMotor
         actor.position = position;
     }
 }
-
 /// <summary>
 /// Presentation boundary for Animator, audio and runtime-only effects.
 /// The gameplay coordinator never needs to know LineRenderer details.
@@ -245,7 +253,6 @@ internal sealed class BossPresentationGateway
 
     public void Initialize()
     {
-        EnsureDebugVisual();
         RefreshRenderers();
     }
 
@@ -414,38 +421,7 @@ internal sealed class BossPresentationGateway
         }
     }
 
-    private void EnsureDebugVisual()
-    {
-        Renderer existingVisual = visualRoot != null
-            ? visualRoot.GetComponentInChildren<Renderer>(true)
-            : actor.GetComponentInChildren<Renderer>(true);
-        if (config == null || !config.createDebugVisualIfMissing || existingVisual != null)
-        {
-            return;
-        }
-
-        Transform parent = visualRoot != null ? visualRoot : actor;
-        GameObject debugVisual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        debugVisual.name = "Boss_DebugVisual_Runtime";
-        debugVisual.layer = actor.gameObject.layer;
-        debugVisual.transform.SetParent(parent, false);
-        debugVisual.transform.localPosition = new Vector3(0f, 1f, 0f);
-        debugVisual.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
-
-        Collider generatedCollider = debugVisual.GetComponent<Collider>();
-        if (generatedCollider != null)
-        {
-            Object.Destroy(generatedCollider);
-        }
-
-        Renderer renderer = debugVisual.GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            renderer.material.color = config.debugBossColor;
-        }
-    }
 }
-
 /// <summary>
 /// Resolves the configured combat target without a compile-time dependency on
 /// Player or NPC implementations.
@@ -472,8 +448,7 @@ internal static class BossTargetResolver
         if (candidate == null && config != null && config.playerLayer.value != 0)
         {
             Collider[] colliders = Object.FindObjectsByType<Collider>(
-                FindObjectsInactive.Exclude,
-                FindObjectsSortMode.None);
+                FindObjectsInactive.Exclude);
             foreach (Collider collider in colliders)
             {
                 if (collider != null &&
@@ -510,28 +485,6 @@ internal static class BossTargetResolver
         catch (UnityException)
         {
             return null;
-        }
-    }
-}
-
-/// <summary>
-/// Migration safety net: legacy scenes that contain BossHealth but omitted the
-/// coordinator receive BossController after the scene is loaded.
-/// </summary>
-internal static class BossControllerMigrationBootstrap
-{
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void AttachMissingControllers()
-    {
-        BossHealth[] healthComponents = Object.FindObjectsByType<BossHealth>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
-        foreach (BossHealth health in healthComponents)
-        {
-            if (health != null && health.GetComponent<BossController>() == null)
-            {
-                health.gameObject.AddComponent<BossController>();
-            }
         }
     }
 }

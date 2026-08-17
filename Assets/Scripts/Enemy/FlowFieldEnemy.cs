@@ -68,8 +68,9 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
         flowField = FindFirstObjectByType<FlowFieldManager>();
         stats = EnemyStatsResolver.Resolve(this);
         smoothDirection = Vector3.forward;
-        avoidanceSide = (GetInstanceID() & 1) == 0 ? 1 : -1;
-        obstacleProbeTimer = Mathf.Abs(GetInstanceID() % 17) / 17f * obstacleProbeInterval;
+        int entityHash = GetEntityId().GetHashCode();
+        avoidanceSide = (entityHash & 1) == 0 ? 1 : -1;
+        obstacleProbeTimer = (uint)entityHash % 17 / 17f * obstacleProbeInterval;
         offlineState = EnemyState.Idle;
         animationController?.ApplyState(State, true);
     }

@@ -119,10 +119,10 @@ internal static class NetworkObjectPoolRegistry
         private readonly GameObject prefab;
         private readonly Transform root;
         private readonly Stack<NetworkObject> available = new();
-        private readonly HashSet<int> activeInstanceIds = new();
+        private readonly HashSet<EntityId> activeEntityIds = new();
         private int maxRetained;
 
-        public int ActiveCount => activeInstanceIds.Count;
+        public int ActiveCount => activeEntityIds.Count;
 
         public PrefabPool(GameObject prefab, Transform root, int prewarmCount, int maxRetained)
         {
@@ -155,7 +155,7 @@ internal static class NetworkObjectPoolRegistry
             instanceTransform.SetPositionAndRotation(position, rotation);
             NotifyTaken(instance.gameObject);
             instance.gameObject.SetActive(true);
-            activeInstanceIds.Add(instance.gameObject.GetInstanceID());
+            activeEntityIds.Add(instance.gameObject.GetEntityId());
             return instance;
         }
 
@@ -171,10 +171,10 @@ internal static class NetworkObjectPoolRegistry
 
         public bool Return(NetworkObject instance)
         {
-            if (instance == null || !activeInstanceIds.Remove(instance.gameObject.GetInstanceID()))
+            if (instance == null || !activeEntityIds.Remove(instance.gameObject.GetEntityId()))
                 return false;
 
-            poolsByInstanceId.Remove(instance.gameObject.GetInstanceID());
+            poolsByEntityId.Remove(instance.gameObject.GetEntityId());
             NotifyReturned(instance.gameObject);
             instance.gameObject.SetActive(false);
             instance.transform.SetParent(root, false);
@@ -201,14 +201,14 @@ internal static class NetworkObjectPoolRegistry
     }
 
     private static readonly Dictionary<GameObject, PrefabPool> poolsByPrefab = new();
-    private static readonly Dictionary<int, PrefabPool> poolsByInstanceId = new();
+    private static readonly Dictionary<EntityId, PrefabPool> poolsByEntityId = new();
     private static Transform poolRoot;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
         poolsByPrefab.Clear();
-        poolsByInstanceId.Clear();
+        poolsByEntityId.Clear();
         poolRoot = null;
     }
 
@@ -243,16 +243,16 @@ internal static class NetworkObjectPoolRegistry
         if (!poolsByPrefab.TryGetValue(prefab, out PrefabPool pool)) return null;
         NetworkObject instance = pool.Take(position, rotation);
         if (instance == null) return null;
-        poolsByInstanceId[instance.gameObject.GetInstanceID()] = pool;
+        poolsByEntityId[instance.gameObject.GetEntityId()] = pool;
         return instance.gameObject;
     }
 
     public static bool TryReturn(GameObject instance)
     {
         if (instance == null ||
-            !poolsByInstanceId.TryGetValue(instance.GetInstanceID(), out PrefabPool pool))
+            !poolsByEntityId.TryGetValue(instance.GetEntityId(), out PrefabPool pool))
             return false;
-        poolsByInstanceId.Remove(instance.GetInstanceID());
+        poolsByEntityId.Remove(instance.GetEntityId());
         return pool.Return(instance.GetComponent<NetworkObject>());
     }
 
