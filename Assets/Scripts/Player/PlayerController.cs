@@ -37,7 +37,6 @@ public sealed class PlayerController : NetworkBehaviour
     [SerializeField, Min(0.01f)] private float authoredRunSpeed = 3.95f;
     [SerializeField, Range(0f, 5f)] private float walkBlendThreshold = 2f;
     [SerializeField, Range(0f, 5f)] private float runBlendThreshold = 5f;
-    [SerializeField, Min(0f)] private float attackRootMotionScale = 1f;
 
     [Header("状态 / State")]
     public bool isKnockedBack;
@@ -53,7 +52,10 @@ public sealed class PlayerController : NetworkBehaviour
     private Rigidbody body;
     private Camera viewCamera;
     private Vector3 localMoveWorld;
+    private Vector3 localAimWorld = Vector3.forward;
     private Vector3 serverMoveWorld;
+    private Vector3 serverAimWorld = Vector3.forward;
+    private Vector3 lastServerMoveDirection = Vector3.forward;
     private Vector3 serverDashDirection;
     private float serverDashRemaining;
     private float nextInputSendTime;
@@ -119,18 +121,18 @@ public sealed class PlayerController : NetworkBehaviour
 
         Vector2 rawInput = moveAction.ReadValue<Vector2>();
         localMoveWorld = ConvertInputToWorld(rawInput);
+        localAimWorld = GetPointerAimDirection();
 
         if (!NetworkAuthority.IsNetworkActive)
         {
-            serverMoveWorld = localMoveWorld;
-            lastServerInputTime = Time.unscaledTime;
+            AcceptPlayerInput(localMoveWorld, localAimWorld);
             return;
         }
 
         if (Time.unscaledTime >= nextInputSendTime)
         {
             nextInputSendTime = Time.unscaledTime + 1f / Mathf.Max(1f, inputSendRate);
-            SubmitMoveInputRpc(localMoveWorld);
+            SubmitPlayerInputRpc(localMoveWorld, localAimWorld);
         }
     }
 
@@ -153,15 +155,9 @@ public sealed class PlayerController : NetworkBehaviour
             return;
         }
 
+        bool isAttacking = playerAttack != null && playerAttack.IsAttackAnimationPlaying;
         Vector3 desiredVelocity;
-        if (isAttackWindingUp ||
-            (playerAttack != null && playerAttack.IsAttackAnimationPlaying))
-        {
-            // Wind-up decelerates through the smoothed move parameter. Once the
-            // swing begins, attack translation is supplied by root motion.
-            desiredVelocity = Vector3.zero;
-        }
-        else if (serverDashRemaining > 0f)
+        if (serverDashRemaining > 0f)
         {
             serverDashRemaining = Mathf.Max(0f, serverDashRemaining - Time.fixedDeltaTime);
             desiredVelocity = serverDashDirection * playerState.MoveSpeed * playerState.DashSpeedMultiplier;
@@ -173,24 +169,43 @@ public sealed class PlayerController : NetworkBehaviour
         }
         else
         {
-            // Normal locomotion no longer translates the Rigidbody here. The
-            // Animator supplies the actual displacement through root motion.
             desiredVelocity = serverMoveWorld * playerState.MoveSpeed;
+            if (isAttacking)
+            {
+                // The attack clip owns the Animator while it plays, so use the
+                // authoritative input velocity to keep strafing responsive.
+                MoveAuthoritatively(desiredVelocity, Time.fixedDeltaTime);
+            }
         }
 
         UpdateFacingAndMoveTarget(desiredVelocity, Time.fixedDeltaTime);
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-    private void SubmitMoveInputRpc(Vector3 worldDirection)
+    private void SubmitPlayerInputRpc(Vector3 moveDirection, Vector3 aimDirection)
     {
-        AcceptMoveInput(worldDirection);
+        AcceptPlayerInput(moveDirection, aimDirection);
     }
 
-    private void AcceptMoveInput(Vector3 worldDirection)
+    private void AcceptPlayerInput(Vector3 moveDirection, Vector3 aimDirection)
     {
-        worldDirection.y = 0f;
-        serverMoveWorld = Vector3.ClampMagnitude(worldDirection, 1f);
+        if (!IsFinite(moveDirection) || !IsFinite(aimDirection))
+        {
+            return;
+        }
+
+        moveDirection.y = 0f;
+        serverMoveWorld = Vector3.ClampMagnitude(moveDirection, 1f);
+        if (serverMoveWorld.sqrMagnitude > 0.0001f)
+        {
+            lastServerMoveDirection = serverMoveWorld.normalized;
+        }
+
+        aimDirection.y = 0f;
+        if (aimDirection.sqrMagnitude > 0.0001f)
+        {
+            serverAimWorld = aimDirection.normalized;
+        }
         lastServerInputTime = Time.unscaledTime;
     }
 
@@ -259,10 +274,6 @@ public sealed class PlayerController : NetworkBehaviour
             yield break;
         }
 
-        // Guarantee that the authoritative Animator enters Attack from a
-        // stationary blend state. Clients receive the same snap with the
-        // attack presentation RPC after seeing the wind-up target approach 0.
-        StopMoveAnimationForAttack();
         isAttackWindingUp = false;
         attackSequence++;
         playerAttack?.ServerBeginAttack(attackSequence);
@@ -400,6 +411,41 @@ public sealed class PlayerController : NetworkBehaviour
         return Vector3.ClampMagnitude(cameraForward * input.y + cameraRight * input.x, 1f);
     }
 
+    private Vector3 GetPointerAimDirection()
+    {
+        if (viewCamera == null)
+        {
+            viewCamera = Camera.main;
+        }
+
+        if (viewCamera == null || Mouse.current == null)
+        {
+            return localAimWorld.sqrMagnitude > 0.0001f
+                ? localAimWorld
+                : facingDirection;
+        }
+
+        Ray pointerRay = viewCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Plane playerPlane = new(Vector3.up, transform.position);
+        if (!playerPlane.Raycast(pointerRay, out float distance))
+        {
+            return localAimWorld;
+        }
+
+        Vector3 direction = pointerRay.GetPoint(distance) - transform.position;
+        direction.y = 0f;
+        return direction.sqrMagnitude > 0.0001f
+            ? direction.normalized
+            : localAimWorld;
+    }
+
+    private static bool IsFinite(Vector3 value)
+    {
+        return !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
+               !float.IsNaN(value.y) && !float.IsInfinity(value.y) &&
+               !float.IsNaN(value.z) && !float.IsInfinity(value.z);
+    }
+
     private void MoveAuthoritatively(Vector3 velocity, float deltaTime)
     {
         Vector3 nextPosition = transform.position + velocity * deltaTime;
@@ -433,7 +479,8 @@ public sealed class PlayerController : NetworkBehaviour
 
         if (isAttacking)
         {
-            MoveByRootMotionDelta(planarDelta * attackRootMotionScale);
+            // Strafing during an attack is applied in FixedUpdate. Ignoring the
+            // attack clip's translation prevents a second forward displacement.
             return;
         }
 
@@ -447,7 +494,12 @@ public sealed class PlayerController : NetworkBehaviour
             return;
         }
 
-        MoveByRootMotionDelta(planarDelta * CalculateLocomotionRootMotionScale(animatedSpeed));
+        Vector3 movementDirection = serverMoveWorld.sqrMagnitude > 0.0001f
+            ? serverMoveWorld.normalized
+            : lastServerMoveDirection;
+        float rootDistance = planarDelta.magnitude *
+                             CalculateLocomotionRootMotionScale(animatedSpeed);
+        MoveByRootMotionDelta(movementDirection * rootDistance);
     }
 
     private float CalculateLocomotionRootMotionScale(float desiredSpeed)
@@ -494,9 +546,9 @@ public sealed class PlayerController : NetworkBehaviour
     private void UpdateFacingAndMoveTarget(Vector3 velocity, float deltaTime)
     {
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Vector3.up);
-        if (planarVelocity.sqrMagnitude > 0.0001f)
+        if (serverAimWorld.sqrMagnitude > 0.0001f)
         {
-            facingDirection = planarVelocity.normalized;
+            facingDirection = serverAimWorld.normalized;
             Quaternion targetRotation = Quaternion.LookRotation(facingDirection, Vector3.up);
             Quaternion nextRotation = turnSpeed <= 0f
                 ? targetRotation
@@ -545,12 +597,6 @@ public sealed class PlayerController : NetworkBehaviour
         {
             SetMoveAnimatorImmediate(targetMove);
         }
-    }
-
-    public void StopMoveAnimationForAttack()
-    {
-        SetAuthoritativeMoveTarget(0f);
-        SetMoveAnimatorImmediate(0f);
     }
 
     private void SetMoveAnimatorImmediate(float value)

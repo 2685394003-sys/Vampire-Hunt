@@ -91,7 +91,6 @@ public sealed class PlayerAttact : MonoBehaviour
         }
 
         activeAttackSequence = sequence;
-        playerController?.StopMoveAnimationForAttack();
         SetAttackState(true);
         RestartAttackResetTimer();
         if (serverHitCoroutine != null)
@@ -103,7 +102,6 @@ public sealed class PlayerAttact : MonoBehaviour
 
     public void PlayAttackPresentation()
     {
-        playerController?.StopMoveAnimationForAttack();
         SetAttackState(true);
         RestartAttackResetTimer();
         PlaySwordSlashVfx();
