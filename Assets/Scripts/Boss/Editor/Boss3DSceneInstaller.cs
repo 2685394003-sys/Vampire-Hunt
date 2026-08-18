@@ -214,9 +214,11 @@ internal static class Boss3DSceneInstaller
         }
 
         Undo.AddComponent<NetworkObject>(root);
+        Undo.AddComponent<NetworkTransform>(root);
         Undo.AddComponent<BossHealth>(root);
         Undo.AddComponent<BossAttackController>(root);
         Undo.AddComponent<BossController>(root);
+        Undo.AddComponent<BossNetworkState>(root);
         Undo.AddComponent<Boss3DAnimationPresenter>(root);
     }
 
@@ -224,9 +226,11 @@ internal static class Boss3DSceneInstaller
     {
         BossConfig config = GetOrAdd<BossConfig>(root);
         NetworkObject networkObject = GetOrAdd<NetworkObject>(root);
+        NetworkTransform networkTransform = GetOrAdd<NetworkTransform>(root);
         BossHealth health = GetOrAdd<BossHealth>(root);
         BossAttackController attacks = GetOrAdd<BossAttackController>(root);
         BossController controller = GetOrAdd<BossController>(root);
+        BossNetworkState networkState = GetOrAdd<BossNetworkState>(root);
         Boss3DAnimationPresenter presenter = GetOrAdd<Boss3DAnimationPresenter>(root);
         GetOrAdd<BossNetworkPrefabRegistrar>(root);
         Rigidbody body = GetOrAdd<Rigidbody>(root);
@@ -284,6 +288,19 @@ internal static class Boss3DSceneInstaller
         config.minimumEffectHeight = root.transform.position.y + 0.02f;
         config.projectilePrefab = projectilePrefab;
 
+        networkTransform.Interpolate = true;
+        networkTransform.UseUnreliableDeltas = true;
+        networkTransform.InLocalSpace = false;
+        networkTransform.SyncPositionX = true;
+        networkTransform.SyncPositionY = true;
+        networkTransform.SyncPositionZ = true;
+        networkTransform.SyncRotAngleX = false;
+        networkTransform.SyncRotAngleY = true;
+        networkTransform.SyncRotAngleZ = false;
+        networkTransform.SyncScaleX = false;
+        networkTransform.SyncScaleY = false;
+        networkTransform.SyncScaleZ = false;
+
         Assign(health, "stats", config);
         Assign(controller, "stats", config);
         Assign(controller, "bossHealth", health);
@@ -297,6 +314,7 @@ internal static class Boss3DSceneInstaller
         Assign(controller, "vfxRoot", vfxRoot);
         Assign(controller, "leftGuard", leftGuard);
         Assign(controller, "rightGuard", rightGuard);
+        Assign(controller, "networkState", networkState);
 
         Assign(attacks, "stats", config);
         Assign(attacks, "player", player);
@@ -324,6 +342,7 @@ internal static class Boss3DSceneInstaller
 
         EditorUtility.SetDirty(config);
         EditorUtility.SetDirty(networkObject);
+        EditorUtility.SetDirty(networkTransform);
         EditorUtility.SetDirty(root);
     }
 

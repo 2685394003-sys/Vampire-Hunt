@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -7,12 +8,30 @@ public sealed class BossPhaseBloodPool : MonoBehaviour
     private Transform player;
     private float radius;
     private bool consumed;
+    private bool presentationOnly;
     private LineRenderer line;
+
+    public event Action<BossPhaseBloodPool> Consumed;
 
     public void Initialize(BossConfig bossConfig, Transform targetPlayer, Vector3 worldPosition)
     {
+        InitializeInternal(bossConfig, targetPlayer, worldPosition, false);
+    }
+
+    public void InitializeVisual(BossConfig bossConfig, Vector3 worldPosition)
+    {
+        InitializeInternal(bossConfig, null, worldPosition, true);
+    }
+
+    private void InitializeInternal(
+        BossConfig bossConfig,
+        Transform targetPlayer,
+        Vector3 worldPosition,
+        bool visualOnly)
+    {
         config = bossConfig;
         player = targetPlayer;
+        presentationOnly = visualOnly;
         radius = Mathf.Max(0.1f, config != null ? config.bloodPoolRadius : 1.4f);
 
         worldPosition.y = config != null ? config.GetEffectHeight() : -0.99f;
@@ -51,6 +70,7 @@ public sealed class BossPhaseBloodPool : MonoBehaviour
 
     private void Update()
     {
+        if (presentationOnly) return;
         if (!NetworkAuthority.IsServerOrOffline()) return;
         if (consumed || player == null)
         {
@@ -65,6 +85,7 @@ public sealed class BossPhaseBloodPool : MonoBehaviour
 
         consumed = true;
         ApplyPlayerReward();
+        Consumed?.Invoke(this);
         if (line != null)
         {
             line.startColor = new Color(1f, 0.2f, 0.25f, 0.15f);

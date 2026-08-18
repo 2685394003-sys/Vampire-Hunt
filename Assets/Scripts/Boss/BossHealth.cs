@@ -40,6 +40,7 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
 
     public event Action<int, int> HealthChanged;
     public event Action<int> PhaseChangeStarted;
+    public event Action<bool> InvulnerableChanged;
     public event Action Died;
 
     private void Awake()
@@ -59,6 +60,7 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
         networkCurrentHealth.OnValueChanged += OnNetworkHealthChanged;
         networkMaxHealth.OnValueChanged += OnNetworkMaxHealthChanged;
         networkPhase.OnValueChanged += OnNetworkPhaseChanged;
+        networkInvulnerable.OnValueChanged += OnNetworkInvulnerableChanged;
         networkDead.OnValueChanged += OnNetworkDeadChanged;
 
         if (IsServer && !networkInitialized.Value)
@@ -73,6 +75,7 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
 
         HealthChanged?.Invoke(CurrentHealth, MaxHealth);
         if (CurrentPhase > 0) PhaseChangeStarted?.Invoke(CurrentPhase);
+        InvulnerableChanged?.Invoke(IsInvulnerable);
         if (IsDead) Died?.Invoke();
     }
 
@@ -81,6 +84,7 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
         networkCurrentHealth.OnValueChanged -= OnNetworkHealthChanged;
         networkMaxHealth.OnValueChanged -= OnNetworkMaxHealthChanged;
         networkPhase.OnValueChanged -= OnNetworkPhaseChanged;
+        networkInvulnerable.OnValueChanged -= OnNetworkInvulnerableChanged;
         networkDead.OnValueChanged -= OnNetworkDeadChanged;
     }
 
@@ -203,7 +207,12 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
     private void SetInvulnerableValue(bool value)
     {
         if (UsesNetworkState) networkInvulnerable.Value = value;
-        else offlineInvulnerable = value;
+        else
+        {
+            if (offlineInvulnerable == value) return;
+            offlineInvulnerable = value;
+            InvulnerableChanged?.Invoke(value);
+        }
     }
 
     private void OnNetworkHealthChanged(int previous, int current)
@@ -218,6 +227,11 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
     private void OnNetworkPhaseChanged(int previous, int current)
     {
         if (current > previous) PhaseChangeStarted?.Invoke(current);
+    }
+
+    private void OnNetworkInvulnerableChanged(bool previous, bool current)
+    {
+        if (previous != current) InvulnerableChanged?.Invoke(current);
     }
 
     private void OnNetworkDeadChanged(bool previous, bool current)

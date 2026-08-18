@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
 
@@ -12,8 +13,103 @@ public enum BossAttackType
     Format6 = 6
 }
 
+public enum BossTelegraphShape : byte
+{
+    None = 0,
+    Rectangle = 1,
+    Cross = 2
+}
+
+public struct BossTelegraphNetworkState :
+    INetworkSerializable,
+    System.IEquatable<BossTelegraphNetworkState>
+{
+    public int Sequence;
+    public bool Active;
+    public BossTelegraphShape Shape;
+    public Vector3 Center;
+    public Vector3 Forward;
+    public Vector3 Right;
+    public float Length;
+    public float Width;
+    public float Duration;
+    public double ImpactServerTime;
+
+    public static BossTelegraphNetworkState Rectangle(
+        int sequence,
+        Vector3 center,
+        Vector3 forward,
+        float length,
+        float width,
+        float duration,
+        double impactServerTime) => new()
+    {
+        Sequence = sequence,
+        Active = true,
+        Shape = BossTelegraphShape.Rectangle,
+        Center = center,
+        Forward = forward,
+        Length = length,
+        Width = width,
+        Duration = duration,
+        ImpactServerTime = impactServerTime
+    };
+
+    public static BossTelegraphNetworkState Cross(
+        int sequence,
+        Vector3 center,
+        Vector3 forward,
+        Vector3 right,
+        float duration,
+        double impactServerTime) => new()
+    {
+        Sequence = sequence,
+        Active = true,
+        Shape = BossTelegraphShape.Cross,
+        Center = center,
+        Forward = forward,
+        Right = right,
+        Duration = duration,
+        ImpactServerTime = impactServerTime
+    };
+
+    public static BossTelegraphNetworkState Inactive(int sequence) => new()
+    {
+        Sequence = sequence,
+        Active = false,
+        Shape = BossTelegraphShape.None
+    };
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref Sequence);
+        serializer.SerializeValue(ref Active);
+        serializer.SerializeValue(ref Shape);
+        serializer.SerializeValue(ref Center);
+        serializer.SerializeValue(ref Forward);
+        serializer.SerializeValue(ref Right);
+        serializer.SerializeValue(ref Length);
+        serializer.SerializeValue(ref Width);
+        serializer.SerializeValue(ref Duration);
+        serializer.SerializeValue(ref ImpactServerTime);
+    }
+
+    public bool Equals(BossTelegraphNetworkState other) =>
+        Sequence == other.Sequence &&
+        Active == other.Active &&
+        Shape == other.Shape &&
+        Center == other.Center &&
+        Forward == other.Forward &&
+        Right == other.Right &&
+        Length.Equals(other.Length) &&
+        Width.Equals(other.Width) &&
+        Duration.Equals(other.Duration) &&
+        ImpactServerTime.Equals(other.ImpactServerTime);
+}
+
 [DisallowMultipleComponent]
-public sealed class BossAttackController : MonoBehaviour
+[RequireComponent(typeof(NetworkObject))]
+public sealed class BossAttackController : NetworkBehaviour
 {
     [SerializeField] private BossConfig stats;
     [SerializeField] private Transform player;
@@ -42,9 +138,22 @@ public sealed class BossAttackController : MonoBehaviour
 
     private readonly Dictionary<BossAttackType, float> readyTimes = new();
     private readonly List<GameObject> activeTelegraphs = new();
+    private readonly NetworkVariable<BossTelegraphNetworkState> networkTelegraph = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
     private Coroutine attackCoroutine;
+    private Coroutine networkTelegraphPresentationCoroutine;
     private NetworkAnimator networkAnimator;
     private float nextDecisionTime;
+    private int telegraphSequence;
+
+    internal void ApplyReplicatedAttackState(BossAttackType? lastAttack, bool isBusy)
+    {
+        if (NetworkAuthority.IsServerOrOffline(this)) return;
+        LastAttack = lastAttack;
+        IsBusy = isBusy;
+    }
 
     private void Awake()
     {
@@ -58,6 +167,20 @@ public sealed class BossAttackController : MonoBehaviour
         groundIndicator ??= transform.Find("GroundIndicator");
         vfxRoot ??= transform.Find("VFXRoot");
         FindGuards();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        networkTelegraph.OnValueChanged += HandleNetworkTelegraphChanged;
+        if (networkTelegraph.Value.Active)
+            HandleNetworkTelegraphChanged(default, networkTelegraph.Value);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        networkTelegraph.OnValueChanged -= HandleNetworkTelegraphChanged;
+        StopNetworkTelegraphPresentation();
+        CleanupTelegraphs();
     }
 
     public void SetPlayer(Transform newPlayer)
@@ -221,7 +344,10 @@ public sealed class BossAttackController : MonoBehaviour
             attackCoroutine = null;
         }
 
-        CleanupTelegraphs();
+        if (NetworkAuthority.IsNetworkActive && IsSpawned && IsServer)
+            ClearNetworkTelegraph();
+        else
+            CleanupTelegraphs();
         IsBusy = false;
         nextDecisionTime = Time.time + 0.1f;
 
@@ -325,7 +451,10 @@ public sealed class BossAttackController : MonoBehaviour
         LastAttack = attackType;
         AttacksStarted++;
         AttackStarted?.Invoke(attackType);
-        PlayAttackFeedback(attackType);
+        if (NetworkAuthority.IsNetworkActive && IsSpawned)
+            PlayAttackFeedbackRpc(attackType);
+        else
+            PlayAttackFeedback(attackType);
 
         if (stats.logCombatEvents)
         {
@@ -432,39 +561,11 @@ public sealed class BossAttackController : MonoBehaviour
         }
 
         Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-        LineRenderer forwardWarning = CreateRectangleTelegraph(
+        yield return PresentCrossTelegraph(
             center,
             forward,
-            stats.format3HalfLength * 2f,
-            stats.format3Width);
-        LineRenderer rightWarning = CreateRectangleTelegraph(
-            center,
             right,
-            stats.format3HalfLength * 2f,
-            stats.format3Width);
-        LineRenderer radiusWarning = CreateCircleTelegraph(
-            center,
-            stats.format3Radius);
-        float format3LineWidth = Mathf.Max(0.18f, stats.telegraphLineWidth * 2f);
-        SetLineWidth(format3LineWidth, forwardWarning, rightWarning, radiusWarning);
-        MeshRenderer chargeCircle = CreateFilledCircleTelegraph(
-            center,
-            stats.format3Radius);
-        MeshRenderer forwardFill = CreateFilledRectangleTelegraph(
-            center,
-            forward,
-            stats.format3HalfLength * 2f,
-            stats.format3Width);
-        MeshRenderer rightFill = CreateFilledRectangleTelegraph(
-            center,
-            right,
-            stats.format3HalfLength * 2f,
-            stats.format3Width);
-
-        yield return ChargeCompositeTelegraphsRoutine(
-            stats.format3WarningTime,
-            new[] { forwardWarning, rightWarning, radiusWarning },
-            new[] { chargeCircle, forwardFill, rightFill });
+            stats.format3WarningTime);
 
         ApplyCrossDamage(center, forward, right);
     }
@@ -480,12 +581,12 @@ public sealed class BossAttackController : MonoBehaviour
         }
 
         Vector3 center = GetGroundPosition(playerSnapshot);
-        LineRenderer warning = CreateRectangleTelegraph(
+        yield return PresentRectangleTelegraph(
             center,
             direction,
             stats.format4Length,
-            stats.format4Width);
-        yield return ChargeTelegraphsRoutine(stats.format4WarningTime, warning);
+            stats.format4Width,
+            stats.format4WarningTime);
 
         ApplyBoxDamage(
             center,
@@ -507,12 +608,12 @@ public sealed class BossAttackController : MonoBehaviour
 
         float distance = stats.format6Distance;
         Vector3 warningCenter = GetGroundPosition(start + direction * (distance * 0.5f));
-        LineRenderer warning = CreateRectangleTelegraph(
+        yield return PresentRectangleTelegraph(
             warningCenter,
             direction,
             distance,
-            stats.format6Width);
-        yield return ChargeTelegraphsRoutine(stats.format6WarningTime, warning);
+            stats.format6Width,
+            stats.format6WarningTime);
 
         Vector3 end = start + direction * distance;
         float duration = distance / Mathf.Max(0.1f, stats.format6Speed);
@@ -577,12 +678,12 @@ public sealed class BossAttackController : MonoBehaviour
 
         Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
         Vector3 sweepCenter = GetGroundPosition(origin + forward * (stats.format1SweepLength * 0.5f));
-        LineRenderer warning = CreateRectangleTelegraph(
+        yield return PresentRectangleTelegraph(
             sweepCenter,
             forward,
             stats.format1SweepLength,
-            stats.format1Radius * 2f);
-        yield return ChargeTelegraphsRoutine(stats.format1WarningTime, warning);
+            stats.format1Radius * 2f,
+            stats.format1WarningTime);
 
         HashSet<Component> damagedTargets = new();
         int steps = Mathf.Max(2, stats.format1SweepSteps);
@@ -799,6 +900,234 @@ public sealed class BossAttackController : MonoBehaviour
                 receiver.ApplyKnockback(transform, knockback, 0.18f);
             }
         }
+    }
+
+    private IEnumerator PresentRectangleTelegraph(
+        Vector3 center,
+        Vector3 direction,
+        float length,
+        float width,
+        float duration)
+    {
+        if (NetworkAuthority.IsNetworkActive && IsSpawned)
+        {
+            double impactTime = NetworkManager.ServerTime.Time + Mathf.Max(0f, duration);
+            int sequence = ++telegraphSequence;
+            networkTelegraph.Value = BossTelegraphNetworkState.Rectangle(
+                sequence,
+                center,
+                direction,
+                length,
+                width,
+                duration,
+                impactTime);
+            if (duration > 0f) yield return new WaitForSeconds(duration);
+            if (networkTelegraph.Value.Sequence == sequence) ClearNetworkTelegraph();
+            yield break;
+        }
+
+        LineRenderer warning = CreateRectangleTelegraph(center, direction, length, width);
+        yield return ChargeTelegraphsRoutine(duration, warning);
+    }
+
+    private IEnumerator PresentCrossTelegraph(
+        Vector3 center,
+        Vector3 forward,
+        Vector3 right,
+        float duration)
+    {
+        if (NetworkAuthority.IsNetworkActive && IsSpawned)
+        {
+            double impactTime = NetworkManager.ServerTime.Time + Mathf.Max(0f, duration);
+            int sequence = ++telegraphSequence;
+            networkTelegraph.Value = BossTelegraphNetworkState.Cross(
+                sequence,
+                center,
+                forward,
+                right,
+                duration,
+                impactTime);
+            if (duration > 0f) yield return new WaitForSeconds(duration);
+            if (networkTelegraph.Value.Sequence == sequence) ClearNetworkTelegraph();
+            yield break;
+        }
+
+        CreateCrossTelegraphVisuals(
+            center,
+            forward,
+            right,
+            out LineRenderer[] outlines,
+            out MeshRenderer[] fills);
+        yield return ChargeCompositeTelegraphsRoutine(duration, outlines, fills);
+    }
+
+    private void HandleNetworkTelegraphChanged(
+        BossTelegraphNetworkState previous,
+        BossTelegraphNetworkState current)
+    {
+        StopNetworkTelegraphPresentation();
+        CleanupTelegraphs();
+        if (!current.Active) return;
+
+        networkTelegraphPresentationCoroutine = current.Shape switch
+        {
+            BossTelegraphShape.Rectangle => StartCoroutine(
+                RectangleTelegraphPresentationRoutine(
+                    current.Center,
+                    current.Forward,
+                    current.Length,
+                    current.Width,
+                    current.Duration,
+                    current.ImpactServerTime)),
+            BossTelegraphShape.Cross => StartCoroutine(
+                CrossTelegraphPresentationRoutine(
+                    current.Center,
+                    current.Forward,
+                    current.Right,
+                    current.Duration,
+                    current.ImpactServerTime)),
+            _ => null
+        };
+    }
+
+    private void ClearNetworkTelegraph()
+    {
+        if (!IsServer || !IsSpawned) return;
+        networkTelegraph.Value = BossTelegraphNetworkState.Inactive(telegraphSequence);
+    }
+
+    private void StopNetworkTelegraphPresentation()
+    {
+        if (networkTelegraphPresentationCoroutine == null) return;
+        StopCoroutine(networkTelegraphPresentationCoroutine);
+        networkTelegraphPresentationCoroutine = null;
+    }
+
+    private IEnumerator RectangleTelegraphPresentationRoutine(
+        Vector3 center,
+        Vector3 direction,
+        float length,
+        float width,
+        float duration,
+        double impactServerTime)
+    {
+        if (impactServerTime < NetworkManager.ServerTime.Time - 0.05d) yield break;
+        LineRenderer warning = CreateRectangleTelegraph(center, direction, length, width);
+        yield return ChargeTelegraphsToServerTimeRoutine(
+            duration,
+            impactServerTime,
+            warning);
+        DestroyTelegraph(warning != null ? warning.gameObject : null);
+        networkTelegraphPresentationCoroutine = null;
+    }
+
+    private IEnumerator CrossTelegraphPresentationRoutine(
+        Vector3 center,
+        Vector3 forward,
+        Vector3 right,
+        float duration,
+        double impactServerTime)
+    {
+        if (impactServerTime < NetworkManager.ServerTime.Time - 0.05d) yield break;
+        CreateCrossTelegraphVisuals(
+            center,
+            forward,
+            right,
+            out LineRenderer[] outlines,
+            out MeshRenderer[] fills);
+        yield return ChargeCompositeToServerTimeRoutine(
+            duration,
+            impactServerTime,
+            outlines,
+            fills);
+
+        foreach (LineRenderer outline in outlines)
+            DestroyTelegraph(outline != null ? outline.gameObject : null);
+        foreach (MeshRenderer fill in fills)
+            DestroyTelegraph(fill != null ? fill.gameObject : null);
+        networkTelegraphPresentationCoroutine = null;
+    }
+
+    private void CreateCrossTelegraphVisuals(
+        Vector3 center,
+        Vector3 forward,
+        Vector3 right,
+        out LineRenderer[] outlines,
+        out MeshRenderer[] fills)
+    {
+        LineRenderer forwardWarning = CreateRectangleTelegraph(
+            center,
+            forward,
+            stats.format3HalfLength * 2f,
+            stats.format3Width);
+        LineRenderer rightWarning = CreateRectangleTelegraph(
+            center,
+            right,
+            stats.format3HalfLength * 2f,
+            stats.format3Width);
+        LineRenderer radiusWarning = CreateCircleTelegraph(center, stats.format3Radius);
+        float lineWidth = Mathf.Max(0.18f, stats.telegraphLineWidth * 2f);
+        SetLineWidth(lineWidth, forwardWarning, rightWarning, radiusWarning);
+
+        outlines = new[] { forwardWarning, rightWarning, radiusWarning };
+        fills = new[]
+        {
+            CreateFilledCircleTelegraph(center, stats.format3Radius),
+            CreateFilledRectangleTelegraph(
+                center,
+                forward,
+                stats.format3HalfLength * 2f,
+                stats.format3Width),
+            CreateFilledRectangleTelegraph(
+                center,
+                right,
+                stats.format3HalfLength * 2f,
+                stats.format3Width)
+        };
+    }
+
+    private IEnumerator ChargeTelegraphsToServerTimeRoutine(
+        float duration,
+        double impactServerTime,
+        params LineRenderer[] lines)
+    {
+        float targetAlpha = stats.warningColor.a;
+        do
+        {
+            double remaining = impactServerTime - NetworkManager.ServerTime.Time;
+            float progress = duration > 0f
+                ? Mathf.Clamp01(1f - (float)(remaining / duration))
+                : 1f;
+            SetTelegraphAlpha(lines, Mathf.Lerp(0.08f, targetAlpha, progress));
+            if (remaining <= 0d) break;
+            yield return null;
+        }
+        while (true);
+    }
+
+    private IEnumerator ChargeCompositeToServerTimeRoutine(
+        float duration,
+        double impactServerTime,
+        LineRenderer[] outlines,
+        MeshRenderer[] fills)
+    {
+        do
+        {
+            double remaining = impactServerTime - NetworkManager.ServerTime.Time;
+            float linearProgress = duration > 0f
+                ? Mathf.Clamp01(1f - (float)(remaining / duration))
+                : 1f;
+            float progress = Mathf.SmoothStep(0f, 1f, linearProgress);
+            SetTelegraphAlpha(
+                outlines,
+                Mathf.Lerp(0.05f, stats.warningColor.a, progress));
+            SetFilledTelegraphAlpha(
+                fills,
+                Mathf.Lerp(0f, stats.format3FillAlpha, progress));
+            if (remaining <= 0d) break;
+            yield return null;
+        }
+        while (true);
     }
 
     private IEnumerator ChargeTelegraphsRoutine(float duration, params LineRenderer[] lines)
@@ -1151,6 +1480,12 @@ public sealed class BossAttackController : MonoBehaviour
         };
     }
 
+    [Rpc(SendTo.ClientsAndHost)]
+    private void PlayAttackFeedbackRpc(BossAttackType attackType)
+    {
+        PlayAttackFeedback(attackType);
+    }
+
     private void PlayAttackFeedback(BossAttackType attackType)
     {
         if (audioSource != null && stats.attackClip != null)
@@ -1165,7 +1500,8 @@ public sealed class BossAttackController : MonoBehaviour
         {
             if (NetworkAuthority.IsNetworkActive &&
                 networkAnimator != null &&
-                networkAnimator.IsSpawned)
+                networkAnimator.IsSpawned &&
+                IsServer)
                 networkAnimator.SetTrigger(triggerName);
             else
                 animator.SetTrigger(triggerName);
@@ -1285,36 +1621,35 @@ public sealed class BossAttackController : MonoBehaviour
 
     private void CleanupTelegraphs()
     {
-        foreach (GameObject telegraph in activeTelegraphs)
+        for (int index = activeTelegraphs.Count - 1; index >= 0; index--)
         {
-            if (telegraph != null)
-            {
-                MeshFilter meshFilter = telegraph.GetComponent<MeshFilter>();
-                Mesh runtimeMesh = meshFilter != null ? meshFilter.sharedMesh : null;
-                Renderer telegraphRenderer = telegraph.GetComponent<Renderer>();
-                Material runtimeMaterial = telegraphRenderer != null &&
-                                           telegraphRenderer.sharedMaterial !=
-                                           (stats != null ? stats.telegraphMaterial : null)
-                    ? telegraphRenderer.sharedMaterial
-                    : null;
-
-                Destroy(telegraph);
-                if (runtimeMesh != null)
-                {
-                    Destroy(runtimeMesh);
-                }
-                if (runtimeMaterial != null)
-                {
-                    Destroy(runtimeMaterial);
-                }
-            }
+            DestroyTelegraph(activeTelegraphs[index]);
         }
-
         activeTelegraphs.Clear();
+    }
+
+    private void DestroyTelegraph(GameObject telegraph)
+    {
+        if (telegraph == null) return;
+
+        activeTelegraphs.Remove(telegraph);
+        MeshFilter meshFilter = telegraph.GetComponent<MeshFilter>();
+        Mesh runtimeMesh = meshFilter != null ? meshFilter.sharedMesh : null;
+        Renderer telegraphRenderer = telegraph.GetComponent<Renderer>();
+        Material runtimeMaterial = telegraphRenderer != null &&
+                                   telegraphRenderer.sharedMaterial !=
+                                   (stats != null ? stats.telegraphMaterial : null)
+            ? telegraphRenderer.sharedMaterial
+            : null;
+
+        Destroy(telegraph);
+        if (runtimeMesh != null) Destroy(runtimeMesh);
+        if (runtimeMaterial != null) Destroy(runtimeMaterial);
     }
 
     private void OnDisable()
     {
+        StopNetworkTelegraphPresentation();
         CancelCurrentAttack();
     }
 }

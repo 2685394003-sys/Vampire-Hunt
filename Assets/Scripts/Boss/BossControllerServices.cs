@@ -10,6 +10,7 @@ internal sealed class BossMovementMotor
     private readonly Transform actor;
     private readonly Rigidbody body;
     private readonly BossConfig config;
+    private readonly NetworkTransform networkTransform;
 
     public BossMovementMotor(
         Transform actorTransform,
@@ -20,6 +21,7 @@ internal sealed class BossMovementMotor
         actor = actorTransform;
         body = rigidbody;
         config = bossConfig;
+        networkTransform = actor != null ? actor.GetComponent<NetworkTransform>() : null;
 
         ConfigureTopDownPhysics(hitCollider);
     }
@@ -205,6 +207,15 @@ internal sealed class BossMovementMotor
 
     private void SetPosition(Vector3 position)
     {
+        if (NetworkAuthority.IsNetworkActive &&
+            networkTransform != null &&
+            networkTransform.IsSpawned &&
+            networkTransform.IsServer)
+        {
+            networkTransform.Teleport(position, actor.rotation, actor.localScale);
+            return;
+        }
+
         if (body != null)
         {
             body.position = position;

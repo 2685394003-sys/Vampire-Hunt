@@ -64,6 +64,34 @@ public sealed class Boss3DAnimationSet
     }
 }
 
+public struct BossAnimationNetworkCommand :
+    INetworkSerializable,
+    IEquatable<BossAnimationNetworkCommand>
+{
+    public int Sequence;
+    public int Command;
+    public double ServerStartTime;
+
+    public BossAnimationNetworkCommand(int sequence, int command, double serverStartTime)
+    {
+        Sequence = sequence;
+        Command = command;
+        ServerStartTime = serverStartTime;
+    }
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref Sequence);
+        serializer.SerializeValue(ref Command);
+        serializer.SerializeValue(ref ServerStartTime);
+    }
+
+    public bool Equals(BossAnimationNetworkCommand other) =>
+        Sequence == other.Sequence &&
+        Command == other.Command &&
+        ServerStartTime.Equals(other.ServerStartTime);
+}
+
 /// <summary>
 /// 3D presentation adapter for a Humanoid Boss. Gameplay stays server driven;
 /// this component consumes only the stable IBossController event surface and
@@ -109,8 +137,8 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
     private bool missingClipsLogged;
     private int localCommandSequence;
 
-    private readonly NetworkVariable<int> networkAnimationCommand = new(
-        0,
+    private readonly NetworkVariable<BossAnimationNetworkCommand> networkAnimationCommand = new(
+        default,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
@@ -145,10 +173,11 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
             UnbindEvents();
         }
 
-        int command = networkAnimationCommand.Value & 0xFF;
+        BossAnimationNetworkCommand payload = networkAnimationCommand.Value;
+        int command = payload.Command;
         if (command > 0)
         {
-            ApplyPresentationCommand(command);
+            ApplyPresentationCommand(command, GetElapsed(payload.ServerStartTime));
         }
         else if (controller != null)
         {
@@ -302,7 +331,7 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
         }
     }
 
-    private void PlayClip(AnimationClip clip, bool loop)
+    private void PlayClip(AnimationClip clip, bool loop, double startTime = 0d)
     {
         if (clip == null || (!graph.IsValid() && !TryInitializeGraph()))
         {
@@ -322,7 +351,7 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
         if (activePort < 0)
         {
             activePort = 0;
-            activePlayable = CreatePlayable(clip);
+            activePlayable = CreatePlayable(clip, loop, startTime);
             graph.Connect(activePlayable, 0, mixer, activePort);
             mixer.SetInputWeight(activePort, 1f);
             activeClip = clip;
@@ -331,7 +360,7 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
         }
 
         incomingPort = activePort == 0 ? 1 : 0;
-        incomingPlayable = CreatePlayable(clip);
+        incomingPlayable = CreatePlayable(clip, loop, startTime);
         graph.Connect(incomingPlayable, 0, mixer, incomingPort);
         mixer.SetInputWeight(incomingPort, 0f);
         incomingClip = clip;
@@ -339,12 +368,19 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
         blendElapsed = 0f;
     }
 
-    private AnimationClipPlayable CreatePlayable(AnimationClip clip)
+    private AnimationClipPlayable CreatePlayable(AnimationClip clip, bool loop, double startTime)
     {
         AnimationClipPlayable playable = AnimationClipPlayable.Create(graph, clip);
         playable.SetApplyFootIK(applyFootIk);
         playable.SetApplyPlayableIK(false);
-        playable.SetTime(0d);
+        double safeTime = Math.Max(0d, startTime);
+        if (clip.length > 0f)
+        {
+            safeTime = loop
+                ? safeTime % clip.length
+                : Math.Min(safeTime, clip.length);
+        }
+        playable.SetTime(safeTime);
         return playable;
     }
 
@@ -472,55 +508,65 @@ public sealed class Boss3DAnimationPresenter : NetworkBehaviour
             }
 
             localCommandSequence = (localCommandSequence + 1) & 0x007FFFFF;
-            networkAnimationCommand.Value =
-                (localCommandSequence << 8) | (command & 0xFF);
+            networkAnimationCommand.Value = new BossAnimationNetworkCommand(
+                localCommandSequence,
+                command,
+                NetworkManager.ServerTime.Time);
         }
 
         ApplyPresentationCommand(command);
     }
 
-    private void HandleNetworkAnimationCommand(int previous, int current)
+    private void HandleNetworkAnimationCommand(
+        BossAnimationNetworkCommand previous,
+        BossAnimationNetworkCommand current)
     {
-        int command = current & 0xFF;
+        int command = current.Command;
         if (command > 0)
         {
-            ApplyPresentationCommand(command);
+            ApplyPresentationCommand(command, GetElapsed(current.ServerStartTime));
         }
     }
 
-    private void ApplyPresentationCommand(int command)
+    private void ApplyPresentationCommand(int command, double elapsed = 0d)
     {
         animations ??= new Boss3DAnimationSet();
         switch (command)
         {
             case IdleCommand:
-                PlayClip(animations.Idle, true);
+                PlayClip(animations.Idle, true, elapsed);
                 return;
             case RunCommand:
-                PlayClip(animations.Run, true);
+                PlayClip(animations.Run, true, elapsed);
                 return;
             case RetreatCommand:
-                PlayClip(animations.Retreat, true);
+                PlayClip(animations.Retreat, true, elapsed);
                 return;
             case PhaseChangeCommand:
-                PlayClip(animations.PhaseChange, false);
+                PlayClip(animations.PhaseChange, false, elapsed);
                 return;
             case StaggerCommand:
-                PlayClip(animations.Stagger, false);
+                PlayClip(animations.Stagger, false, elapsed);
                 return;
             case DeathCommand:
-                PlayClip(animations.Death, false);
+                PlayClip(animations.Death, false, elapsed);
                 return;
             case ExecutionImpactCommand:
-                PlayClip(animations.ExecutionImpact, false);
+                PlayClip(animations.ExecutionImpact, false, elapsed);
                 return;
         }
 
         int attackValue = command - AttackCommandBase;
         if (Enum.IsDefined(typeof(BossAttackType), attackValue))
         {
-            PlayClip(animations.GetAttack((BossAttackType)attackValue), false);
+            PlayClip(animations.GetAttack((BossAttackType)attackValue), false, elapsed);
         }
+    }
+
+    private double GetElapsed(double serverStartTime)
+    {
+        if (serverStartTime <= 0d || NetworkManager == null) return 0d;
+        return Math.Max(0d, NetworkManager.ServerTime.Time - serverStartTime);
     }
 
     private static int GetStateCommand(BossState state)

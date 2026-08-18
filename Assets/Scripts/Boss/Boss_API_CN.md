@@ -8,6 +8,7 @@
 - `BossAttackController`：攻击选择、预警、判定与冷却。
 - `Boss3DAnimationPresenter`：只消费门面事件，通过 Playables 播放 Humanoid 动画；不控制位移和伤害。
 - `BossHealth`：服务器权威的生命、阶段、无敌与死亡状态。
+- `BossNetworkState`：把 Boss 门面事件转换为持久网络状态，供客户端、UI、NPC 与中途加入者读取。
 
 外部代码不要直接改 `BossHealth` 字段、移动刚体或调用攻击协程。
 
@@ -91,7 +92,7 @@ BossCommandResult result = boss.ExecuteStagger(
 
 `Assets/Art/Characters/reimi_black/Re_reimi_black.fbx`
 
-该模型和 Sword and Shield Pack 当前均为 Humanoid，可进行 Avatar 重定向。`Boss3DAnimationPresenter` 禁止 Root Motion，位移始终由服务器权威的 Boss Motor 控制。动画命令通过 `NetworkVariable` 带序号同步，连续播放相同招式也不会被客户端吞掉。
+该模型和 Sword and Shield Pack 当前均为 Humanoid，可进行 Avatar 重定向。`Boss3DAnimationPresenter` 禁止 Root Motion，位移始终由服务器权威的 Boss Motor 控制。动画命令通过 `NetworkVariable` 原子同步序号、命令与服务器开始时间；客户端按服务器时间追帧，中途加入不会从攻击第一帧重新播放。
 
 建议片段映射：
 
@@ -114,8 +115,19 @@ BossCommandResult result = boss.ExecuteStagger(
 
 ## 6. 场景与联机资源
 
-`Assets/Scenes/SampleScene.unity` 已直接放置 `Boss_BloodLord` 3D 对象，编辑模式即可调整模型、CapsuleCollider、护卫判定体和四个攻击挂点。Boss 本体、模型和核心挂点不会在运行时补建。
+`Assets/Scenes/SampleScene.unity` 已直接放置 `Boss_BloodLord` 3D 对象，编辑模式即可调整模型、CapsuleCollider、护卫判定体和四个攻击挂点。Boss 本体、模型和核心挂点不会在运行时补建。根节点的服务器权威 `NetworkTransform` 同步位置与 Y 轴旋转；传送使用 `NetworkTransform.Teleport`，不会被客户端插值成高速滑行。
 
 格式 2 的 `BossProjectile_3D.prefab` 位于 Boss 文件夹内，并由场景根节点上的 `BossNetworkPrefabRegistrar` 在网络会话启动前注册。它的 Transform 由 `NetworkTransform` 同步，命中与伤害仍由服务器权威处理。
 
 当前模型与动画包的 Humanoid Avatar 链路已经成立；循环由 Playables 表现层显式处理，不需要改模型或动画导入器，也不需要新建 Animator Controller。
+
+## 7. 多人同步语义
+
+- 持久状态：`State`、战斗开关、遭遇模式、硬直、目标、当前攻击、契约结束时间和护卫生命由 `BossNetworkState` 服务器写、所有客户端读。
+- 生命状态：生命、最大生命、阶段、无敌和死亡继续以 `BossHealth` 为唯一数据源，不在网络门面中重复保存。
+- 瞬时表现：攻击音效和脉冲由可靠 RPC 广播；当前地面预警以持久网络状态同步，并携带服务器命中时间，普通客户端与中途加入客户端都会按剩余时间补齐进度。
+- 护卫：伤害与碰撞只在服务器结算；客户端接收生命状态和 15Hz 不可靠姿态快照并插值。
+- 阶段血池：服务器拥有奖励判定；活动血池列表持久同步，因此中途加入仍能恢复其视觉。
+- 契约：只同步服务器结束时间，客户端本地计算剩余秒数，禁止每帧发送倒计时值。
+
+`IBossController` 的写命令仍是服务器 API。客户端不得自行传入伤害数值；需要玩家发起的交互时，应先通过经过身份和距离验证的服务器 RPC，再调用这里的服务器命令。

@@ -36,6 +36,10 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
     private Coroutine flashCoroutine;
     private Color baseColor = Color.white;
     private Camera viewCamera;
+    private bool networkReplicaMode;
+    private bool hasReplicatedPose;
+    private Vector3 replicatedPosition;
+    private Quaternion replicatedRotation;
 
     private void Awake()
     {
@@ -84,6 +88,46 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
             transform.position,
             targetPosition,
             followSpeed * Time.fixedDeltaTime);
+    }
+
+    private void Update()
+    {
+        if (!networkReplicaMode || !hasReplicatedPose) return;
+
+        float blend = 1f - Mathf.Exp(-Mathf.Max(1f, followSpeed * 3f) * Time.deltaTime);
+        transform.position = Vector3.Lerp(transform.position, replicatedPosition, blend);
+        transform.rotation = Quaternion.Slerp(transform.rotation, replicatedRotation, blend);
+    }
+
+    internal void SetNetworkReplicaMode(bool enabled)
+    {
+        networkReplicaMode = enabled;
+        if (enabled && hitCollider != null) hitCollider.enabled = false;
+    }
+
+    internal void ApplyReplicatedPose(Vector3 position, Quaternion rotation)
+    {
+        if (!networkReplicaMode) return;
+        if (!hasReplicatedPose)
+        {
+            transform.SetPositionAndRotation(position, rotation);
+        }
+        replicatedPosition = position;
+        replicatedRotation = rotation;
+        hasReplicatedPose = true;
+    }
+
+    internal void ApplyReplicatedHealth(int currentHealth, bool hiddenForBossDeath)
+    {
+        if (!networkReplicaMode) return;
+
+        int previous = CurrentHealth;
+        CurrentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+        if (hitCollider != null) hitCollider.enabled = false;
+        if (spriteRenderer != null) spriteRenderer.enabled = !hiddenForBossDeath;
+        ApplyVisualState();
+        if (previous != CurrentHealth)
+            HealthChanged?.Invoke(this, CurrentHealth, maxHealth);
     }
 
     public void Configure(BossGuardSide guardSide, BossConfig config)

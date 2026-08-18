@@ -30,6 +30,7 @@ public sealed class BossController : MonoBehaviour, IBossController
     [SerializeField] private Transform vfxRoot;
     [SerializeField] private BossGuard leftGuard;
     [SerializeField] private BossGuard rightGuard;
+    [SerializeField] private BossNetworkState networkState;
 
     public BossState CurrentState { get; private set; } = BossState.Dormant;
     public float RemainingContractSeconds { get; private set; }
@@ -78,6 +79,7 @@ public sealed class BossController : MonoBehaviour, IBossController
     private bool eventsBound;
     private bool combatCommandReceived;
     private float nextTargetResolveTime;
+    private BossAttackType? replicatedActiveAttack;
 
     private void Awake()
     {
@@ -810,6 +812,11 @@ public sealed class BossController : MonoBehaviour, IBossController
         PublishSnapshot();
     }
 
+    private void HandleInvulnerableChanged(bool value)
+    {
+        PublishSnapshot();
+    }
+
     private void HandleAttackStarted(BossAttackType attackType)
     {
         TransitionTo(BossState.Attack);
@@ -1016,8 +1023,21 @@ public sealed class BossController : MonoBehaviour, IBossController
             poolObject.transform.SetParent(groundRoot, true);
         }
 
-        poolObject.AddComponent<BossPhaseBloodPool>()
-            .Initialize(stats, player, position);
+        BossPhaseBloodPool pool = poolObject.AddComponent<BossPhaseBloodPool>();
+        pool.Initialize(stats, player, position);
+
+        if (NetworkAuthority.IsNetworkActive && networkState != null)
+        {
+            int networkPoolId = networkState.ServerRegisterBloodPool(position);
+            if (networkPoolId > 0)
+            {
+                pool.Consumed += consumedPool =>
+                {
+                    if (networkState != null)
+                        networkState.ServerUnregisterBloodPool(networkPoolId);
+                };
+            }
+        }
     }
 
     private void SetCombatEnabled(bool value)
@@ -1085,6 +1105,7 @@ public sealed class BossController : MonoBehaviour, IBossController
         bossHealth.PhaseChangeStarted += HandlePhaseChangeStarted;
         bossHealth.Died += HandleDeath;
         bossHealth.HealthChanged += HandleHealthChanged;
+        bossHealth.InvulnerableChanged += HandleInvulnerableChanged;
         attackController.AttackStarted += HandleAttackStarted;
         attackController.AttackCompleted += HandleAttackCompleted;
         attackController.AttackCancelled += HandleAttackCancelled;
@@ -1103,6 +1124,7 @@ public sealed class BossController : MonoBehaviour, IBossController
             bossHealth.PhaseChangeStarted -= HandlePhaseChangeStarted;
             bossHealth.Died -= HandleDeath;
             bossHealth.HealthChanged -= HandleHealthChanged;
+            bossHealth.InvulnerableChanged -= HandleInvulnerableChanged;
         }
 
         if (attackController != null)
@@ -1120,12 +1142,131 @@ public sealed class BossController : MonoBehaviour, IBossController
         stats ??= GetComponent<BossConfig>();
         bossHealth ??= GetComponent<BossHealth>();
         attackController ??= GetComponent<BossAttackController>();
+        networkState ??= GetComponent<BossNetworkState>();
         bossRigidbody ??= GetComponent<Rigidbody>();
         bossCollider ??= GetComponent<Collider>();
         animator ??= GetComponentInChildren<Animator>(true);
         audioSource ??= GetComponent<AudioSource>();
         visualRoot ??= transform.Find("Visual");
         vfxRoot ??= transform.Find("VFXRoot");
+    }
+
+    /// <summary>
+    /// Applies replicated semantic state on non-authoritative peers. This path
+    /// never runs AI or gameplay decisions; it only keeps the public Boss facade
+    /// and its existing events accurate for UI, NPCs and encounter scripting.
+    /// </summary>
+    internal void ApplyReplicatedCoreState(
+        BossState state,
+        bool replicatedCombatEnabled,
+        BossEncounterMode replicatedEncounterMode,
+        BossStaggerState replicatedStaggerState,
+        BossAttackType? activeAttack,
+        BossAttackType? lastAttack)
+    {
+        if (NetworkAuthority.IsServerOrOffline()) return;
+
+        bool changed = false;
+        if (CurrentState != state)
+        {
+            BossState previous = CurrentState;
+            CurrentState = state;
+            StateChanged?.Invoke(this, previous, CurrentState);
+            changed = true;
+        }
+
+        if (combatEnabled != replicatedCombatEnabled)
+        {
+            combatEnabled = replicatedCombatEnabled;
+            CombatEnabledChanged?.Invoke(this, combatEnabled);
+            changed = true;
+        }
+
+        if (encounterMode != replicatedEncounterMode)
+        {
+            BossEncounterMode previous = encounterMode;
+            encounterMode = replicatedEncounterMode;
+            EncounterModeChanged?.Invoke(this, previous, encounterMode);
+            changed = true;
+        }
+
+        if (staggerState != replicatedStaggerState)
+        {
+            BossStaggerState previous = staggerState;
+            staggerState = replicatedStaggerState;
+            StaggerStateChanged?.Invoke(this, previous, staggerState);
+            changed = true;
+        }
+
+        if (replicatedActiveAttack != activeAttack)
+        {
+            replicatedActiveAttack = activeAttack;
+            changed = true;
+        }
+
+        BossAttackType? previousLastAttack = attackController != null
+            ? attackController.LastAttack
+            : null;
+        attackController?.ApplyReplicatedAttackState(lastAttack, activeAttack.HasValue);
+        if (previousLastAttack != lastAttack) changed = true;
+        if (changed) PublishSnapshot();
+    }
+
+    internal void ApplyReplicatedTarget(Transform replicatedTarget)
+    {
+        if (NetworkAuthority.IsServerOrOffline() || player == replicatedTarget) return;
+        player = replicatedTarget;
+        attackController?.SetPlayer(player);
+        TargetChanged?.Invoke(this, player);
+        PublishSnapshot();
+    }
+
+    internal void ApplyReplicatedAttackLifecycle(
+        BossAttackType attack,
+        BossAttackLifecycle lifecycle)
+    {
+        if (NetworkAuthority.IsServerOrOffline()) return;
+
+        switch (lifecycle)
+        {
+            case BossAttackLifecycle.Started:
+                AttackStarted?.Invoke(this, attack);
+                break;
+            case BossAttackLifecycle.Completed:
+                AttackCompleted?.Invoke(this, attack);
+                break;
+            case BossAttackLifecycle.Cancelled:
+                AttackCancelled?.Invoke(this, attack);
+                break;
+        }
+    }
+
+    internal void ApplyReplicatedContractClock(float remainingSeconds, bool active)
+    {
+        if (NetworkAuthority.IsServerOrOffline()) return;
+
+        remainingSeconds = Mathf.Max(0f, remainingSeconds);
+        bool activeChanged = ContractCountdownActive != active;
+        bool timeChanged = Mathf.Abs(RemainingContractSeconds - remainingSeconds) >= 0.01f;
+        ContractCountdownActive = active;
+        RemainingContractSeconds = remainingSeconds;
+
+        if (ContractCountdownActive)
+        {
+            presentation?.CreateContractVfx();
+            presentation?.UpdateContractVfx(player);
+        }
+        else if (activeChanged)
+        {
+            presentation?.DestroyContractVfx();
+        }
+
+        if (timeChanged || activeChanged)
+        {
+            ContractCountdownChanged?.Invoke(RemainingContractSeconds);
+            if (activeChanged && !active) ContractCountdownExpired?.Invoke();
+            PublishSnapshot();
+        }
     }
 
     private void FindAndConfigureGuards()

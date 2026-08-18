@@ -11,7 +11,7 @@
 - `VFXRoot`：攻击反馈、契约吸取线与三阶段血雨的分类节点。
 - `Guard_Left_Hitbox` / `Guard_Right_Hitbox`：格式 1 使用的左右护卫判定体。
 
-Boss 根对象已显式挂载 `BossConfig`、`BossHealth`、`BossController`、`BossAttackController`、`Boss3DAnimationPresenter`、`BossNetworkPrefabRegistrar` 和 `NetworkObject`。模型、碰撞体、挂点及动画引用均保存在场景中；运行时只会按招式生成弹道、预警与短生命周期特效。
+Boss 根对象已显式挂载 `BossConfig`、`BossHealth`、`BossController`、`BossAttackController`、`BossNetworkState`、`Boss3DAnimationPresenter`、`BossNetworkPrefabRegistrar`、`NetworkObject` 和服务器权威 `NetworkTransform`。模型、碰撞体、挂点及动画引用均保存在场景中；运行时只会按招式生成弹道、预警与短生命周期特效。
 
 格式 2 使用 `Assets/Scripts/Boss/Prefabs/BossProjectile_3D.prefab`。它带有 `NetworkObject`、`NetworkTransform`、3D 触发碰撞体和 `BossProjectile`；`BossNetworkPrefabRegistrar` 会在 Host/Client 启动前由每个场景实例确定性注册，不需要改项目公共的 NetworkPrefabsList。
 
@@ -24,6 +24,15 @@ Boss 根对象已显式挂载 `BossConfig`、`BossHealth`、`BossController`、`
 - Format1、Format2、Format3、Format4、Format6
 
 Root Motion 已关闭，Boss 位移始终由服务器权威的移动层控制。
+
+## 多人验证
+
+1. 使用 Host 与至少一个独立 Client，不能只测试 Host。
+2. 分别验证追踪、转向、Format6 冲刺和阶段传送的位置一致性。
+3. 验证 Format1/3/4/6 的预警在两端同时结束，并与服务器命中时刻一致。
+4. 在攻击、阶段切换、契约倒计时和血池存在期间加入新 Client，确认状态能够恢复。
+5. 击伤和击破左右护卫，确认客户端只播放表现且不能本地参与伤害判定。
+6. 推荐再以 100～200ms 延迟和少量丢包验证预警、姿态插值与一次性表现。
 
 ## 调试
 
