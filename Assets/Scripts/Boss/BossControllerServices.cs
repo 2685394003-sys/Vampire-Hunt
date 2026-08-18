@@ -160,8 +160,7 @@ internal sealed class BossMovementMotor
             return;
         }
 
-        LevelGenerator generator = Object.FindAnyObjectByType<LevelGenerator>();
-        generator?.RemoveObstaclesNear(actor.position, config.phaseClearObstacleRadius);
+        
         if (NetworkAuthority.IsNetworkActive)
         {
             return;

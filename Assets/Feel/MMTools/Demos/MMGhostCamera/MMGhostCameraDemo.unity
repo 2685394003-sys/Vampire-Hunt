@@ -210,9 +210,10 @@ GameObject:
   m_Component:
   - component: {fileID: 87668286}
   - component: {fileID: 87668285}
-  - component: {fileID: 87668284}
   - component: {fileID: 87668287}
   - component: {fileID: 87668288}
+  - component: {fileID: 87668290}
+  - component: {fileID: 87668289}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -220,14 +221,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &87668284
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 87668283}
-  m_Enabled: 1
 --- !u!20 &87668285
 Camera:
   m_ObjectHideFlags: 0
@@ -311,98 +304,16 @@ MonoBehaviour:
   Acceleration: 5
   Deceleration: 5
   RotationSpeed: 40
-  HorizontalAction:
-    m_Name: Horizontal
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: a1832a32-f44b-4128-bb84-69204627b400
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 1D Axis
-      m_Id: 541cdf29-c42c-4fad-bb1d-fbf49e1d2eee
-      m_Path: 1DAxis
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Horizontal
-      m_Flags: 4
-    - m_Name: negative
-      m_Id: 0b4a2796-7dcb-4a7d-a565-5fe03046103a
-      m_Path: <Keyboard>/leftArrow
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Horizontal
-      m_Flags: 8
-    - m_Name: positive
-      m_Id: ff74fe42-d005-48b3-8ec6-383ab4836322
-      m_Path: <Keyboard>/rightArrow
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Horizontal
-      m_Flags: 8
-    m_Flags: 0
-  VerticalAction:
-    m_Name: Vertical
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 225189fb-7753-4b61-8e51-bd9f8fe6fdbd
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 1D Axis
-      m_Id: f909958a-10a6-47f3-81b1-0c3928bf7ab3
-      m_Path: 1DAxis
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Vertical
-      m_Flags: 4
-    - m_Name: negative
-      m_Id: 52f803f8-ecbe-4f1b-807b-c5290c14b11c
-      m_Path: <Keyboard>/downArrow
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Vertical
-      m_Flags: 8
-    - m_Name: positive
-      m_Id: 740f91d2-695b-4792-8532-e1d31195500f
-      m_Path: <Keyboard>/upArrow
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Vertical
-      m_Flags: 8
-    m_Flags: 0
-  MousePositionAction:
-    m_Name: Mouse Position
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 672482c4-e91a-41e6-a7e7-f8838b657784
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 817e568e-41b0-4d86-bcab-1f721637fed1
-      m_Path: <Mouse>/delta
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Mouse Position
-      m_Flags: 0
-    m_Flags: 0
-  ActivateKey: 51
-  UpKey: 1
-  DownKey: 17
-  ControlsModeSwitchKey: 27
-  TimescaleModificationKey: 20
-  RunKey: 52
+  ActivateButton: 304
+  HorizontalAxisName: Horizontal
+  VerticalAxisName: Vertical
+  UpButton: 32
+  DownButton: 99
+  ControlsModeSwitch: 109
+  TimescaleModificationButton: 102
+  RunButton: 303
   MouseSensitivity: 0.02
   MobileStickSensitivity: 2
-  HideCursorOnStart: 1
   TimescaleModifier: 0.2
   AutoActivation: 1
   MovementEnabled: 1
@@ -458,6 +369,46 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &87668289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 87668283}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 184d2c437f61d344f926ac127286121a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkAudioListener
+  isDefaultListener: 1
+  bOverrideScalingFactor: 0
+  scalingFactor: -1
+  listenerId: 0
+--- !u!114 &87668290
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 87668283}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b1e4d206094bd448a32f3edce427f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkGameObj
+  m_listeners:
+    initialListenerList: []
+    useDefaultListeners: 1
+  isEnvironmentAware: 0
+  isStaticObject: 0
+  usePositionOffsetData: 0
+  m_positionOffsetData:
+    KeepMe: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+  scalingFactor: 1
+  m_posOffsetData: {fileID: 0}
+  listenerMask: 1
 --- !u!4 &116361466 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 00cafe0a18485bf4986d87092f3b2c63, type: 3}
@@ -525,7 +476,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 177561585}
   m_Enabled: 1
-  serializedVersion: 12
+  serializedVersion: 13
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
@@ -577,7 +528,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShadowRadius: 0
+  m_ShapeRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1
@@ -5693,7 +5644,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 462539419}
   m_Enabled: 1
-  serializedVersion: 12
+  serializedVersion: 13
   m_Type: 2
   m_Color: {r: 0.1462264, g: 0.9910896, b: 1, a: 1}
   m_Intensity: 50
@@ -5745,7 +5696,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShadowRadius: 0
+  m_ShapeRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1
@@ -15685,6 +15636,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 0
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -15794,6 +15746,77 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1621326037}
   m_CullTransparentMesh: 0
+--- !u!1 &1628197028
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1628197031}
+  - component: {fileID: 1628197030}
+  - component: {fileID: 1628197029}
+  m_Layer: 0
+  m_Name: WwiseGlobal
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1628197029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628197028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed39f2b237e573f4f85990bb5d1440ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.Addressables::AK.Wwise.Unity.WwiseAddressables.InitBankHolder
+  InitBank: {fileID: 11400000, guid: 8077b593f304d3247ae1398050db92de, type: 2}
+--- !u!114 &1628197030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628197028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52bbe9a4e8be3f948befd2a1b3aefcef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkInitializer
+  InitializationSettings: {fileID: 11400000, guid: 5bf1ca424a7bf61498ce852ff02947b6, type: 2}
+  basePath: 
+  language: 
+  defaultPoolSize: 0
+  lowerPoolSize: 0
+  streamingPoolSize: 0
+  memoryCutoffThreshold: 0
+  monitorPoolSize: 0
+  monitorQueuePoolSize: 0
+  callbackManagerBufferSize: 0
+  spatialAudioPoolSize: 0
+  maxSoundPropagationDepth: 0
+  engineLogging: 0
+--- !u!4 &1628197031
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628197028}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1712246904
 GameObject:
   m_ObjectHideFlags: 0
@@ -20817,3 +20840,4 @@ SceneRoots:
   - {fileID: 786779819}
   - {fileID: 328709056}
   - {fileID: 87668286}
+  - {fileID: 1628197031}
