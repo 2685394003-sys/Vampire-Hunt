@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using VampireHunt.Core;
 using VampireHunt.Core.Contracts;
 using VampireHunt.Presentation.Contracts;
@@ -28,8 +29,8 @@ namespace VampireHunt.Presentation.Runtime
             this.errorSink = errorSink;
         }
 
-        public bool IsDisposed => disposed;
-        public long DispatchCount => dispatchCount;
+        public bool IsDisposed => Volatile.Read(ref disposed);
+        public long DispatchCount => Interlocked.Read(ref dispatchCount);
 
         public IDisposable Subscribe(Action<IGameplayEvent> handler)
         {

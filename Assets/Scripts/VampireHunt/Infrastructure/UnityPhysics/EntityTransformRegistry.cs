@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VampireHunt.Core;
+using VampireHunt.Combat.Contracts;
 using VampireHunt.Infrastructure.UnityPhysics.Contracts;
+using VampireHunt.Player.Application;
+using EntityId = VampireHunt.Core.EntityId;
 
 namespace VampireHunt.Infrastructure.UnityPhysics
 {
@@ -27,9 +30,10 @@ namespace VampireHunt.Infrastructure.UnityPhysics
         public bool Unregister(EntityId id) => transforms.Remove(id);
     }
 
-    public sealed class PhysicsTargetRegistry : IPhysicsMeleeTargetResolver, IPhysicsCombatTargetResolver
+    public sealed class PhysicsTargetRegistry : IPhysicsMeleeTargetResolver, IPhysicsApplicationMeleeTargetResolver, IPhysicsCombatTargetResolver
     {
         private readonly Dictionary<Collider, IMeleeTargetPort> melee = new();
+        private readonly Dictionary<Collider, IMeleeHitTarget> applicationMelee = new();
         private readonly Dictionary<Collider, ICombatTarget> combat = new();
 
         public void Register(Collider collider, IMeleeTargetPort target)
@@ -46,15 +50,38 @@ namespace VampireHunt.Infrastructure.UnityPhysics
             combat[collider] = target;
         }
 
-        public bool TryResolve(Collider collider, out IMeleeTargetPort target) =>
-            collider != null && melee.TryGetValue(collider, out target);
+        public void Register(Collider collider, IMeleeHitTarget target)
+        {
+            if (collider == null) throw new ArgumentNullException(nameof(collider));
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            applicationMelee[collider] = target;
+        }
 
-        public bool TryResolve(Collider collider, out ICombatTarget target) =>
-            collider != null && combat.TryGetValue(collider, out target);
+        public bool TryResolve(Collider collider, out IMeleeTargetPort target)
+        {
+            if (collider != null && melee.TryGetValue(collider, out target)) return true;
+            target = null;
+            return false;
+        }
+
+        public bool TryResolve(Collider collider, out IMeleeHitTarget target)
+        {
+            if (collider != null && applicationMelee.TryGetValue(collider, out target)) return true;
+            target = null;
+            return false;
+        }
+
+        public bool TryResolve(Collider collider, out ICombatTarget target)
+        {
+            if (collider != null && combat.TryGetValue(collider, out target)) return true;
+            target = null;
+            return false;
+        }
 
         public bool Unregister(Collider collider)
         {
             bool removed = melee.Remove(collider);
+            removed |= applicationMelee.Remove(collider);
             removed |= combat.Remove(collider);
             return removed;
         }
@@ -62,6 +89,7 @@ namespace VampireHunt.Infrastructure.UnityPhysics
         public void Clear()
         {
             melee.Clear();
+            applicationMelee.Clear();
             combat.Clear();
         }
     }

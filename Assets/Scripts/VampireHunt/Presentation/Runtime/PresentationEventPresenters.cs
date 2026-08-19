@@ -59,6 +59,20 @@ namespace VampireHunt.Presentation.Runtime
                 return;
             }
 
+            if (@event is HealingConfirmedEvent healing)
+            {
+                if (healing.Result.AppliedHealing <= 0) return;
+                driver.Play(new PresentationCue(
+                    healing.TargetId,
+                    WorldPosition.Origin,
+                    "Healing",
+                    PresentationCueKind.Healing,
+                    healing.EventId,
+                    healing.OccurredAt,
+                    healing.SourceId));
+                return;
+            }
+
             if (@event is EntityDiedEvent died)
             {
                 driver.Play(new PresentationCue(died.EntityId, died.Position, "Death", PresentationCueKind.Death, died.EventId, died.OccurredAt, died.KillerId));
@@ -113,7 +127,7 @@ namespace VampireHunt.Presentation.Runtime
         {
             if (events == null) throw new ArgumentNullException(nameof(events));
             this.driver = driver ?? throw new ArgumentNullException(nameof(driver));
-            subscription = events.Subscribe< GameplayCueEvent >(HandleCue);
+            subscription = events.Subscribe<GameplayCueEvent>(HandleCue);
         }
 
         public void Dispose()
@@ -164,6 +178,28 @@ namespace VampireHunt.Presentation.Runtime
             else if (@event is BossAttackCueEvent attack)
             {
                 driver.Play(new PresentationCue(attack.BossId, WorldPosition.Origin, attack.Cue.Value, PresentationCueKind.BossAttack, attack.EventId, attack.OccurredAt));
+            }
+            else if (@event is DamageConfirmedEvent damage && damage.Result.AppliedDamage > 0)
+            {
+                driver.Play(new PresentationCue(
+                    damage.TargetId,
+                    damage.Result.HitPosition,
+                    damage.Result.WasCritical ? "DamageCritical" : "Damage",
+                    PresentationCueKind.Damage,
+                    damage.EventId,
+                    damage.OccurredAt,
+                    damage.SourceId));
+            }
+            else if (@event is HealingConfirmedEvent healing && healing.Result.AppliedHealing > 0)
+            {
+                driver.Play(new PresentationCue(
+                    healing.TargetId,
+                    WorldPosition.Origin,
+                    "Healing",
+                    PresentationCueKind.Healing,
+                    healing.EventId,
+                    healing.OccurredAt,
+                    healing.SourceId));
             }
             else if (@event is BossPhaseChangedEvent phase)
             {

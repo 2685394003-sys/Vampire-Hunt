@@ -20,10 +20,6 @@ namespace VampireHunt.Presentation.Contracts
         void Report(IGameplayEvent @event, Exception exception);
     }
 
-    // These sinks are intentionally kept as presentation-facing contracts in
-    // this migration step. Netcode can implement them without exposing its
-    // DTOs to presenters; they can move to Core.Contracts without changing the
-    // projector APIs once the integration assembly is introduced.
     public enum PresentationCueKind
     {
         Generic = 0,

@@ -113,7 +113,12 @@ namespace VampireHunt.Presentation.CombatText
 
         private void CleanupInactive()
         {
-            while (active.Count > 0 && !active.Peek().IsActive) active.Dequeue();
+            int count = active.Count;
+            for (int i = 0; i < count; i++)
+            {
+                ICombatTextHandle handle = active.Dequeue();
+                if (handle != null && handle.IsActive) active.Enqueue(handle);
+            }
         }
     }
 

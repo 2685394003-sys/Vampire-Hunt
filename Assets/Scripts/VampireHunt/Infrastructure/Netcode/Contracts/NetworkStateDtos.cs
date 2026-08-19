@@ -62,6 +62,11 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
     public readonly struct PlayerStateDto
     {
         public PlayerStateDto(PlayerSnapshot snapshot)
+            : this(snapshot, snapshot.LastCommandSequence)
+        {
+        }
+
+        public PlayerStateDto(PlayerSnapshot snapshot, uint stateSequence)
         {
             Id = snapshot.Id;
             Health = snapshot.CurrentHealth;
@@ -77,6 +82,7 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
             LastCommandSequence = snapshot.LastCommandSequence;
             IsAttacking = snapshot.IsAttacking;
             AttackWindowEndsAt = snapshot.AttackWindowEndsAt;
+            StateSequence = stateSequence;
             BloodPacts = CopyPacts(snapshot.BloodPacts);
         }
 
@@ -94,6 +100,7 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
         public uint LastCommandSequence { get; }
         public bool IsAttacking { get; }
         public double AttackWindowEndsAt { get; }
+        public uint StateSequence { get; }
         public IReadOnlyList<BloodPactStack> BloodPacts { get; }
 
         public PlayerSnapshot ToSnapshot() => new(

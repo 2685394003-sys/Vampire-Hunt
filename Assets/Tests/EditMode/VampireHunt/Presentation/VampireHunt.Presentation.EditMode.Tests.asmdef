@@ -1,0 +1,31 @@
+{
+  "name": "VampireHunt.Presentation.EditMode.Tests",
+  "rootNamespace": "VampireHunt.Tests.Presentation",
+  "references": [
+    "VampireHunt.Presentation",
+    "VampireHunt.Core",
+    "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Navigation"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": true,
+  "testAssemblies": true
+}

@@ -1,0 +1,31 @@
+{
+  "name": "VampireHunt.Infrastructure.EditMode.Tests",
+  "rootNamespace": "VampireHunt.Tests.Infrastructure",
+  "references": [
+    "VampireHunt.Infrastructure.Netcode",
+    "VampireHunt.Infrastructure.UnityPhysics",
+    "VampireHunt.Infrastructure.Input",
+    "VampireHunt.Core",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Spawning",
+    "VampireHunt.Combat"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "testAssemblies": true
+}

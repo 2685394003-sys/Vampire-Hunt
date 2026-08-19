@@ -51,13 +51,16 @@ namespace VampireHunt.Bootstrap
 
             PlayerSpec playerSpec = PlayerSpecFactory.Create(player);
             BossSpec bossSpec = BossSpecFactory.Create(boss);
-            Spawning.Contracts.EnemySpawnSpec enemySpawnSpec = enemySpawn.CreateSpec();
+            VampireHunt.Spawning.Contracts.EnemySpawnSpec enemySpawnSpec = enemySpawn.CreateSpec();
             return new GameSpecs(playerSpec, bossSpec, enemySpawnSpec);
         }
 
         public void Validate()
         {
-            ValidateAuthoring(playerDefinition, bossDefinition, enemySpawnConfig);
+            // Run the same complete conversion path as startup so validation
+            // also catches malformed Boss phase/attack collections, rather
+            // than only checking whether asset references are present.
+            _ = BuildSpecs();
         }
 
         private static void ValidateAuthoring(

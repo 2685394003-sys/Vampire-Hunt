@@ -21,7 +21,7 @@ namespace VampireHunt.Presentation.Player
 
         public bool HasSnapshot => Volatile.Read(ref current).HasSnapshot;
         public long Revision => Interlocked.Read(ref revision);
-        public PlayerSnapshot Snapshot => Volatile.Read(ref current).Snapshot;
+        public PlayerSnapshot Snapshot => Volatile.Read(ref current).CopySnapshot();
 
         public int Health => Volatile.Read(ref current).Health;
         public int MaxHealth => Volatile.Read(ref current).MaxHealth;
@@ -68,6 +68,23 @@ namespace VampireHunt.Presentation.Player
             public static PlayerReadModelState Empty => new PlayerReadModelState(default(PlayerSnapshot));
             public bool HasSnapshot { get; }
             public PlayerSnapshot Snapshot => snapshot;
+
+            public PlayerSnapshot CopySnapshot() => new PlayerSnapshot(
+                snapshot.Id,
+                snapshot.CurrentHealth,
+                snapshot.MaxHealth,
+                snapshot.IsAlive,
+                snapshot.IsInvincibleWindow,
+                snapshot.Stamina,
+                snapshot.MaxStamina,
+                snapshot.Scarlet,
+                snapshot.Coins,
+                snapshot.Level,
+                snapshot.Experience,
+                snapshot.LastCommandSequence,
+                snapshot.IsAttacking,
+                snapshot.AttackWindowEndsAt,
+                snapshot.BloodPacts);
             public int Health => snapshot.Health;
             public int MaxHealth => snapshot.MaxHealth;
             public float Stamina => snapshot.Stamina;

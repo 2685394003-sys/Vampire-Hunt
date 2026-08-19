@@ -11,7 +11,10 @@
     "VampireHunt.Enemies",
     "VampireHunt.Boss",
     "VampireHunt.Spawning",
-    "VampireHunt.Infrastructure.Integration"
+    "VampireHunt.Infrastructure.Integration",
+    "VampireHunt.Infrastructure.Netcode",
+    "VampireHunt.Presentation",
+    "VampireHunt.UI"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

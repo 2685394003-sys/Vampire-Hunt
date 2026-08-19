@@ -6,6 +6,8 @@ using VampireHunt.Combat.Contracts;
 using VampireHunt.Core;
 using VampireHunt.Enemies.Contracts;
 using VampireHunt.Player.Contracts;
+using VampireHunt.Player.Application;
+using EntityId = VampireHunt.Core.EntityId;
 
 namespace VampireHunt.Infrastructure.UnityPhysics.Contracts
 {
@@ -204,6 +206,11 @@ namespace VampireHunt.Infrastructure.UnityPhysics.Contracts
     public interface IPhysicsMeleeTargetResolver
     {
         bool TryResolve(Collider collider, out IMeleeTargetPort target);
+    }
+
+    public interface IPhysicsApplicationMeleeTargetResolver
+    {
+        bool TryResolve(Collider collider, out IMeleeHitTarget target);
     }
 
     public interface IPhysicsCombatTargetResolver

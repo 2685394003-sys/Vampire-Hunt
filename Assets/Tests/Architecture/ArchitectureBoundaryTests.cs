@@ -112,8 +112,6 @@ namespace VampireHunt.Tests.Architecture
             {
                 "Assets/Scripts/VampireHunt/Infrastructure/Integration",
                 "Assets/Scripts/VampireHunt/Infrastructure/Netcode",
-                "Assets/Scripts/VampireHunt/Infrastructure/UnityPhysics",
-                "Assets/Scripts/VampireHunt/Infrastructure/Input",
                 "Assets/Scripts/VampireHunt/Presentation",
                 "Assets/Scripts/VampireHunt/UI"
             };

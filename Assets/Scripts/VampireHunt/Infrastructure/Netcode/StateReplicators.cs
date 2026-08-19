@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using VampireHunt.Boss.Contracts;
 using VampireHunt.Core;
-using VampireHunt.Core.Contracts;
 using VampireHunt.Enemies.Contracts;
 using VampireHunt.Infrastructure.Netcode.Contracts;
 using VampireHunt.Player.Contracts;
@@ -12,20 +11,53 @@ namespace VampireHunt.Infrastructure.Netcode
     public sealed class PlayerStateReplicator
     {
         private readonly Dictionary<EntityId, uint> receivedSequences = new();
+        private readonly Dictionary<EntityId, uint> sendSequences = new();
+        private readonly Dictionary<EntityId, PlayerSnapshot> previous = new();
 
-        public PlayerStateDto Capture(PlayerSnapshot snapshot) => new(snapshot);
+        public PlayerStateDto Capture(PlayerSnapshot snapshot)
+        {
+            bool changed = !previous.TryGetValue(snapshot.Id, out PlayerSnapshot old) || !Matches(old, snapshot);
+            uint sequence = sendSequences.TryGetValue(snapshot.Id, out uint current) ? current : 0U;
+            if (changed) sequence = sequence == uint.MaxValue ? 1U : sequence + 1U;
+            previous[snapshot.Id] = snapshot;
+            sendSequences[snapshot.Id] = sequence;
+            return new PlayerStateDto(snapshot, sequence);
+        }
 
         public bool ApplyNetworkState(
             PlayerStateDto dto,
-            IStateSnapshotSink<PlayerSnapshot> sink)
+            IPlayerStateSnapshotSink sink)
         {
-            if (sink == null || !dto.Id.IsValid || !AcceptSequence(dto.Id, dto.LastCommandSequence))
+            if (sink == null || !dto.Id.IsValid || !AcceptSequence(dto.Id, dto.StateSequence))
                 return false;
             sink.Apply(dto.ToSnapshot());
             return true;
         }
 
-        public void Reset(EntityId id) => receivedSequences.Remove(id);
+        public void Reset(EntityId id)
+        {
+            receivedSequences.Remove(id);
+            sendSequences.Remove(id);
+            previous.Remove(id);
+        }
+
+        private static bool Matches(PlayerSnapshot left, PlayerSnapshot right)
+        {
+            if (left.Id != right.Id || left.CurrentHealth != right.CurrentHealth ||
+                left.MaxHealth != right.MaxHealth || left.IsAlive != right.IsAlive ||
+                left.IsInvincibleWindow != right.IsInvincibleWindow ||
+                !left.Stamina.Equals(right.Stamina) || !left.MaxStamina.Equals(right.MaxStamina) ||
+                left.Scarlet != right.Scarlet || left.Coins != right.Coins ||
+                left.Level != right.Level || left.Experience != right.Experience ||
+                left.LastCommandSequence != right.LastCommandSequence ||
+                left.IsAttacking != right.IsAttacking ||
+                !left.AttackWindowEndsAt.Equals(right.AttackWindowEndsAt) ||
+                left.BloodPacts.Count != right.BloodPacts.Count)
+                return false;
+            for (int i = 0; i < left.BloodPacts.Count; i++)
+                if (!left.BloodPacts[i].Equals(right.BloodPacts[i])) return false;
+            return true;
+        }
 
         private bool AcceptSequence(EntityId id, uint candidate)
         {
@@ -84,7 +116,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool ApplyNetworkState(
             EnemyStateDto dto,
-            IStateSnapshotSink<EnemySnapshot> sink)
+            IEnemyStateSnapshotSink sink)
         {
             if (sink == null || !dto.Id.IsValid || !dto.Dirty || !AcceptSequence(dto.Id, dto.Sequence))
                 return false;
@@ -152,7 +184,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool ApplyNetworkState(
             BossStateDto dto,
-            IStateSnapshotSink<BossSnapshot> sink)
+            IBossStateSnapshotSink sink)
         {
             if (sink == null || !dto.Id.IsValid || !dto.Dirty || !AcceptSequence(dto.Id, dto.Sequence))
                 return false;
