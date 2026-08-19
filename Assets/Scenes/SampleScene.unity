@@ -10954,9 +10954,6 @@ PrefabInstance:
       addedObject: {fileID: 956080956}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3a7ba5da37de77e439811bc3b10eab3f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 956080955}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3a7ba5da37de77e439811bc3b10eab3f, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 956080954}
   m_SourcePrefab: {fileID: 100100000, guid: 3a7ba5da37de77e439811bc3b10eab3f, type: 3}
 --- !u!4 &956080951 stripped
@@ -10991,40 +10988,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &956080955
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 780466584}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 461bf95338fe549448cfe0f4f068b27b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkAmbient
-  triggerList: f7e1664c
-  useOtherObject: 0
-  actionOnEventType: 0
-  curveInterpolation: 4
-  enableActionOnEvent: 0
-  data:
-    idInternal: 0
-    valueGuidInternal: 
-    WwiseObjectReference: {fileID: 11400000, guid: 76b88c371b0222244a5254b7c8ea9303, type: 2}
-  useCallbacks: 0
-  stopSoundOnDestroy: 1
-  Callbacks: []
-  soundEmitterObject: {fileID: 0}
-  transitionDuration: 0
-  eventIdInternal: 0
-  valueGuidInternal: 
-  m_callbackDataInternal: {fileID: 0}
-  MultiPositionType: 1
-  multiPositionTypeLabel: 0
-  attenuationSphereColor: {r: 1, g: 0, b: 0, a: 0.1}
-  LargeModePositions: []
-  multiPositionArray: []
 --- !u!114 &956080956
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11081,8 +11044,8 @@ MonoBehaviour:
   cellSize: 1
   gridWidth: 200
   gridHeight: 200
-  fitToMapBounds: 1
-  mapBoundsSource: {fileID: 1758360420}
+  fitToMapBounds: 0
+  mapBoundsSource: {fileID: 694307631}
   mapBoundsPadding: 8
   maxAutoCellsPerAxis: 256
   player: {fileID: 243226377}

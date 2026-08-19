@@ -1,0 +1,21 @@
+{
+  "name": "VampireHunt.Enemies",
+  "rootNamespace": "VampireHunt.Enemies",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Stats",
+    "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "VampireHunt.Navigation"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true,
+  "optionalUnityReferences": []
+}

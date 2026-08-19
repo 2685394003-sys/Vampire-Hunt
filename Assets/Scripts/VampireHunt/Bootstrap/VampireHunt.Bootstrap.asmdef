@@ -1,0 +1,25 @@
+{
+  "name": "VampireHunt.Bootstrap",
+  "rootNamespace": "VampireHunt.Bootstrap",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Stats",
+    "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "VampireHunt.Navigation",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Spawning",
+    "VampireHunt.Infrastructure.Integration"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

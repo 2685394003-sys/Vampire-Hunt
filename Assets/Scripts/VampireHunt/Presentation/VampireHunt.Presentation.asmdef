@@ -1,0 +1,23 @@
+{
+  "name": "VampireHunt.Presentation",
+  "rootNamespace": "VampireHunt.Presentation",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Navigation"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true,
+  "optionalUnityReferences": []
+}

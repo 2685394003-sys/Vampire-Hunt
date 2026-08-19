@@ -1,0 +1,16 @@
+{
+  "name": "VampireHunt.Stats",
+  "rootNamespace": "VampireHunt.Stats",
+  "references": [
+    "VampireHunt.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

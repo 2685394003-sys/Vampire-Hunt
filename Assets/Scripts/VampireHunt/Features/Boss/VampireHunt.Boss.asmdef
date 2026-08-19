@@ -1,0 +1,20 @@
+{
+  "name": "VampireHunt.Boss",
+  "rootNamespace": "VampireHunt.Boss",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Stats",
+    "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "VampireHunt.Navigation"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

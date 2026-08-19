@@ -1,0 +1,17 @@
+{
+  "name": "VampireHunt.Navigation",
+  "rootNamespace": "VampireHunt.Navigation",
+  "references": [
+    "VampireHunt.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true,
+  "optionalUnityReferences": []
+}

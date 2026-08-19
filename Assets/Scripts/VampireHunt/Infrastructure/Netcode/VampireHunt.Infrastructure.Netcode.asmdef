@@ -1,0 +1,22 @@
+{
+  "name": "VampireHunt.Infrastructure.Netcode",
+  "rootNamespace": "VampireHunt.Infrastructure.Netcode",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Spawning",
+    "VampireHunt.Combat",
+    "Unity.Netcode.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

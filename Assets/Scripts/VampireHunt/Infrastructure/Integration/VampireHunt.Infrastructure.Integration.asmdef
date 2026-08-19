@@ -1,0 +1,23 @@
+{
+  "name": "VampireHunt.Infrastructure.Integration",
+  "rootNamespace": "VampireHunt.Infrastructure.Integration",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Stats",
+    "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Spawning"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

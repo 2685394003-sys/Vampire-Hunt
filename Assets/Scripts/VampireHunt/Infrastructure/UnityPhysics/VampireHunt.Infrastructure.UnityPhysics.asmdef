@@ -1,0 +1,22 @@
+{
+  "name": "VampireHunt.Infrastructure.UnityPhysics",
+  "rootNamespace": "VampireHunt.Infrastructure.UnityPhysics",
+  "references": [
+    "VampireHunt.Core",
+    "VampireHunt.Navigation",
+    "VampireHunt.Combat",
+    "VampireHunt.Player",
+    "VampireHunt.Enemies",
+    "VampireHunt.Boss",
+    "VampireHunt.Spawning"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
