@@ -50,6 +50,89 @@ namespace VampireHunt.Tests.Abilities
             Assert.That(attributes.RemovedSources, Has.Member(source));
         }
 
+        [Test]
+        public void RemovingOneEffect_PreservesOtherModifiersFromTheSameSource()
+        {
+            EntityId source = new(1);
+            EntityId target = new(2);
+            TestAttributes attributes = new();
+            GameplayEffectExecutor executor = CreateExecutor(attributes);
+            GameplayAbilitySystem system = new(target, executor);
+            GameplayEffectSpec speed = PersistentModifier(
+                "speed",
+                new StatKey(1),
+                3f);
+            GameplayEffectSpec power = PersistentModifier(
+                "power",
+                new StatKey(2),
+                5f);
+
+            Assert.That(system.Apply(speed, source), Is.True);
+            Assert.That(system.Apply(power, source), Is.True);
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(2));
+
+            Assert.That(system.Remove(speed.Id, source), Is.True);
+
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(1),
+                "Removing one effect must not delete sibling modifiers that share its source entity.");
+            Assert.That(attributes.Modifiers[0].Stat, Is.EqualTo(new StatKey(2)));
+        }
+
+        [Test]
+        public void AttributeExecution_IsRemovedWhenItsOwningEffectExpires()
+        {
+            EntityId source = new(1);
+            EntityId target = new(2);
+            TestAttributes attributes = new();
+            GameplayEffectExecutor executor = CreateExecutor(attributes);
+            GameplayAbilitySystem system = new(target, executor);
+            GameplayEffectSpec temporaryAttribute = new(
+                new EffectId("temporary-attribute"),
+                DurationPolicy.Duration,
+                StackingPolicy.RefreshDuration,
+                durationSeconds: 1f,
+                executeOnApplication: true,
+                executions: new[]
+                {
+                    GameplayEffectExecution.Attribute(
+                        new GameplayModifierSpec(new StatKey(3), ModifierOperation.AddFlat, 4f))
+                });
+
+            Assert.That(system.Apply(temporaryAttribute, source), Is.True);
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(1));
+
+            system.Tick(1f);
+
+            Assert.That(system.ActiveEffectCount, Is.Zero);
+            Assert.That(attributes.Modifiers, Is.Empty,
+                "Attribute executions must be owned and removed by the effect that created them.");
+        }
+
+        private static GameplayEffectExecutor CreateExecutor(TestAttributes attributes)
+        {
+            TestVitals vitals = new(100);
+            CombatApplicationService combat = new(
+                new CombatResolver(new FixedRandom(0f)),
+                new TestDirectory(vitals));
+            return new GameplayEffectExecutor(combat, attributes);
+        }
+
+        private static GameplayEffectSpec PersistentModifier(
+            string id,
+            StatKey stat,
+            float magnitude)
+        {
+            return new GameplayEffectSpec(
+                new EffectId(id),
+                DurationPolicy.Infinite,
+                StackingPolicy.RefreshDuration,
+                executeOnApplication: false,
+                modifiers: new[]
+                {
+                    new GameplayModifierSpec(stat, ModifierOperation.AddFlat, magnitude)
+                });
+        }
+
         private sealed class FixedRandom : IRandomSource
         {
             private readonly float value;

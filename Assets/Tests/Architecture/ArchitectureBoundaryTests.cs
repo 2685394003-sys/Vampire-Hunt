@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace VampireHunt.Tests.Architecture
@@ -75,6 +76,22 @@ namespace VampireHunt.Tests.Architecture
         }
 
         [Test]
+        public void RuntimeAssemblyDependencyPolicy_CoversEveryRuntimeAssembly()
+        {
+            Dictionary<string, AssemblyDefinitionData> definitions = LoadRuntimeAssemblyDefinitions();
+            string[] missingPolicies = definitions.Keys
+                .Where(assemblyName => !AllowedDependencies.ContainsKey(assemblyName))
+                .OrderBy(assemblyName => assemblyName, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.That(
+                missingPolicies,
+                Is.Empty,
+                "Every runtime asmdef must fail closed under an explicit dependency policy: " +
+                string.Join(", ", missingPolicies));
+        }
+
+        [Test]
         public void DomainAndApplicationSources_DoNotReferencePresentationOrRuntimeLocators()
         {
             foreach (string file in EnumerateLogicFiles())
@@ -133,6 +150,63 @@ namespace VampireHunt.Tests.Architecture
                         $"{ToAssetPath(file)} bypasses a feature Contracts namespace with '{match.Value}'.");
                 }
             }
+        }
+
+        [Test]
+        public void FeatureAggregates_AreInternalImplementationDetails()
+        {
+            Regex publicAggregate = new(
+                @"\bpublic\s+(?:sealed\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*Aggregate)\b",
+                RegexOptions.CultureInvariant);
+            List<string> exposed = new();
+            string runtimeRoot = ToAbsolutePath(RuntimeRoot);
+
+            foreach (string file in Directory.EnumerateFiles(runtimeRoot, "*Aggregate.cs", SearchOption.AllDirectories))
+            {
+                string source = File.ReadAllText(file);
+                Match match = publicAggregate.Match(source);
+                if (match.Success)
+                    exposed.Add($"{ToAssetPath(file)} exposes {match.Groups[1].Value}");
+            }
+
+            Assert.That(
+                exposed,
+                Is.Empty,
+                "Feature Aggregates must remain internal; cross-module access goes through Contracts: " +
+                string.Join("; ", exposed));
+        }
+
+        [Test]
+        public void NetworkPrefabs_HaveNoMissingScripts()
+        {
+            string prefabRoot = ToAbsolutePath("Assets/Prefabs/Network");
+            Assert.That(Directory.Exists(prefabRoot), Is.True, "Network prefab root is missing.");
+            List<string> missing = new();
+
+            foreach (string file in Directory.EnumerateFiles(prefabRoot, "*.prefab", SearchOption.AllDirectories))
+            {
+                string assetPath = ToAssetPath(file);
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+                if (prefab == null)
+                {
+                    missing.Add($"{assetPath}: prefab could not be loaded");
+                    continue;
+                }
+
+                Transform[] hierarchy = prefab.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < hierarchy.Length; i++)
+                {
+                    GameObject gameObject = hierarchy[i].gameObject;
+                    int count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(gameObject);
+                    if (count > 0)
+                        missing.Add($"{assetPath}/{GetHierarchyPath(hierarchy[i])}: {count} missing script(s)");
+                }
+            }
+
+            Assert.That(
+                missing,
+                Is.Empty,
+                "Network prefabs must contain zero Missing Script components: " + string.Join("; ", missing));
         }
 
         [Test]
@@ -274,6 +348,15 @@ namespace VampireHunt.Tests.Architecture
 
         private static HashSet<string> Set(params string[] values) =>
             new(values, StringComparer.Ordinal);
+
+        private static string GetHierarchyPath(Transform transform)
+        {
+            List<string> names = new();
+            for (Transform current = transform; current != null; current = current.parent)
+                names.Add(current.name);
+            names.Reverse();
+            return string.Join("/", names);
+        }
 
         private static string ToAbsolutePath(string assetPath)
         {

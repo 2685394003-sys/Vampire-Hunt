@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using VampireHunt.Combat.Application;
 using VampireHunt.Combat.Contracts;
+using VampireHunt.Combat.Domain;
 using VampireHunt.Core;
 using VampireHunt.Player.Application;
 using VampireHunt.Player.Contracts;
@@ -33,6 +35,82 @@ namespace VampireHunt.Tests.Player
         }
 
         [Test]
+        public void CombatApplication_UsesAuthoritativeTimeForPlayerInvincibility()
+        {
+            PlayerVitals vitals = new(100, invincibilityDuration: 0.8d);
+            MutableGameClock clock = new() { Now = 10d };
+            CombatApplicationService combat = new(
+                new CombatResolver(new FixedRandom()),
+                new PlayerVitalsDirectory(vitals),
+                clock: clock);
+            DamageRequest request = new(EnemyId, PlayerId, 10);
+
+            DamageResult first = combat.ApplyDamage(request);
+            clock.Now = 11d;
+            DamageResult afterWindow = combat.ApplyDamage(request);
+
+            Assert.That(first.AppliedDamage, Is.EqualTo(10));
+            Assert.That(afterWindow.AppliedDamage, Is.EqualTo(10),
+                "Combat must evaluate PlayerVitals with the server clock instead of a constant timestamp.");
+        }
+
+        [Test]
+        public void MovementValidation_RejectsAnInitialPoseWithAStaleClientTimestamp()
+        {
+            InMemoryRepository repository = new(CreatePlayer());
+            InMemoryMovementState movement = new();
+            RecordingMovementCorrector corrector = new();
+            MovementValidationService validator = new(
+                repository,
+                movement,
+                corrector,
+                new OpenMovementWorld(),
+                new FixedMovementClock(100d),
+                new MovementValidationOptions(5f, maximumReportAge: 0.25d, maximumFutureSkew: 0.1d));
+
+            MovementVerdict verdict = validator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 90d, 1u));
+
+            Assert.That(verdict.Accepted, Is.False,
+                "An old client timestamp must not seed the authoritative movement history.");
+            Assert.That(verdict.Code, Is.EqualTo(MovementVerdictCode.InvalidPose));
+        }
+
+        [Test]
+        public void MovementValidation_RejectsStaleReportsBeforeGrantingDistanceBudget()
+        {
+            InMemoryRepository repository = new(CreatePlayer());
+            MovementPose previous = new(
+                WorldPosition.Origin,
+                new MoveVector(1f, 0f),
+                reportedAt: 90d,
+                sequence: 1u);
+            InMemoryMovementState movement = new(previous);
+            RecordingMovementCorrector corrector = new();
+            MovementValidationService validator = new(
+                repository,
+                movement,
+                corrector,
+                new OpenMovementWorld(),
+                new FixedMovementClock(100d),
+                new MovementValidationOptions(5f, maximumReportAge: 0.25d, maximumFutureSkew: 0.1d));
+
+            MovementVerdict verdict = validator.Validate(
+                PlayerId,
+                new MovementPose(
+                    new WorldPosition(1f, 0f, 0f),
+                    new MoveVector(1f, 0f),
+                    reportedAt: 90.25d,
+                    sequence: 2u));
+
+            Assert.That(verdict.Accepted, Is.False,
+                "A stale client delta must not create movement budget when no server time has elapsed.");
+            Assert.That(verdict.Code, Is.EqualTo(MovementVerdictCode.InvalidPose));
+            Assert.That(corrector.Corrections, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Aggregate_RejectsStaleAndWrappedCommandSequences()
         {
             PlayerAggregate player = CreatePlayer();
@@ -60,6 +138,30 @@ namespace VampireHunt.Tests.Player
             Assert.That(accepted.Stacks, Is.EqualTo(1));
             Assert.That(replay.Reason, Is.EqualTo(BloodPactSelectionCode.StaleOffer));
             Assert.That(player.Progression.Scarlet, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void BloodPactSelection_ChargesThePriceAdvertisedByTheOffer()
+        {
+            PlayerAggregate player = CreatePlayer();
+            player.Progression.AddScarlet(100);
+            BloodPactId cheapId = new("cheap");
+            BloodPactId expensiveId = new("expensive");
+            FakeCatalog catalog = new(
+                new BloodPactOption(cheapId, 10),
+                new BloodPactOption(expensiveId, 25));
+            BloodPactOfferService service = new(
+                new InMemoryRepository(player),
+                catalog,
+                new FixedRandom(),
+                choicesPerOffer: 2);
+
+            BloodPactOffer offer = service.CreateOffer(PlayerId);
+            SelectionResult result = service.Select(PlayerId, expensiveId, offer.OfferVersion);
+
+            Assert.That(result.Accepted, Is.True);
+            Assert.That(result.RemainingScarlet, Is.EqualTo(100 - offer.Cost),
+                "The single price exposed by BloodPactOffer must match the price charged for every offered choice.");
         }
 
         [Test]
@@ -115,20 +217,90 @@ namespace VampireHunt.Tests.Player
 
         private sealed class FakeCatalog : IBloodPactCatalog
         {
-            private readonly BloodPactOption option;
-            public FakeCatalog(BloodPactOption option) => this.option = option;
-            public int Count => 1;
+            private readonly BloodPactOption[] options;
+            public FakeCatalog(params BloodPactOption[] options) => this.options = options;
+            public int Count => options.Length;
             public bool TryGet(BloodPactId id, out BloodPactOption result)
             {
-                result = option;
-                return id == option.Id;
+                for (int i = 0; i < options.Length; i++)
+                {
+                    if (id != options[i].Id) continue;
+                    result = options[i];
+                    return true;
+                }
+                result = default;
+                return false;
             }
-            public void CopyOptions(ICollection<BloodPactOption> buffer) => buffer.Add(option);
+            public void CopyOptions(ICollection<BloodPactOption> buffer)
+            {
+                for (int i = 0; i < options.Length; i++) buffer.Add(options[i]);
+            }
         }
 
-        private sealed class FixedRandom : IPlayerRandom
+        private sealed class FixedRandom : IPlayerRandom, IRandomSource
         {
             public int NextInt(int minimumInclusive, int maximumExclusive) => minimumInclusive;
+            public float NextFloat() => 0f;
+        }
+
+        private sealed class MutableGameClock : IGameClock
+        {
+            public double Now { get; set; }
+            public float DeltaTime { get; set; }
+        }
+
+        private sealed class PlayerVitalsDirectory : ICombatEntityDirectory
+        {
+            private readonly PlayerVitals vitals;
+            public PlayerVitalsDirectory(PlayerVitals vitals) => this.vitals = vitals;
+            public IDamageReceiver TryGetDamageReceiver(EntityId id) => id == PlayerId ? vitals : null;
+            public IHealingReceiver TryGetHealingReceiver(EntityId id) => id == PlayerId ? vitals : null;
+            public IKnockbackReceiver TryGetKnockbackReceiver(EntityId id) => null;
+        }
+
+        private sealed class FixedMovementClock : IMovementClock
+        {
+            public FixedMovementClock(double now) => Now = now;
+            public double Now { get; }
+        }
+
+        private sealed class InMemoryMovementState : IMovementState
+        {
+            private bool hasPose;
+            private MovementPose pose;
+
+            public InMemoryMovementState() { }
+
+            public InMemoryMovementState(MovementPose pose)
+            {
+                this.pose = pose;
+                hasPose = true;
+            }
+
+            public bool TryGetLastAcceptedPose(EntityId playerId, out MovementPose result)
+            {
+                result = pose;
+                return hasPose && playerId == PlayerId;
+            }
+
+            public void CommitAcceptedPose(EntityId playerId, MovementPose accepted)
+            {
+                if (playerId != PlayerId) return;
+                pose = accepted;
+                hasPose = true;
+            }
+        }
+
+        private sealed class RecordingMovementCorrector : IMovementCorrector
+        {
+            public int Corrections { get; private set; }
+            public void ForcePose(EntityId playerId, MovementPose pose) => Corrections++;
+        }
+
+        private sealed class OpenMovementWorld : IMovementWorldQuery
+        {
+            public bool IsInsideBounds(WorldPosition position) => true;
+            public bool IsPathClear(WorldPosition from, WorldPosition to) => true;
         }
 
         private sealed class FakeTarget : IMeleeHitTarget

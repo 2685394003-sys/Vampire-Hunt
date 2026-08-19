@@ -79,6 +79,48 @@ namespace VampireHunt.Tests.Infrastructure
             Assert.That(dto.ToSnapshot().Position.Z, Is.EqualTo(-2.35f).Within(0.005f));
         }
 
+        [Test]
+        public void FarEnemyReplication_GivesEveryEntityOnePeriodicSlotPerInterval()
+        {
+            EnemyReplicationPolicy policy = new(
+                nearDistance: 10f,
+                midDistance: 20f,
+                hiddenDistance: 100f,
+                midIntervalTicks: 2,
+                farIntervalTicks: 4);
+            EnemyStateReplicator replicator = new(policy);
+            EnemySnapshot[] snapshots = new EnemySnapshot[4];
+            int[] periodicSends = new int[snapshots.Length];
+
+            for (int i = 0; i < snapshots.Length; i++)
+            {
+                snapshots[i] = new EnemySnapshot(
+                    new EntityId((ulong)(i + 1)),
+                    10,
+                    10,
+                    true,
+                    EnemyState.Idle,
+                    new WorldPosition(i, 0f, 0f),
+                    default,
+                    0d);
+                Assert.That(replicator.Capture(snapshots[i], 50f, 0d, out _), Is.True);
+            }
+
+            for (int serverTick = 1; serverTick <= policy.FarIntervalTicks; serverTick++)
+            {
+                for (int i = 0; i < snapshots.Length; i++)
+                {
+                    if (replicator.Capture(snapshots[i], 50f, serverTick, out _))
+                        periodicSends[i]++;
+                }
+            }
+
+            CollectionAssert.AreEqual(
+                new[] { 1, 1, 1, 1 },
+                periodicSends,
+                "Replication cadence must be tracked per entity or per server frame, not by capture order.");
+        }
+
         private sealed class RecordingIngress : IGameplayEventIngress
         {
             public readonly List<IGameplayEvent> Events = new();

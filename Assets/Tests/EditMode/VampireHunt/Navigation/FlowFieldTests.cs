@@ -1,5 +1,9 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using VampireHunt.Core;
+using VampireHunt.Enemies.Contracts;
+using VampireHunt.Enemies.Domain;
+using VampireHunt.Navigation.Contracts;
 using VampireHunt.Navigation.Domain;
 
 namespace VampireHunt.Tests.Modules.Navigation
@@ -42,6 +46,58 @@ namespace VampireHunt.Tests.Modules.Navigation
             cache.Invalidate(2);
             FlowField rebuilt = cache.GetOrBuild(new CellIndex(0, 0), 2);
             Assert.That(rebuilt, Is.Not.SameAs(first));
+        }
+
+        [Test]
+        public void EnemyRecovery_SamplesFromCurrentPositionTowardTheRecoveryCell()
+        {
+            WorldPosition current = WorldPosition.Origin;
+            WorldPosition recovery = new(1f, 0f, 0f);
+            WorldPosition target = new(0f, 0f, 5f);
+            RecordingRecoveryField navigation = new(current, recovery);
+            EnemyBrain brain = new(navigation, attackRange: 1f, moveSpeed: 2f);
+            EnemyPerception perception = new(
+                new EntityId(1),
+                current,
+                new EntityId(2),
+                target,
+                distance: 5f,
+                hasLineOfTravel: false,
+                targetIsAlive: true);
+
+            EnemyIntent intent = brain.Decide(perception);
+
+            Assert.That(intent.State, Is.EqualTo(EnemyState.Recovering));
+            Assert.That(navigation.LastSampleFrom, Is.EqualTo(current),
+                "Recovery must start at the entity's current blocked position.");
+            Assert.That(navigation.LastSampleTarget, Is.EqualTo(recovery),
+                "Recovery must first route to the nearest walkable position, not to the combat target.");
+        }
+
+        private sealed class RecordingRecoveryField : INavigationField
+        {
+            private readonly WorldPosition blocked;
+            private readonly WorldPosition recovery;
+
+            public RecordingRecoveryField(WorldPosition blocked, WorldPosition recovery)
+            {
+                this.blocked = blocked;
+                this.recovery = recovery;
+            }
+
+            public WorldPosition LastSampleFrom { get; private set; }
+            public WorldPosition LastSampleTarget { get; private set; }
+
+            public Direction SampleDirection(WorldPosition position, WorldPosition target)
+            {
+                LastSampleFrom = position;
+                LastSampleTarget = target;
+                return Direction.Right;
+            }
+
+            public bool IsWalkable(WorldPosition position) => position != blocked;
+
+            public WorldPosition TryFindRecovery(WorldPosition position) => recovery;
         }
     }
 }
