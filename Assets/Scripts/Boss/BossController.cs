@@ -1,13 +1,23 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using VampireHunt.Boss.Application;
+using VampireHunt.Boss.Contracts;
+using VampireHunt.Combat.Application;
+using VampireHunt.Combat.Contracts;
+using VampireHunt.Combat.Domain;
+using VampireHunt.Core;
+using EntityId = VampireHunt.Core.EntityId;
+using EntityIdAllocator = VampireHunt.Core.EntityIdAllocator;
+using RuntimeBossSnapshot = VampireHunt.Boss.Contracts.BossSnapshot;
+using RuntimeEncounterMode = VampireHunt.Boss.Contracts.EncounterMode;
 
 /// <summary>
-/// Application-layer coordinator and public facade for the Boss encounter.
+/// Unity/NGO compatibility adapter for one authoritative BossRuntime.
 ///
-/// Responsibilities are deliberately narrow: it coordinates health, attacks,
-/// phase flow and the public API. Physics/navigation and presentation details
-/// live behind BossMovementMotor and BossPresentationGateway.
+/// The component keeps legacy serialized references and UnityEvent/AnimationEvent
+/// entry points, but it does not decide phases, attacks, windows, mitigation or
+/// death. Those responsibilities are delegated to Boss Application/Domain.
 /// </summary>
 [DefaultExecutionOrder(-50)]
 [RequireComponent(typeof(BossConfig))]
@@ -15,9 +25,10 @@ using UnityEngine;
 [RequireComponent(typeof(BossAttackController))]
 [RequireComponent(typeof(Rigidbody))]
 [DisallowMultipleComponent]
-public sealed class BossController : MonoBehaviour, IBossController
+public sealed class BossController : MonoBehaviour, IBossController, IGameplayEventSink,
+    IBossRuntimeBinding, IBossRuntimeDependencyProvider
 {
-    // Field names are kept compatible with BloodlineHunter0.0.1 scene data.
+    // Existing field names are intentionally preserved for prefab/scene data.
     [SerializeField] private BossConfig stats;
     [SerializeField] private BossHealth bossHealth;
     [SerializeField] private BossAttackController attackController;
@@ -31,6 +42,31 @@ public sealed class BossController : MonoBehaviour, IBossController
     [SerializeField] private BossGuard leftGuard;
     [SerializeField] private BossGuard rightGuard;
 
+    private static readonly EntityIdAllocator EntityIds = new(1000UL);
+    private static readonly EntityIdAllocator SourceIds = new(1000000UL);
+
+    private IBossRuntimePort runtime;
+    private BossUnityClock clock;
+    private BossCombatEntityDirectory directory;
+    private BossMovementMotor movement;
+    private BossPresentationGateway presentation;
+    private CombatApplicationService combat;
+    private RuntimeBossSnapshot lastRuntimeSnapshot;
+    private EntityId entityId;
+    private bool runtimeReady;
+    private bool combatEnabled;
+    private bool combatCommandReceived;
+    private bool eventsBound;
+    private bool runtimeEventsBound;
+    private bool runtimeOwnedByBootstrap;
+    private bool defeatedRaised;
+    private bool legacyFallbackWarningLogged;
+    private bool contractWasActive;
+    private bool contractExpiredRaised;
+    private float nextTargetResolveTime;
+    private BossEncounterMode encounterMode;
+    private BossStaggerState staggerState;
+
     public BossState CurrentState { get; private set; } = BossState.Dormant;
     public float RemainingContractSeconds { get; private set; }
     public bool ContractCountdownActive { get; private set; }
@@ -38,21 +74,23 @@ public sealed class BossController : MonoBehaviour, IBossController
     public Transform Player => player;
     public BossHealth Health => bossHealth;
     public BossAttackController Attacks => attackController;
-
     public Transform ActorTransform => transform;
     public Transform Target => player;
     public BossState State => CurrentState;
-    public BossSnapshot Snapshot => CreateSnapshot();
+    public global::BossSnapshot Snapshot => CreateSnapshot();
     public BossEncounterMode EncounterMode => encounterMode;
     public BossStaggerState StaggerState => staggerState;
+    public EntityId RuntimeEntityId => entityId;
+    private bool IsDead => bossHealth != null
+        ? bossHealth.IsDead
+        : runtimeReady && !runtime.Snapshot.IsAlive;
 
     public event Action<float> ContractCountdownChanged;
     public event Action ContractCountdownExpired;
-
     public event Action<IBossController, BossState, BossState> StateChanged;
     public event Action<IBossController, Transform> TargetChanged;
     public event Action<IBossController, bool> CombatEnabledChanged;
-    public event Action<IBossController, BossSnapshot> SnapshotChanged;
+    public event Action<IBossController, global::BossSnapshot> SnapshotChanged;
     public event Action<IBossController, BossAttackType> AttackStarted;
     public event Action<IBossController, BossAttackType> AttackCompleted;
     public event Action<IBossController, BossAttackType> AttackCancelled;
@@ -61,189 +99,62 @@ public sealed class BossController : MonoBehaviour, IBossController
     public event Action<IBossController, Transform, int> StaggerExecuted;
     public event Action<IBossController> Defeated;
 
-    private BossMovementMotor movement;
-    private BossBehaviorPolicy behaviorPolicy;
-    private BossPresentationGateway presentation;
-    private Camera viewCamera;
-    private Coroutine phaseChangeCoroutine;
-    private Coroutine staggerCoroutine;
-    private BossEncounterMode encounterMode;
-    private BossStaggerState staggerState;
-    private bool staggerExecutionRequested;
-    private Transform staggerExecutor;
-    private int staggerExecutionDamage;
-    private bool combatEnabled;
-    private bool contractCountdownTriggered;
-    private bool runtimeSetupValidated;
-    private bool eventsBound;
-    private bool combatCommandReceived;
-    private float nextTargetResolveTime;
-
     private void Awake()
     {
         ResolveComponentReferences();
         FindAndConfigureGuards();
         attackController?.ConfigureGuards(leftGuard, rightGuard);
-
-        movement = new BossMovementMotor(
-            transform,
-            bossRigidbody,
-            bossCollider,
-            stats);
-        behaviorPolicy = new BossBehaviorPolicy(stats);
-        encounterMode = stats != null
-            ? stats.initialEncounterMode
-            : BossEncounterMode.Hunt;
-        presentation = new BossPresentationGateway(
-            transform,
-            stats,
-            animator,
-            audioSource,
-            visualRoot,
-            vfxRoot);
+        encounterMode = stats != null ? stats.initialEncounterMode : BossEncounterMode.Hunt;
+        movement = new BossMovementMotor(transform, bossRigidbody, bossCollider, stats);
+        presentation = new BossPresentationGateway(transform, stats, animator, audioSource, visualRoot, vfxRoot);
         presentation.Initialize();
-        viewCamera = Camera.main;
+        entityId = EntityIds.Allocate();
+        clock = new BossUnityClock();
     }
 
     private void OnEnable()
     {
         BindComponentEvents();
         BossRegistry.Register(this);
-
-        if (ContractCountdownActive)
+        if (runtime != null && !runtimeEventsBound)
         {
-            presentation?.CreateContractVfx();
+            runtime.GameplayEventProduced += Publish;
+            runtimeEventsBound = true;
         }
-
-        if (bossHealth != null && bossHealth.CurrentPhase >= 3 && !bossHealth.IsDead)
-        {
-            presentation?.StartPhaseThreeRain();
-        }
+        if (runtimeReady) SyncRuntimeSnapshot();
     }
 
     private IEnumerator Start()
     {
-        if (!NetworkAuthority.IsServerOrOffline())
-        {
-            if (bossRigidbody != null) bossRigidbody.isKinematic = true;
-            yield break;
-        }
-
+        if (!NetworkAuthority.IsServerOrOffline()) yield break;
+        // Bootstrap may inject the application endpoint before Start. The
+        // compatibility fallback keeps an uncomposed legacy scene playable,
+        // but the shell never owns domain state or rules itself.
+        if (!runtimeReady) BuildRuntime();
+        if (!runtimeReady) yield break;
         ResolveTargetNow();
-        ValidateRuntimeSetup();
-
-        if (stats.randomSpawnOnStart)
-        {
-            movement.TryTeleportToArena(player);
-        }
-
-        TransitionTo(BossState.Dormant);
-        if (stats.initialActionDelay > 0f)
-        {
+        if (stats != null && stats.randomSpawnOnStart) movement?.TryTeleportToArena(player);
+        if (stats != null && stats.initialActionDelay > 0f)
             yield return new WaitForSeconds(stats.initialActionDelay);
-        }
-
-        if (!combatCommandReceived && !bossHealth.IsDead)
-        {
-            SetCombatEnabled(true);
-        }
+        if (!combatCommandReceived && !IsDead)
+            StartCombat();
     }
 
     private void Update()
     {
         if (!NetworkAuthority.IsServerOrOffline()) return;
         ResolveTargetWhenNeeded();
-        UpdateContractCountdown();
-
-        if (ContractCountdownActive)
-        {
-            presentation.UpdateContractVfx(player);
-        }
-    }
-
-    private void FixedUpdate()
-    {
-        if (!NetworkAuthority.IsServerOrOffline()) return;
-        if (!combatEnabled ||
-            player == null ||
-            bossHealth == null ||
-            bossHealth.IsDead ||
-            CurrentState == BossState.PhaseChange ||
-            staggerState != BossStaggerState.None)
-        {
-            movement.Stop();
-            if (!combatEnabled && CurrentState != BossState.Dead)
-            {
-                TransitionTo(BossState.Dormant);
-            }
-            return;
-        }
-
-        Vector3 toPlayer = movement.GetPlanarOffset(player);
-        float distance = toPlayer.magnitude;
-        movement.Face(toPlayer, Time.fixedDeltaTime);
-
-        if (attackController.IsBusy)
-        {
-            TransitionTo(BossState.Attack);
-            movement.Stop();
-            return;
-        }
-
-        viewCamera ??= Camera.main;
-        bool bossVisible = movement.IsVisible(viewCamera);
-        BossBehaviorDecision decision = behaviorPolicy.Evaluate(
-            encounterMode,
-            bossVisible,
-            distance,
-            toPlayer,
-            bossHealth.CurrentPhase);
-
-        if (decision.AllowAttack && attackController.TryStartAttack(
-                bossHealth.CurrentPhase,
-                bossVisible,
-                distance))
-        {
-            TransitionTo(BossState.Attack);
-            movement.Stop();
-            return;
-        }
-
-        TransitionTo(decision.State);
-        switch (decision.Movement)
-        {
-            case BossMovementIntent.Approach:
-                movement.Move(
-                    decision.Direction,
-                    bossHealth.CurrentPhase,
-                    Time.fixedDeltaTime);
-                break;
-            case BossMovementIntent.Retreat:
-                movement.MoveAtSpeed(
-                    decision.Direction,
-                    ResolveHuntRetreatSpeed(),
-                    Time.fixedDeltaTime);
-                break;
-            default:
-                movement.Stop();
-                break;
-        }
+        if (!runtimeReady || !combatEnabled || runtime.Snapshot.Mode == RuntimeEncounterMode.Defeated) return;
+        if (!runtimeOwnedByBootstrap) runtime.Tick(Time.deltaTime);
+        SyncRuntimeSnapshot();
+        if (ContractCountdownActive) presentation?.UpdateContractVfx(player);
     }
 
     public BossCommandResult AssignTarget(Transform target)
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
-        if (!BossTargetResolver.IsUsable(target))
-        {
-            return BossCommandResult.InvalidArgument;
-        }
-
+        if (!BossTargetResolver.IsUsable(target)) return BossCommandResult.InvalidArgument;
         SetTargetInternal(target);
         BossCombatTarget.EnsurePlayerAdapter(target, true);
         return BossCommandResult.Succeeded;
@@ -251,199 +162,124 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     public BossCommandResult ClearTarget()
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
         SetTargetInternal(null);
-        movement?.Stop();
         return BossCommandResult.Succeeded;
+    }
+
+    /// <summary>
+    /// Binds the application endpoint supplied by Bootstrap. Only the
+    /// Contracts facade crosses the Unity/assembly boundary; no aggregate is
+    /// exposed to this compatibility component.
+    /// </summary>
+    public bool TryBind(IBossRuntimePort next)
+    {
+        if (next == null || runtimeReady) return false;
+        runtime = next;
+        entityId = next.BossId;
+        runtime.GameplayEventProduced += Publish;
+        runtimeEventsBound = true;
+        runtimeOwnedByBootstrap = true;
+        runtimeReady = true;
+        lastRuntimeSnapshot = next.Snapshot;
+        SyncRuntimeSnapshot();
+        return true;
+    }
+
+    /// <summary>
+    /// Supplies scene-specific Application ports to Bootstrap. This method
+    /// creates adapters only; it never creates a Boss aggregate or runtime.
+    /// </summary>
+    public bool TryCreateRuntimeDependencies(out BossRuntimeDependencies dependencies)
+    {
+        dependencies = default;
+        ResolveComponentReferences();
+        if (stats == null || !entityId.IsValid) return false;
+        movement ??= new BossMovementMotor(transform, bossRigidbody, bossCollider, stats);
+        clock ??= new BossUnityClock();
+        directory ??= new BossCombatEntityDirectory();
+
+        BossAttackWorldQueryAdapter worldQuery = new(directory, stats.playerLayer);
+        BossWorldStateAdapter worldState = new(transform, () => player, stats);
+        BossProjectileSpawnerAdapter projectiles = new(stats, transform, HandleProjectileHit);
+        dependencies = new BossRuntimeDependencies(
+            entityId,
+            directory,
+            movement,
+            worldQuery,
+            projectiles,
+            worldState,
+            runtimeToRegister => directory.Bind(runtimeToRegister.BossId, runtimeToRegister.DamageReceiver));
+        return true;
     }
 
     public BossCommandResult StartCombat()
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
-        if (bossHealth == null || attackController == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-
-        if (bossHealth.IsDead)
-        {
-            return BossCommandResult.Dead;
-        }
-
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (IsDead) return BossCommandResult.Dead;
         combatCommandReceived = true;
-        behaviorPolicy?.Reset();
+        runtime.Start(ToDomainMode(encounterMode));
         SetCombatEnabled(true);
+        SyncRuntimeSnapshot();
         return BossCommandResult.Succeeded;
     }
 
     public BossCommandResult StopCombat()
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
-        if (bossHealth != null && bossHealth.IsDead)
-        {
-            return BossCommandResult.Dead;
-        }
-
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (IsDead) return BossCommandResult.Dead;
         combatCommandReceived = true;
-        behaviorPolicy?.Reset();
+        runtime.CancelAttack();
+        runtime.SetEncounterMode(RuntimeEncounterMode.Inactive);
         SetCombatEnabled(false);
-        attackController?.CancelCurrentAttack();
-        CancelStagger();
-        movement?.Stop();
         TransitionTo(BossState.Dormant);
+        SyncRuntimeSnapshot();
         return BossCommandResult.Succeeded;
     }
 
     public BossCommandResult ApplyDamage(int amount, Vector3 damageSource)
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
-        if (amount <= 0)
-        {
-            return BossCommandResult.InvalidArgument;
-        }
-
-        if (bossHealth == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-
-        if (bossHealth.IsDead)
-        {
-            return BossCommandResult.Dead;
-        }
-
-        if (bossHealth.IsInvulnerable)
-        {
-            return BossCommandResult.Invulnerable;
-        }
-
-        return bossHealth.TakeDamage(amount, damageSource)
-            ? BossCommandResult.Succeeded
-            : BossCommandResult.Rejected;
+        return ApplyAuthoritativeDamage(amount, damageSource, SourceIds.Allocate());
     }
 
     public BossCommandResult SetInvulnerable(bool value)
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
-        if (bossHealth == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-
-        if (bossHealth.IsDead)
-        {
-            return BossCommandResult.Dead;
-        }
-
-        bossHealth.SetInvulnerable(value);
-        PublishSnapshot();
-        return BossCommandResult.Succeeded;
+        return SetInvulnerableAuthoritative(value);
     }
 
     public BossCommandResult TryForceAttack(BossAttackType attackType)
     {
-        if (!Application.isPlaying)
-        {
-            return BossCommandResult.NotPlaying;
-        }
-
+        if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-
-        if (!IsSupportedAttack(attackType))
-        {
-            return BossCommandResult.InvalidArgument;
-        }
-
-        if (bossHealth == null || attackController == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-
-        if (bossHealth.IsDead)
-        {
-            return BossCommandResult.Dead;
-        }
-
-        if (!combatEnabled)
-        {
-            return BossCommandResult.CombatDisabled;
-        }
-
-        if (player == null)
-        {
-            return BossCommandResult.TargetMissing;
-        }
-
-        if (CurrentState == BossState.PhaseChange ||
-            staggerState != BossStaggerState.None ||
-            attackController.IsBusy)
-        {
-            return BossCommandResult.Busy;
-        }
-
-        return attackController.TryForceAttack(attackType)
+        return TryForceAuthoritativeAttack(attackType, false)
             ? BossCommandResult.Succeeded
-            : BossCommandResult.Rejected;
+            : (IsDead ? BossCommandResult.Dead : BossCommandResult.Rejected);
     }
 
     public BossCommandResult SetEncounterMode(BossEncounterMode mode)
     {
         if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-        if (!Enum.IsDefined(typeof(BossEncounterMode), mode))
-        {
-            return BossCommandResult.InvalidArgument;
-        }
-        if (bossHealth == null || attackController == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-        if (bossHealth.IsDead) return BossCommandResult.Dead;
-        if (CurrentState == BossState.PhaseChange ||
-            staggerState != BossStaggerState.None)
-        {
-            return BossCommandResult.Busy;
-        }
+        if (!Enum.IsDefined(typeof(BossEncounterMode), mode)) return BossCommandResult.InvalidArgument;
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (IsDead) return BossCommandResult.Dead;
         if (encounterMode == mode) return BossCommandResult.Succeeded;
 
         BossEncounterMode previous = encounterMode;
         encounterMode = mode;
-        behaviorPolicy?.Reset();
-        attackController.CancelCurrentAttack();
-        movement?.Stop();
-        EncounterModeChanged?.Invoke(this, previous, encounterMode);
-        TransitionTo(combatEnabled ? GetRecoveryState() : BossState.Dormant);
-        PublishSnapshot();
+        runtime.SetEncounterMode(ToDomainMode(mode));
+        if (!combatEnabled) runtime.Start(ToDomainMode(mode));
+        EncounterModeChanged?.Invoke(this, previous, mode);
+        SyncRuntimeSnapshot();
         return BossCommandResult.Succeeded;
     }
 
@@ -451,27 +287,13 @@ public sealed class BossController : MonoBehaviour, IBossController
     {
         if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-        if (bossHealth == null || attackController == null || stats == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-        if (bossHealth.IsDead) return BossCommandResult.Dead;
-        if (!combatEnabled) return BossCommandResult.CombatDisabled;
-        if (player == null) return BossCommandResult.TargetMissing;
-        if (CurrentState == BossState.PhaseChange ||
-            attackController.IsBusy ||
-            staggerState != BossStaggerState.None)
-        {
-            return BossCommandResult.Busy;
-        }
-
-        float distance = movement.GetPlanarOffset(player).magnitude;
-        if (distance > stats.staggerActivationDistance)
-        {
-            return BossCommandResult.Rejected;
-        }
-
-        staggerCoroutine = StartCoroutine(StaggerRoutine());
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (IsDead) return BossCommandResult.Dead;
+        float seconds = stats != null ? stats.staggerWindowDuration : 4f;
+        if (!runtime.BeginStagger(seconds)) return BossCommandResult.Rejected;
+        SetStaggerState(BossStaggerState.Vulnerable);
+        TransitionTo(BossState.Stagger);
+        SyncRuntimeSnapshot();
         return BossCommandResult.Succeeded;
     }
 
@@ -480,29 +302,18 @@ public sealed class BossController : MonoBehaviour, IBossController
         if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
         if (damage < 0) return BossCommandResult.InvalidArgument;
-        if (bossHealth == null) return BossCommandResult.NotReady;
-        if (bossHealth.IsDead) return BossCommandResult.Dead;
-        if (staggerState != BossStaggerState.Vulnerable)
-        {
-            return BossCommandResult.Rejected;
-        }
-        if (bossHealth.IsInvulnerable) return BossCommandResult.Invulnerable;
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (IsDead) return BossCommandResult.Dead;
+        if (!runtime.ExecuteStagger()) return BossCommandResult.Rejected;
 
-        staggerExecutionRequested = true;
-        staggerExecutor = executor;
-        staggerExecutionDamage = damage;
         SetStaggerState(BossStaggerState.Executed);
-        StaggerExecuted?.Invoke(this, staggerExecutor, staggerExecutionDamage);
-
+        StaggerExecuted?.Invoke(this, executor, damage);
         if (damage > 0)
         {
-            Vector3 source = executor != null
-                ? executor.position
-                : player != null ? player.position : transform.position;
-            bossHealth.TakeDamage(damage, source);
+            Vector3 source = executor != null ? executor.position : transform.position;
+            ApplyAuthoritativeDamage(damage, source, SourceIds.Allocate());
         }
-
-        PublishSnapshot();
+        SyncRuntimeSnapshot();
         return BossCommandResult.Succeeded;
     }
 
@@ -510,610 +321,330 @@ public sealed class BossController : MonoBehaviour, IBossController
     {
         if (!Application.isPlaying) return BossCommandResult.NotPlaying;
         if (!NetworkAuthority.IsServerOrOffline()) return BossCommandResult.NotAuthority;
-        if (bossHealth == null || movement == null || attackController == null)
-        {
-            return BossCommandResult.NotReady;
-        }
-        if (bossHealth.IsDead) return BossCommandResult.Dead;
-        if (CurrentState == BossState.PhaseChange ||
-            staggerState != BossStaggerState.None ||
-            attackController.IsBusy)
-        {
-            return BossCommandResult.Busy;
-        }
-
-        return movement.TryTeleportToArena(player)
+        if (!runtimeReady || IsDead) return runtimeReady ? BossCommandResult.Dead : BossCommandResult.NotReady;
+        return movement != null && movement.TryTeleportToArena(player)
             ? BossCommandResult.Succeeded
             : BossCommandResult.Rejected;
     }
 
-    private IEnumerator StaggerRoutine()
+    internal bool TryStartAuthoritativeAttack()
     {
-        staggerExecutionRequested = false;
-        staggerExecutor = null;
-        staggerExecutionDamage = 0;
-        SetStaggerState(BossStaggerState.Telegraph);
-        movement.Stop();
+        if (!runtimeReady || !combatEnabled || IsDead) return false;
+        bool started = runtime.TryStartAttack();
+        SyncRuntimeSnapshot();
+        return started;
+    }
 
-        if (stats.playPreStaggerAttack)
+    internal bool TryForceAuthoritativeAttack(BossAttackType attackType, bool interruptCurrentAttack)
+    {
+        if (!runtimeReady || !combatEnabled || IsDead) return false;
+        BossAttackId id = BossAttackController.ToDomain(attackType);
+        if (id == BossAttackId.None) return false;
+        if (interruptCurrentAttack) runtime.CancelAttack();
+        bool started = runtime.TryStartAttack(id);
+        SyncRuntimeSnapshot();
+        return started;
+    }
+
+    internal void CancelAuthoritativeAttack()
+    {
+        if (!runtimeReady) return;
+        runtime.CancelAttack();
+        SyncRuntimeSnapshot();
+    }
+
+    internal bool ApplyDamageFromHealthShell(int amount, Vector3 source) =>
+        ApplyAuthoritativeDamage(amount, source, SourceIds.Allocate()) == BossCommandResult.Succeeded;
+
+    internal BossCommandResult ApplyDamageFromGuardShell(int amount, Vector3 source) =>
+        ApplyAuthoritativeDamage(amount, source, SourceIds.Allocate());
+
+    internal void CompletePhaseChangeFromHealthShell() =>
+        runtime?.SetInvulnerable(false);
+
+    internal void SetInvulnerableFromHealthShell(bool value) => SetInvulnerableAuthoritative(value);
+
+    internal bool RestoreGuardFromShell()
+    {
+        if (runtime == null || !NetworkAuthority.IsServerOrOffline()) return false;
+        bool restored = runtime.RestoreGuard();
+        SyncRuntimeSnapshot();
+        return restored;
+    }
+
+    internal bool TryGetGuardProjection(out int current, out int maximum)
+    {
+        if (runtime == null)
         {
-            BossAttackType preStaggerAttack = SelectPreStaggerAttack();
-            if (attackController.TryForceAttack(preStaggerAttack))
+            current = 0;
+            maximum = 0;
+            return false;
+        }
+        current = runtime.GuardIntegrity;
+        maximum = runtime.MaxGuardIntegrity;
+        return maximum > 0;
+    }
+
+    public void Publish(IGameplayEvent @event)
+    {
+        if (@event is BossAttackCueEvent attackCue)
+        {
+            switch (attackCue.Phase)
             {
-                while (attackController.IsBusy &&
-                       bossHealth != null &&
-                       !bossHealth.IsDead &&
-                       CurrentState != BossState.PhaseChange)
-                {
-                    yield return null;
-                }
+                case BossAttackCuePhase.Started:
+                    attackController?.NotifyStarted(attackCue.AttackId);
+                    if (TryMap(attackCue.AttackId, out BossAttackType started)) AttackStarted?.Invoke(this, started);
+                    TransitionTo(BossState.Attack);
+                    break;
+                case BossAttackCuePhase.Completed:
+                    attackController?.NotifyCompleted(attackCue.AttackId);
+                    if (TryMap(attackCue.AttackId, out BossAttackType completed)) AttackCompleted?.Invoke(this, completed);
+                    if (combatEnabled) TransitionTo(RecoveryState());
+                    break;
+                case BossAttackCuePhase.Cancelled:
+                    attackController?.NotifyCancelled(attackCue.AttackId);
+                    if (TryMap(attackCue.AttackId, out BossAttackType cancelled)) AttackCancelled?.Invoke(this, cancelled);
+                    if (combatEnabled) TransitionTo(RecoveryState());
+                    break;
+            }
+        }
+        else if (@event is BossPhaseChangedEvent phase)
+        {
+            TransitionTo(BossState.PhaseChange);
+            presentation?.TrySetInteger(stats != null ? stats.phaseParameter : "Phase", (int)phase.Current);
+        }
+        else if (@event is BossDefeatedEvent)
+        {
+            if (!defeatedRaised)
+            {
+                defeatedRaised = true;
+                combatEnabled = false;
+                TransitionTo(BossState.Dead);
+                Defeated?.Invoke(this);
             }
         }
 
-        if (bossHealth == null || bossHealth.IsDead ||
-            CurrentState == BossState.PhaseChange || !combatEnabled)
-        {
-            staggerCoroutine = null;
-            SetStaggerState(BossStaggerState.None);
-            yield break;
-        }
-
-        TransitionTo(BossState.Stagger);
-        SetStaggerState(BossStaggerState.Vulnerable);
-        float remaining = stats.staggerWindowDuration;
-        while (remaining > 0f && !staggerExecutionRequested)
-        {
-            remaining -= Time.deltaTime;
-            yield return null;
-        }
-
-        bool executed = staggerExecutionRequested;
-        staggerCoroutine = null;
-        if (bossHealth != null &&
-            !bossHealth.IsDead &&
-            CurrentState != BossState.PhaseChange &&
-            encounterMode == BossEncounterMode.Hunt &&
-            ((executed && stats.teleportAfterStaggerExecution) ||
-             (!executed && stats.teleportAfterStaggerTimeout)))
-        {
-            movement.TryTeleportToArena(player);
-        }
-
-        staggerExecutionRequested = false;
-        staggerExecutor = null;
-        staggerExecutionDamage = 0;
-        SetStaggerState(BossStaggerState.None);
-        if (bossHealth != null && !bossHealth.IsDead &&
-            CurrentState != BossState.PhaseChange)
-        {
-            TransitionTo(combatEnabled ? GetRecoveryState() : BossState.Dormant);
-        }
+        SyncRuntimeSnapshot();
     }
 
-    private void HandlePhaseChangeStarted(int newPhase)
+    private BossCommandResult ApplyAuthoritativeDamage(int amount, Vector3 source, EntityId sourceId)
     {
-        if (bossHealth.IsDead)
-        {
-            return;
-        }
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (amount <= 0) return BossCommandResult.InvalidArgument;
+        RuntimeBossSnapshot snapshot = runtime.Snapshot;
+        if (!snapshot.IsAlive) return BossCommandResult.Dead;
+        if (snapshot.IsInvulnerable) return BossCommandResult.Invulnerable;
 
-        CancelStagger();
+        WorldPosition hitPosition = new(source.x, source.y, source.z);
+        DamageRequest request = new(sourceId, runtime.BossId, amount, DamageFlags.NoCritical,
+            new HitContext(hitPosition, new DamageTag("boss")));
+        DamageResult result = runtime.ApplyDamage(in request);
+        SyncRuntimeSnapshot();
+        if (result.WasKilled) return BossCommandResult.Succeeded;
+        return result.AppliedDamage > 0 ? BossCommandResult.Succeeded : BossCommandResult.Rejected;
+    }
 
-        if (stats.logCombatEvents)
+    private BossCommandResult SetInvulnerableAuthoritative(bool value)
+    {
+        if (!runtimeReady) return BossCommandResult.NotReady;
+        if (runtime.Snapshot.Mode == RuntimeEncounterMode.Defeated) return BossCommandResult.Dead;
+        runtime.SetInvulnerable(value);
+        SyncRuntimeSnapshot();
+        return BossCommandResult.Succeeded;
+    }
+
+    private void BuildRuntime()
+    {
+        if (!TryCreateRuntimeDependencies(out BossRuntimeDependencies dependencies)) return;
+        if (!legacyFallbackWarningLogged)
         {
-            Debug.Log(
-                $"[Boss] 进入阶段 {newPhase}，当前生命 " +
-                $"{bossHealth.CurrentHealth}/{bossHealth.MaxHealth}。",
+            legacyFallbackWarningLogged = true;
+            Debug.LogWarning(
+                "[Boss] Bootstrap did not bind a runtime before Start; using the legacy fallback composition bridge.",
                 this);
         }
-
-        if (phaseChangeCoroutine != null)
+        try
         {
-            StopCoroutine(phaseChangeCoroutine);
+            BossUnityRandom random = new();
+            combat = new CombatApplicationService(
+                new CombatResolver(random), dependencies.CombatEntities, this, clock);
+            BossRuntime created = BossRuntimeFactory.Create(
+                stats.BuildSpec(),
+                random,
+                combat,
+                dependencies,
+                null,
+                clock);
+            dependencies.Register(created);
+            if (!TryBind(created))
+                throw new InvalidOperationException("Boss runtime was already bound during fallback composition.");
+            runtimeOwnedByBootstrap = false;
         }
-
-        PublishSnapshot();
-        if (!NetworkAuthority.IsServerOrOffline())
+        catch (Exception exception)
         {
-            phaseChangeCoroutine = StartCoroutine(ClientPhasePresentationRoutine(newPhase));
-            return;
-        }
-        phaseChangeCoroutine = StartCoroutine(PhaseChangeRoutine(newPhase));
-    }
-
-    private IEnumerator ClientPhasePresentationRoutine(int newPhase)
-    {
-        presentation.PlayOneShot(stats.phaseChangeClip);
-        presentation.TrySetTrigger(stats.phaseChangeTrigger);
-        yield return new WaitForSecondsRealtime(Mathf.Max(0f, stats.phaseChangeDuration));
-        presentation.SetRenderersEnabled(true);
-        presentation.TrySetInteger(stats.phaseParameter, newPhase);
-        if (newPhase >= 3) presentation.StartPhaseThreeRain();
-        phaseChangeCoroutine = null;
-    }
-
-    private IEnumerator PhaseChangeRoutine(int newPhase)
-    {
-        TransitionTo(BossState.PhaseChange);
-        attackController.CancelCurrentAttack();
-        movement.Stop();
-        ApplyPhaseTransitionKnockback();
-
-        presentation.PlayOneShot(stats.phaseChangeClip);
-        presentation.TrySetTrigger(stats.phaseChangeTrigger);
-
-        if (stats.clearObstaclesOnPhaseChange)
-        {
-            movement.ClearNearbyObstacles();
-        }
-
-        float elapsed = 0f;
-        float nextBlinkTime = 0f;
-        bool renderersEnabled = true;
-        float blinkInterval = Mathf.Max(0.02f, stats.phaseBlinkInterval);
-
-        while (elapsed < stats.phaseChangeDuration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            if (elapsed >= nextBlinkTime)
-            {
-                renderersEnabled = !renderersEnabled;
-                presentation.SetRenderersEnabled(renderersEnabled);
-                nextBlinkTime = elapsed + blinkInterval;
-            }
-
-            yield return null;
-        }
-
-        presentation.SetRenderersEnabled(true);
-
-        if (stats.teleportAfterPhaseChange)
-        {
-            movement.TryTeleportToArena(player);
-        }
-
-        presentation.TrySetInteger(stats.phaseParameter, newPhase);
-        if (newPhase >= 2)
-        {
-            SpawnPhaseBloodPool();
-        }
-        if (newPhase >= 3)
-        {
-            presentation.StartPhaseThreeRain();
-        }
-
-        // Clear before completing: BossHealth may synchronously queue the next
-        // phase when one large damage event crossed multiple thresholds.
-        phaseChangeCoroutine = null;
-        bossHealth.CompletePhaseChange();
-        PublishSnapshot();
-        if (phaseChangeCoroutine == null && !bossHealth.IsDead)
-        {
-            TransitionTo(combatEnabled ? GetRecoveryState() : BossState.Dormant);
+            runtimeReady = false;
+            Debug.LogError($"[Boss] Runtime composition failed: {exception.Message}", this);
         }
     }
 
-    private void UpdateContractCountdown()
+    private void HandleProjectileHit(EntityId bossId, ICombatTarget target, int damage, WorldPosition position, float knockback)
     {
-        if (bossHealth == null || bossHealth.IsDead || stats == null)
+        if (!runtimeReady || target == null || !target.IsAlive || damage <= 0) return;
+        directory.Bind(target);
+        DamageRequest request = new(bossId, target.Id, damage, DamageFlags.NoCritical,
+            new HitContext(position, new DamageTag("boss-projectile")));
+        runtime.ApplyDamage(in request);
+        if (knockback > 0f)
         {
-            return;
+            KnockbackRequest knockbackRequest = new(
+                bossId, target.Id, target.Position - position, knockback, 0.18f);
+            runtime.ApplyKnockback(in knockbackRequest);
         }
+    }
 
-        if (!contractCountdownTriggered &&
-            stats.enableFormat5Countdown &&
-            bossHealth.HealthNormalized <= stats.format5TriggerHealthRate)
+    private void SyncRuntimeSnapshot()
+    {
+        if (!runtimeReady) return;
+        RuntimeBossSnapshot snapshot = runtime.Snapshot;
+        lastRuntimeSnapshot = snapshot;
+        bossHealth?.ApplySnapshot(snapshot);
+        attackController?.SyncSnapshot(snapshot);
+        leftGuard?.SyncFromController(false);
+        rightGuard?.SyncFromController(false);
+
+        float previousContract = RemainingContractSeconds;
+        RemainingContractSeconds = snapshot.ContractSeconds;
+        ContractCountdownActive = snapshot.HealthRatio <= (stats != null ? stats.format5TriggerHealthRate : 0.2f) &&
+                                  snapshot.ContractSeconds > 0f;
+        if (ContractCountdownActive && !contractWasActive)
         {
-            contractCountdownTriggered = true;
-            ContractCountdownActive = true;
-            RemainingContractSeconds = stats.format5CountdownSeconds;
-            presentation.TrySetTrigger(stats.format5Trigger);
-            presentation.CreateContractVfx();
+            contractWasActive = true;
+            presentation?.CreateContractVfx();
+        }
+        if (Mathf.Abs(previousContract - RemainingContractSeconds) > 0.0001f)
             ContractCountdownChanged?.Invoke(RemainingContractSeconds);
-            PublishSnapshot();
-
-            if (stats.logCombatEvents)
-            {
-                Debug.Log(
-                    $"[Boss] 契约倒计时启动：{RemainingContractSeconds:0.0} 秒。",
-                    this);
-            }
+        if (contractWasActive && !contractExpiredRaised && RemainingContractSeconds <= 0f)
+        {
+            contractExpiredRaised = true;
+            ContractCountdownActive = false;
+            presentation?.DestroyContractVfx();
+            ContractCountdownExpired?.Invoke();
         }
 
-        if (!ContractCountdownActive)
-        {
-            return;
-        }
-
-        RemainingContractSeconds = Mathf.Max(
-            0f,
-            RemainingContractSeconds -
-            Time.deltaTime * stats.format5CountdownRate);
-        ContractCountdownChanged?.Invoke(RemainingContractSeconds);
-
-        if (RemainingContractSeconds > 0f)
-        {
-            return;
-        }
-
-        ContractCountdownActive = false;
-        presentation.DestroyContractVfx();
-        ForceKillTarget();
-        ContractCountdownExpired?.Invoke();
-        PublishSnapshot();
-    }
-
-    private void HandleDeath()
-    {
-        CancelStagger();
-        if (!NetworkAuthority.IsServerOrOffline())
-        {
-            presentation.SetRenderersEnabled(true);
-            presentation.TrySetTrigger(stats.deathTrigger);
-            presentation.PlayOneShot(stats.deathClip);
-            if (bossCollider != null) bossCollider.enabled = false;
-            return;
-        }
-
-        SetCombatEnabled(false);
-        TransitionTo(BossState.Dead);
-
-        if (stats.logCombatEvents)
-        {
-            Debug.Log("[Boss] 已死亡，停止移动与攻击。", this);
-        }
-
-        if (phaseChangeCoroutine != null)
-        {
-            StopCoroutine(phaseChangeCoroutine);
-            phaseChangeCoroutine = null;
-        }
-
-        attackController.CancelCurrentAttack();
-        movement.Stop();
-        ContractCountdownActive = false;
-        presentation.DestroyContractVfx();
-
-        leftGuard?.DisableForBossDeath();
-        rightGuard?.DisableForBossDeath();
-
-        if (bossCollider != null)
-        {
-            bossCollider.enabled = false;
-        }
-
-        presentation.SetRenderersEnabled(true);
-        presentation.TrySetTrigger(stats.deathTrigger);
-        presentation.PlayOneShot(stats.deathClip);
-        Defeated?.Invoke(this);
-        PublishSnapshot();
-        StartCoroutine(DisableAfterDeathRoutine());
-    }
-
-    private IEnumerator DisableAfterDeathRoutine()
-    {
-        if (stats.deathDisableDelay > 0f)
-        {
-            yield return new WaitForSeconds(stats.deathDisableDelay);
-        }
-
-        NetworkSpawnUtility.Despawn(gameObject);
-    }
-
-    private void HandleHealthChanged(int currentHealth, int maxHealth)
-    {
-        if (stats != null && stats.logCombatEvents)
-        {
-            Debug.Log($"[Boss] 生命变化：{currentHealth}/{maxHealth}。", this);
-        }
-
-        PublishSnapshot();
-    }
-
-    private void HandleAttackStarted(BossAttackType attackType)
-    {
-        TransitionTo(BossState.Attack);
-        AttackStarted?.Invoke(this, attackType);
-        PublishSnapshot();
-    }
-
-    private void HandleAttackCompleted(BossAttackType attackType)
-    {
-        AttackCompleted?.Invoke(this, attackType);
-        if (combatEnabled && !bossHealth.IsDead && CurrentState == BossState.Attack)
-        {
-            TransitionTo(GetRecoveryState());
-        }
-        PublishSnapshot();
-    }
-
-    private void HandleAttackCancelled(BossAttackType attackType)
-    {
-        AttackCancelled?.Invoke(this, attackType);
-        if (combatEnabled &&
-            !bossHealth.IsDead &&
-            CurrentState != BossState.PhaseChange)
-        {
-            TransitionTo(GetRecoveryState());
-        }
-        PublishSnapshot();
-    }
-
-    private float ResolveHuntRetreatSpeed()
-    {
-        float speed = stats != null ? stats.huntFallbackRetreatSpeed : 0f;
-        if (stats != null && stats.huntMatchTargetMoveSpeed && player != null)
-        {
-            PlayerNetworkState playerState =
-                player.GetComponentInParent<PlayerNetworkState>();
-            if (playerState != null)
-            {
-                speed = playerState.MoveSpeed;
-            }
-        }
-
-        float multiplier = stats != null ? stats.huntRetreatSpeedMultiplier : 1f;
-        return Mathf.Max(0f, speed * multiplier);
-    }
-
-    private BossAttackType SelectPreStaggerAttack()
-    {
-        int phase = bossHealth != null ? bossHealth.CurrentPhase : 0;
-        if (phase <= 0)
-        {
-            return BossAttackType.Format2;
-        }
-
-        if (phase == 1)
-        {
-            return UnityEngine.Random.value < 0.5f
-                ? BossAttackType.Format2
-                : BossAttackType.Format4;
-        }
-
-        int roll = UnityEngine.Random.Range(0, 3);
-        return roll switch
-        {
-            0 => BossAttackType.Format2,
-            1 => BossAttackType.Format3,
-            _ => BossAttackType.Format4
-        };
-    }
-
-    private void SetStaggerState(BossStaggerState nextState)
-    {
-        if (staggerState == nextState)
-        {
-            return;
-        }
-
-        BossStaggerState previous = staggerState;
-        staggerState = nextState;
-        StaggerStateChanged?.Invoke(this, previous, staggerState);
-        PublishSnapshot();
-    }
-
-    private void CancelStagger()
-    {
-        if (staggerCoroutine != null)
-        {
-            StopCoroutine(staggerCoroutine);
-            staggerCoroutine = null;
-        }
-
-        staggerExecutionRequested = false;
-        staggerExecutor = null;
-        staggerExecutionDamage = 0;
-        SetStaggerState(BossStaggerState.None);
+        staggerState = ToLegacyStagger(snapshot.Stagger);
+        if (!snapshot.IsAlive && CurrentState != BossState.Dead && runtime != null)
+            TransitionTo(BossState.Dead);
+        SnapshotChanged?.Invoke(this, CreateSnapshot());
     }
 
     private void ResolveTargetWhenNeeded()
     {
-        if (BossTargetResolver.IsUsable(player))
-        {
-            return;
-        }
-
-        if (Time.unscaledTime < nextTargetResolveTime)
-        {
-            return;
-        }
-
+        if (BossTargetResolver.IsUsable(player) || Time.unscaledTime < nextTargetResolveTime) return;
         nextTargetResolveTime = Time.unscaledTime + 0.5f;
         ResolveTargetNow();
     }
 
-    private void ResolveTargetNow()
-    {
-        SetTargetInternal(BossTargetResolver.Resolve(player, stats));
-    }
+    private void ResolveTargetNow() => SetTargetInternal(BossTargetResolver.Resolve(player, stats));
 
     private void SetTargetInternal(Transform newTarget)
     {
         if (player == newTarget)
         {
-            if (attackController != null)
-            {
-                attackController.SetPlayer(newTarget);
-            }
+            attackController?.SetPlayer(newTarget);
             return;
         }
-
         player = newTarget;
-        behaviorPolicy?.Reset();
         attackController?.SetPlayer(player);
         TargetChanged?.Invoke(this, player);
+        if (player != null) BossCombatTarget.EnsurePlayerAdapter(player, false);
         PublishSnapshot();
-    }
-
-    private void ForceKillTarget()
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        if (BossCombatTarget.TryGetInParent(player, out IForceKillable killable))
-        {
-            killable.ForceKill();
-        }
-        else
-        {
-            Debug.LogError("[Boss] 契约目标没有实现 IForceKillable。", player);
-        }
-    }
-
-    private void ApplyPhaseTransitionKnockback()
-    {
-        if (player == null || stats.phaseTransitionKnockback <= 0f)
-        {
-            return;
-        }
-
-        if (BossCombatTarget.TryGetInParent(player, out IKnockbackReceiver receiver))
-        {
-            receiver.ApplyKnockback(
-                transform,
-                stats.phaseTransitionKnockback,
-                0.22f);
-        }
-    }
-
-    private void SpawnPhaseBloodPool()
-    {
-        if (!stats.createPhaseBloodPool)
-        {
-            return;
-        }
-
-        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle.normalized;
-        if (randomDirection.sqrMagnitude < 0.001f)
-        {
-            randomDirection = Vector2.right;
-        }
-
-        Vector3 position = transform.position + new Vector3(
-            randomDirection.x,
-            0f,
-            randomDirection.y) * stats.bloodPoolSpawnDistance;
-        position.x = Mathf.Clamp(
-            position.x,
-            stats.arenaCenter.x - stats.arenaHalfSize.x,
-            stats.arenaCenter.x + stats.arenaHalfSize.x);
-        position.z = Mathf.Clamp(
-            position.z,
-            stats.arenaCenter.z - stats.arenaHalfSize.y,
-            stats.arenaCenter.z + stats.arenaHalfSize.y);
-        position.y = stats.GetEffectHeight();
-
-        GameObject poolObject = new("Boss_Phase_BloodPool");
-        poolObject.layer = gameObject.layer;
-        Transform groundRoot = attackController != null
-            ? attackController.GroundIndicator
-            : transform.Find("GroundIndicator");
-        if (groundRoot != null)
-        {
-            poolObject.transform.SetParent(groundRoot, true);
-        }
-
-        poolObject.AddComponent<BossPhaseBloodPool>()
-            .Initialize(stats, player, position);
     }
 
     private void SetCombatEnabled(bool value)
     {
-        if (combatEnabled == value)
-        {
-            return;
-        }
-
+        if (combatEnabled == value) return;
         combatEnabled = value;
-        CombatEnabledChanged?.Invoke(this, combatEnabled);
+        CombatEnabledChanged?.Invoke(this, value);
+        if (value && ContractCountdownActive) presentation?.CreateContractVfx();
         PublishSnapshot();
     }
 
-    private BossState GetRecoveryState()
+    private void SetStaggerState(BossStaggerState next)
     {
-        return encounterMode == BossEncounterMode.Hunt
-            ? BossState.OffscreenIdle
-            : BossState.BattleIdle;
+        if (staggerState == next) return;
+        BossStaggerState previous = staggerState;
+        staggerState = next;
+        StaggerStateChanged?.Invoke(this, previous, next);
+        PublishSnapshot();
     }
 
-    private void TransitionTo(BossState nextState)
-    {
-        if (CurrentState == nextState)
-        {
-            return;
-        }
+    private BossState RecoveryState() => encounterMode == BossEncounterMode.Hunt
+        ? BossState.OffscreenIdle
+        : BossState.BattleIdle;
 
+    private void TransitionTo(BossState next)
+    {
+        if (CurrentState == next) return;
         BossState previous = CurrentState;
-        CurrentState = nextState;
-        StateChanged?.Invoke(this, previous, nextState);
-        PublishSnapshot();
+        CurrentState = next;
+        StateChanged?.Invoke(this, previous, next);
     }
 
-    private BossSnapshot CreateSnapshot()
+    private global::BossSnapshot CreateSnapshot()
     {
-        return new BossSnapshot(
-            GetEntityId(),
+        RuntimeBossSnapshot snapshot = runtimeReady ? runtime.Snapshot : lastRuntimeSnapshot;
+        return new global::BossSnapshot(
+            entityId,
             CurrentState,
             combatEnabled,
-            bossHealth != null ? bossHealth.CurrentHealth : 0,
-            bossHealth != null ? bossHealth.MaxHealth : 0,
-            bossHealth != null ? bossHealth.CurrentPhase : 0,
-            bossHealth != null && bossHealth.IsInvulnerable,
-            bossHealth != null && bossHealth.IsDead,
-            RemainingContractSeconds,
+            snapshot.Health,
+            snapshot.MaxHealth,
+            (int)snapshot.Phase,
+            snapshot.IsInvulnerable,
+            !snapshot.IsAlive,
+            snapshot.ContractSeconds,
             transform.position,
-            attackController != null ? attackController.LastAttack : null,
+            TryMap(snapshot.CurrentAttack, out BossAttackType attack) ? attack : (BossAttackType?)null,
             encounterMode,
             staggerState);
     }
 
-    private void PublishSnapshot()
-    {
-        SnapshotChanged?.Invoke(this, CreateSnapshot());
-    }
+    private void PublishSnapshot() => SnapshotChanged?.Invoke(this, CreateSnapshot());
 
     private void BindComponentEvents()
     {
-        if (eventsBound || bossHealth == null || attackController == null)
+        if (eventsBound) return;
+        if (bossHealth != null) bossHealth.Died += HandleHealthDied;
+        if (attackController != null)
         {
-            return;
+            attackController.AttackStarted += HandleLegacyAttackStarted;
+            attackController.AttackCompleted += HandleLegacyAttackCompleted;
+            attackController.AttackCancelled += HandleLegacyAttackCancelled;
         }
-
-        bossHealth.PhaseChangeStarted += HandlePhaseChangeStarted;
-        bossHealth.Died += HandleDeath;
-        bossHealth.HealthChanged += HandleHealthChanged;
-        attackController.AttackStarted += HandleAttackStarted;
-        attackController.AttackCompleted += HandleAttackCompleted;
-        attackController.AttackCancelled += HandleAttackCancelled;
         eventsBound = true;
     }
 
     private void UnbindComponentEvents()
     {
-        if (!eventsBound)
-        {
-            return;
-        }
-
-        if (bossHealth != null)
-        {
-            bossHealth.PhaseChangeStarted -= HandlePhaseChangeStarted;
-            bossHealth.Died -= HandleDeath;
-            bossHealth.HealthChanged -= HandleHealthChanged;
-        }
-
+        if (!eventsBound) return;
+        if (bossHealth != null) bossHealth.Died -= HandleHealthDied;
         if (attackController != null)
         {
-            attackController.AttackStarted -= HandleAttackStarted;
-            attackController.AttackCompleted -= HandleAttackCompleted;
-            attackController.AttackCancelled -= HandleAttackCancelled;
+            attackController.AttackStarted -= HandleLegacyAttackStarted;
+            attackController.AttackCompleted -= HandleLegacyAttackCompleted;
+            attackController.AttackCancelled -= HandleLegacyAttackCancelled;
         }
-
         eventsBound = false;
     }
+
+    private void HandleHealthDied()
+    {
+        if (CurrentState != BossState.Dead) TransitionTo(BossState.Dead);
+    }
+
+    private void HandleLegacyAttackStarted(BossAttackType attack) { }
+    private void HandleLegacyAttackCompleted(BossAttackType attack) { }
+    private void HandleLegacyAttackCancelled(BossAttackType attack) { }
 
     private void ResolveComponentReferences()
     {
@@ -1130,134 +661,14 @@ public sealed class BossController : MonoBehaviour, IBossController
 
     private void FindAndConfigureGuards()
     {
-        BossGuard[] guards = GetComponentsInChildren<BossGuard>(true);
-        foreach (BossGuard guard in guards)
+        foreach (BossGuard guard in GetComponentsInChildren<BossGuard>(true))
         {
-            if (guard == null)
-            {
-                continue;
-            }
-
-            if (guard.Side == BossGuardSide.Left)
-            {
-                leftGuard ??= guard;
-            }
-            else
-            {
-                rightGuard ??= guard;
-            }
+            if (guard == null) continue;
+            if (guard.Side == BossGuardSide.Left) leftGuard ??= guard;
+            else rightGuard ??= guard;
         }
-
         leftGuard?.Configure(BossGuardSide.Left, stats);
         rightGuard?.Configure(BossGuardSide.Right, stats);
-    }
-
-    private void ValidateRuntimeSetup()
-    {
-        if (runtimeSetupValidated)
-        {
-            return;
-        }
-
-        runtimeSetupValidated = true;
-        if (player == null)
-        {
-            Debug.LogWarning(
-                "[Boss 目标] 当前尚未生成可用玩家，Boss 将保持休眠并持续等待 " +
-                "PlayerNetworkState、Player Tag 或 BossConfig.playerLayer 中的目标。",
-                this);
-        }
-
-        string mountIssue = attackController.GetMountConfigurationIssue();
-        if (!string.IsNullOrEmpty(mountIssue))
-        {
-            Debug.LogError($"[Boss 配置] {mountIssue}", this);
-        }
-
-        if (animator == null)
-        {
-            Debug.LogWarning(
-                "[Boss 配置] 未找到 Animator。战斗逻辑可运行，但不会播放动画。",
-                this);
-        }
-        else if (animator.runtimeAnimatorController == null &&
-                 GetComponent<Boss3DAnimationPresenter>() == null)
-        {
-            Debug.LogWarning(
-                "[Boss 配置] Animator 没有绑定 Controller，且未配置 3D 动画表现器。",
-                animator);
-        }
-        else if (animator.runtimeAnimatorController != null)
-        {
-            ValidateAnimatorParameter(
-                stats.phaseParameter,
-                AnimatorControllerParameterType.Int);
-            ValidateAnimatorParameter(
-                stats.phaseChangeTrigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.deathTrigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.format1Trigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.format2Trigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.format3Trigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.format4Trigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.format5Trigger,
-                AnimatorControllerParameterType.Trigger);
-            ValidateAnimatorParameter(
-                stats.format6Trigger,
-                AnimatorControllerParameterType.Trigger);
-        }
-
-        if (stats.logCombatEvents)
-        {
-            Debug.Log(
-                $"[Boss] 初始化完成。目标=" +
-                $"{(player != null ? player.name : "未找到")}，" +
-                $"Animator=" +
-                $"{(animator != null ? "已配置" : "未配置")}。",
-                this);
-        }
-    }
-
-    private void ValidateAnimatorParameter(
-        string parameterName,
-        AnimatorControllerParameterType expectedType)
-    {
-        if (string.IsNullOrWhiteSpace(parameterName))
-        {
-            return;
-        }
-
-        foreach (AnimatorControllerParameter parameter in animator.parameters)
-        {
-            if (parameter.name != parameterName)
-            {
-                continue;
-            }
-
-            if (parameter.type != expectedType)
-            {
-                Debug.LogError(
-                    $"[Boss Animator] 参数 {parameterName} 类型错误：" +
-                    $"需要 {expectedType}，当前是 {parameter.type}。",
-                    animator);
-            }
-            return;
-        }
-
-        Debug.LogError(
-            $"[Boss Animator] 缺少参数 {parameterName}（{expectedType}）。",
-            animator);
     }
 
     [ContextMenu("Boss/验证场景绑定")]
@@ -1266,171 +677,66 @@ public sealed class BossController : MonoBehaviour, IBossController
         ResolveComponentReferences();
         FindAndConfigureGuards();
         attackController?.ConfigureGuards(leftGuard, rightGuard);
-        ValidateRuntimeSetup();
-    }
-
-    private static bool IsSupportedAttack(BossAttackType attackType)
-    {
-        return attackType is BossAttackType.Format1 or
-            BossAttackType.Format2 or
-            BossAttackType.Format3 or
-            BossAttackType.Format4 or
-            BossAttackType.Format6;
+        if (animator == null) Debug.LogWarning("[Boss 配置] 未找到 Animator；Boss 逻辑仍可运行。", this);
     }
 
     private void OnGUI()
     {
-        if (stats == null || !stats.showDebugPanel)
-        {
-            return;
-        }
-
+        if (stats == null || !stats.showDebugPanel || !Application.isPlaying) return;
         float x = stats.debugPanelPosition.x;
         float y = stats.debugPanelPosition.y;
-        const float width = 360f;
-        GUI.Box(new Rect(x, y, width, 218f), "Boss 运行时调试");
-
-        string animatorState = animator == null
-            ? "无 Animator"
-            : animator.runtimeAnimatorController == null
-                ? "未绑定 Controller"
-                : "已配置";
-        string healthText = bossHealth == null
-            ? "生命组件缺失"
-            : $"{bossHealth.CurrentHealth}/{bossHealth.MaxHealth}  " +
-              $"阶段 {bossHealth.CurrentPhase}";
-
-        GUI.Label(
-            new Rect(x + 12f, y + 26f, width - 24f, 22f),
-            $"状态：{CurrentState}  战斗：{combatEnabled}");
-        GUI.Label(
-            new Rect(x + 12f, y + 48f, width - 24f, 22f),
-            $"生命：{healthText}");
-        GUI.Label(
-            new Rect(x + 12f, y + 70f, width - 24f, 22f),
-            $"目标：{(player != null ? player.name : "未找到")}  动画：{animatorState}");
-        GUI.Label(
-            new Rect(x + 12f, y + 92f, width - 24f, 22f),
-            $"最近攻击：{(attackController != null ? attackController.LastAttackName : "无")}");
-
-        bool previousEnabled = GUI.enabled;
-        GUI.enabled = Application.isPlaying &&
-                      bossHealth != null &&
-                      !bossHealth.IsDead;
-        if (GUI.Button(
-                new Rect(x + 12f, y + 120f, 104f, 28f),
-                $"Boss -{stats.debugDamageAmount} HP"))
-        {
-            bossHealth.DebugApplyDamage(stats.debugDamageAmount);
-        }
-
-        if (GUI.Button(
-                new Rect(x + 124f, y + 120f, 104f, 28f),
-                "直接击杀 Boss"))
-        {
-            bossHealth.DebugApplyDamage(Mathf.Max(1, bossHealth.CurrentHealth));
-        }
-
-        GUI.enabled = Application.isPlaying &&
-                      attackController != null &&
-                      player != null &&
-                      bossHealth != null &&
-                      !bossHealth.IsDead;
-        BossAttackType[] debugAttacks =
-        {
-            BossAttackType.Format1,
-            BossAttackType.Format2,
-            BossAttackType.Format3,
-            BossAttackType.Format4,
-            BossAttackType.Format6
-        };
-        for (int i = 0; i < debugAttacks.Length; i++)
-        {
-            const float buttonWidth = 64f;
-            float buttonX = x + 12f + i * (buttonWidth + 4f);
-            if (GUI.Button(
-                    new Rect(buttonX, y + 158f, buttonWidth, 28f),
-                    $"攻击 {(int)debugAttacks[i]}"))
-            {
-                attackController.DebugStartAttack(debugAttacks[i]);
-            }
-        }
-
-        GUI.enabled = previousEnabled;
-        GUI.Label(
-            new Rect(x + 12f, y + 190f, width - 24f, 22f),
-            "Animator 未配置不会阻止移动、伤害、阶段和弹幕测试。");
+        GUI.Box(new Rect(x, y, 360f, 120f), "Boss 运行时调试");
+        GUI.Label(new Rect(x + 12f, y + 26f, 336f, 20f), $"状态：{CurrentState}  战斗：{combatEnabled}");
+        GUI.Label(new Rect(x + 12f, y + 48f, 336f, 20f), $"生命：{(bossHealth != null ? $"{bossHealth.CurrentHealth}/{bossHealth.MaxHealth}" : "缺失")}");
+        GUI.Label(new Rect(x + 12f, y + 70f, 336f, 20f), $"阶段：{(bossHealth != null ? bossHealth.CurrentPhase : 0)}  攻击：{attackController?.LastAttackName ?? "无"}");
     }
 
     private void OnDisable()
     {
-        CancelStagger();
-        attackController?.CancelCurrentAttack();
-        movement?.Stop();
+        if (NetworkAuthority.IsServerOrOffline()) runtime?.CancelAttack();
+        if (runtimeEventsBound && runtime != null) runtime.GameplayEventProduced -= Publish;
+        runtimeEventsBound = false;
         BossRegistry.Unregister(this);
         UnbindComponentEvents();
         presentation?.Dispose();
     }
 
-    private void OnDestroy()
-    {
-        BossRegistry.Unregister(this);
-    }
+    private void OnDestroy() => BossRegistry.Unregister(this);
 
     private void OnDrawGizmosSelected()
     {
         BossConfig config = stats != null ? stats : GetComponent<BossConfig>();
-        if (config == null || !config.drawCombatGizmos)
-        {
-            return;
-        }
-
+        if (config == null || !config.drawCombatGizmos) return;
         Gizmos.color = new Color(0.7f, 0f, 0f, 0.25f);
-        Gizmos.DrawWireCube(
-            config.arenaCenter,
-            new Vector3(
-                config.arenaHalfSize.x * 2f,
-                0.1f,
-                config.arenaHalfSize.y * 2f));
-
+        Gizmos.DrawWireCube(config.arenaCenter,
+            new Vector3(config.arenaHalfSize.x * 2f, 0.1f, config.arenaHalfSize.y * 2f));
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, config.stoppingDistance);
+    }
 
-        BossAttackController attacks = attackController != null
-            ? attackController
-            : GetComponent<BossAttackController>();
-        if (attacks == null)
-        {
-            return;
-        }
+    private static RuntimeEncounterMode ToDomainMode(BossEncounterMode mode) => mode == BossEncounterMode.Battle
+        ? RuntimeEncounterMode.Battle
+        : RuntimeEncounterMode.Hunt;
 
-        if (attacks.MeleePoint != null)
-        {
-            Gizmos.color = new Color(1f, 0.35f, 0.1f, 0.9f);
-            Gizmos.DrawWireSphere(
-                attacks.MeleePoint.position,
-                config.format1Radius);
-        }
+    private static BossStaggerState ToLegacyStagger(VampireHunt.Boss.Contracts.StaggerState state) => state switch
+    {
+        VampireHunt.Boss.Contracts.StaggerState.Telegraph => BossStaggerState.Telegraph,
+        VampireHunt.Boss.Contracts.StaggerState.Vulnerable => BossStaggerState.Vulnerable,
+        VampireHunt.Boss.Contracts.StaggerState.Executed => BossStaggerState.Executed,
+        _ => BossStaggerState.None
+    };
 
-        if (attacks.ProjectileOrigin != null)
+    private static bool TryMap(BossAttackId attackId, out BossAttackType attackType)
+    {
+        attackType = attackId switch
         {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawSphere(attacks.ProjectileOrigin.position, 0.12f);
-            Gizmos.DrawRay(
-                attacks.ProjectileOrigin.position,
-                transform.forward * 2f);
-        }
-
-        if (attacks.GroundIndicator != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(attacks.GroundIndicator.position, 0.18f);
-        }
-
-        if (attacks.VFXRoot != null)
-        {
-            Gizmos.color = Color.magenta;
-            Gizmos.DrawWireCube(attacks.VFXRoot.position, Vector3.one * 0.3f);
-        }
+            BossAttackId.GuardSweep => BossAttackType.Format1,
+            BossAttackId.RotatingBarrage => BossAttackType.Format2,
+            BossAttackId.CrossSlash => BossAttackType.Format3,
+            BossAttackId.ChargedSlash => BossAttackType.Format4,
+            BossAttackId.RectangleDash => BossAttackType.Format6,
+            _ => default
+        };
+        return attackId != BossAttackId.None;
     }
 }

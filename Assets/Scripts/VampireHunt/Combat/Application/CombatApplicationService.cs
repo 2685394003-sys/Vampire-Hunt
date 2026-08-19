@@ -40,7 +40,23 @@ namespace VampireHunt.Combat.Application
             if (receiver == null)
                 return DamageResult.NoDamage(request.BaseDamage, request.Hit.Position);
 
-            DamageResult receiverResult = receiver.ApplyDamage(in resolved);
+            // Time-dependent receivers opt into the generic Combat capability
+            // without making Combat depend on Player (or any other feature).
+            // They must never fall back to an implicit timestamp: that would
+            // make invincibility windows depend on a hidden constant again.
+            DamageResult receiverResult;
+            if (receiver is IAuthoritativeDamageReceiver timedReceiver)
+            {
+                if (clock == null)
+                    throw new InvalidOperationException(
+                        "An authoritative game clock is required for time-dependent damage receivers.");
+
+                receiverResult = timedReceiver.ApplyDamage(in resolved, clock.Now);
+            }
+            else
+            {
+                receiverResult = receiver.ApplyDamage(in resolved);
+            }
             int applied = receiverResult.AppliedDamage;
             if (applied < 0) applied = 0;
             if (applied > resolved.FinalDamage) applied = resolved.FinalDamage;

@@ -1,7 +1,14 @@
-using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
+using VampireHunt.Core;
+using VampireHunt.Enemies.Contracts;
+using EntityId = VampireHunt.Core.EntityId;
 
+/// <summary>
+/// Network/Unity motor adapter for the domain EnemyBrain.  It keeps the
+/// serialized tuning and animation/network state used by existing prefabs, but
+/// all target decisions and attack intents come from EnemyRuntimeController.
+/// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
 public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
@@ -21,56 +28,37 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
     [SerializeField, Min(0.1f)] private float stuckSideSwitchDelay = 0.4f;
 
     [Header("攻击节奏 / Attack Timing")]
-    [Tooltip("进入攻击动画后，等待多久结算伤害。动画只负责表现，不再依赖 Animation Event。")]
+    [Tooltip("Retained for serialized prefab compatibility; hit timing is an application concern.")]
     [SerializeField, Min(0f)] private float attackHitDelay = 0.35f;
-    [Tooltip("临时沿用 Player Controller 时，一次攻击表现持续的总时长。")]
+    [Tooltip("Retained for serialized prefab compatibility; animation is presentation only.")]
     [SerializeField, Min(0.01f)] private float attackAnimationDuration = 1.25f;
 
-    private FlowFieldManager flowField;
-    private Vector3 smoothDirection;
     private Rigidbody body;
     private EnemyAnimationController animationController;
     private EnemyCombat combat;
     private EnemyHealth enemyHealth;
-    private PlayerNetworkState targetPlayer;
-    private Coroutine slowCoroutine;
+    private Transform targetPlayer;
     private float attackCooldownTimer;
-    private float attackElapsed;
-    private bool attackDamageResolved;
-    private EnemyStatsConfig stats;
-    private float stuckTimer;
-    private int avoidanceSide;
-    private float obstacleProbeTimer;
-    private Vector3 cachedAvoidanceDirection;
-    private bool cachedAvoiding;
+    private EnemyState offlineState = EnemyState.Idle;
 
     private readonly NetworkVariable<EnemyState> networkState = new(
         EnemyState.Idle,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
-    private EnemyState offlineState = EnemyState.Idle;
 
-    public Transform CurrentTarget => targetPlayer != null ? targetPlayer.transform : null;
+    public Transform CurrentTarget => targetPlayer;
     public EnemyState State => UseNetworkState ? networkState.Value : offlineState;
     private bool UseNetworkState => NetworkAuthority.IsNetworkActive && IsSpawned;
 
     private void Awake()
     {
         if (GetComponent<NetworkObject>() == null && !NetworkAuthority.IsNetworkActive)
-        {
             gameObject.AddComponent<NetworkObject>();
-        }
 
         body = GetComponent<Rigidbody>();
         animationController = GetComponent<EnemyAnimationController>();
         combat = GetComponent<EnemyCombat>();
         enemyHealth = GetComponent<EnemyHealth>();
-        flowField = FindFirstObjectByType<FlowFieldManager>();
-        stats = EnemyStatsResolver.Resolve(this);
-        smoothDirection = Vector3.forward;
-        int entityHash = GetEntityId().GetHashCode();
-        avoidanceSide = (entityHash & 1) == 0 ? 1 : -1;
-        obstacleProbeTimer = (uint)entityHash % 17 / 17f * obstacleProbeInterval;
         offlineState = EnemyState.Idle;
         animationController?.ApplyState(State, true);
     }
@@ -78,12 +66,8 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
     public override void OnNetworkSpawn()
     {
         networkState.OnValueChanged += HandleNetworkStateChanged;
-        if (IsServer)
-            networkState.Value = EnemyState.Idle;
-        if (!IsServer && body != null)
-        {
-            body.isKinematic = true;
-        }
+        if (IsServer) networkState.Value = EnemyState.Idle;
+        if (!IsServer && body != null) body.isKinematic = true;
         animationController?.ApplyState(State, true);
     }
 
@@ -92,29 +76,14 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
         networkState.OnValueChanged -= HandleNetworkStateChanged;
     }
 
-    public void OnTakenFromNetworkPool()
-    {
-        ResetRuntimeState();
-    }
-
-    public void OnReturnedToNetworkPool()
-    {
-        ResetRuntimeState();
-    }
+    public void OnTakenFromNetworkPool() => ResetRuntimeState();
+    public void OnReturnedToNetworkPool() => ResetRuntimeState();
 
     private void ResetRuntimeState()
     {
-        CancelSlowStop();
         StopAllCoroutines();
         targetPlayer = null;
         attackCooldownTimer = 0f;
-        attackElapsed = 0f;
-        attackDamageResolved = false;
-        stuckTimer = 0f;
-        obstacleProbeTimer = 0f;
-        cachedAvoiding = false;
-        cachedAvoidanceDirection = Vector3.zero;
-        smoothDirection = Vector3.forward;
         offlineState = EnemyState.Idle;
         SetVelocity(Vector3.zero);
         animationController?.ApplyState(EnemyState.Idle, true);
@@ -123,362 +92,147 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
     private void Update()
     {
         animationController?.ApplyState(State);
-
-        if (!NetworkAuthority.IsServerOrOffline(this))
-            return;
-
-        if (enemyHealth != null && enemyHealth.IsFrozen)
-        {
-            CancelSlowStop();
-            SetVelocity(Vector3.zero);
-            if (State != EnemyState.Idle) ChangeState(EnemyState.Idle);
-            return;
-        }
-
-        if (State == EnemyState.Knockback) return;
-
-        ResolveTargetAndState();
-        attackCooldownTimer = Mathf.Max(0f, attackCooldownTimer - Time.deltaTime);
-
-        if (State == EnemyState.isChasing)
-        {
-            Chase();
-        }
-        else
-        {
-            SetVelocity(Vector3.zero);
-            if (State == EnemyState.isAttacking)
-                UpdateAttack(Time.deltaTime);
-        }
-    }
-
-    public void ChangeState(EnemyState newState)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this))
-            return;
-
-        EnemyState previousState = State;
-        if (previousState == newState)
-            return;
-
-        if (UseNetworkState)
-        {
-            networkState.Value = newState;
-        }
-        else
-        {
-            offlineState = newState;
-            HandleStateChanged(previousState, newState);
-        }
-    }
-
-    public void EnterKnockbackState() => ChangeState(EnemyState.Knockback);
-
-    private void ResolveTargetAndState()
-    {
-        if (targetPlayer == null || !targetPlayer.IsAlive)
-        {
-            targetPlayer = NetworkPlayerRegistry.GetClosestAlive(transform.position);
-        }
-
-        if (targetPlayer == null && flowField != null && flowField.player != null)
-        {
-            targetPlayer = flowField.player.GetComponentInParent<PlayerNetworkState>();
-        }
-
-        if (targetPlayer == null)
-        {
-            if (State != EnemyState.Idle)
-            {
-                ChangeState(EnemyState.Idle);
-                StartSlowStop();
-            }
-            return;
-        }
-
-        float attackRange = GetStatValue(EnemyStatType.WeaponRange, 1f);
-        float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
-        if (distance <= attackRange)
-        {
-            if (attackCooldownTimer <= 0f && State != EnemyState.isAttacking)
-            {
-                StopMovement();
-                ChangeState(EnemyState.isAttacking);
-                attackCooldownTimer = GetStatValue(EnemyStatType.AttackCooldown, 1f);
-            }
-            else if (State != EnemyState.isAttacking)
-            {
-                ChangeState(EnemyState.Idle);
-                StopMovement();
-            }
-        }
-        else if (State != EnemyState.isAttacking && State != EnemyState.isChasing)
-        {
-            ChangeState(EnemyState.isChasing);
-            CancelSlowStop();
-        }
-    }
-
-    private void Chase()
-    {
-        if (targetPlayer == null)
-            return;
-
-        Vector3 rawDirection = flowField != null
-            ? flowField.GetFlowDirection(transform.position, targetPlayer.transform)
-            : targetPlayer.transform.position - transform.position;
-        rawDirection.y = 0f;
-        if (rawDirection.sqrMagnitude < 0.0001f)
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
+        if (enemyHealth == null || enemyHealth.Runtime == null || enemyHealth.IsDead)
         {
             SetVelocity(Vector3.zero);
             return;
         }
-
-        float speed = GetStatValue(EnemyStatType.MoveSpeed, 1f);
-        Vector3 desiredDirection = GetObstacleAvoidedDirection(
-            rawDirection.normalized,
-            speed,
-            out bool avoiding,
-            out bool probePerformed);
-        if (desiredDirection.sqrMagnitude < 0.0001f)
+        if (enemyHealth.IsFrozen)
         {
             SetVelocity(Vector3.zero);
-            return;
-        }
-
-        Vector3 nextDirection = avoiding
-            ? desiredDirection
-            : Vector3.Lerp(
-                smoothDirection,
-                desiredDirection,
-                Time.deltaTime * dirBlendSpeed).normalized;
-
-        // The previous smoothed heading may still point into a wall after the flow
-        // changes. Snap to the newly validated direction instead of cutting the corner.
-        if (probePerformed && IsDirectionBlocked(nextDirection, GetProbeDistance(speed)))
-            nextDirection = desiredDirection;
-
-        smoothDirection = nextDirection;
-        SetVelocity(nextDirection * speed);
-
-        if (smoothDirection.sqrMagnitude > 0.001f)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(smoothDirection, Vector3.up);
-            transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSmooth);
-        }
-    }
-
-    private Vector3 GetObstacleAvoidedDirection(
-        Vector3 desiredDirection,
-        float speed,
-        out bool avoiding,
-        out bool probePerformed)
-    {
-        obstacleProbeTimer -= Time.deltaTime;
-        probePerformed = obstacleProbeTimer <= 0f;
-        if (probePerformed)
-        {
-            obstacleProbeTimer += Mathf.Max(0.02f, obstacleProbeInterval);
-            cachedAvoidanceDirection = ResolveObstacleAvoidance(
-                desiredDirection,
-                speed,
-                out cachedAvoiding);
-        }
-
-        avoiding = cachedAvoiding;
-        return cachedAvoiding ? cachedAvoidanceDirection : desiredDirection;
-    }
-
-    private Vector3 ResolveObstacleAvoidance(
-        Vector3 desiredDirection,
-        float speed,
-        out bool avoiding)
-    {
-        avoiding = false;
-        float probeDistance = GetProbeDistance(speed);
-        if (!IsDirectionBlocked(desiredDirection, probeDistance))
-        {
-            stuckTimer = 0f;
-            return desiredDirection;
-        }
-
-        avoiding = true;
-        Vector3 planarVelocity = body != null ? body.linearVelocity : Vector3.zero;
-        planarVelocity.y = 0f;
-        if (planarVelocity.sqrMagnitude <= stuckSpeedThreshold * stuckSpeedThreshold)
-        {
-            stuckTimer += Mathf.Max(Time.deltaTime, obstacleProbeInterval);
-            if (stuckTimer >= stuckSideSwitchDelay)
-            {
-                avoidanceSide = -avoidanceSide;
-                stuckTimer = 0f;
-            }
-        }
-        else
-        {
-            stuckTimer = 0f;
-        }
-
-        for (int step = 1; step <= avoidanceChecksPerSide; step++)
-        {
-            float angle = avoidanceAngleStep * step;
-            Vector3 preferred = Quaternion.AngleAxis(angle * avoidanceSide, Vector3.up) *
-                                desiredDirection;
-            if (!IsDirectionBlocked(preferred, probeDistance))
-                return preferred.normalized;
-
-            Vector3 alternate = Quaternion.AngleAxis(-angle * avoidanceSide, Vector3.up) *
-                                desiredDirection;
-            if (!IsDirectionBlocked(alternate, probeDistance))
-                return alternate.normalized;
-        }
-
-        return Vector3.zero;
-    }
-
-    private float GetProbeDistance(float speed) =>
-        Mathf.Max(obstacleProbeDistance, speed * 0.15f);
-
-    private bool IsDirectionBlocked(Vector3 direction, float distance)
-    {
-        if (flowField == null ||
-            flowField.obstacleLayer.value == 0 ||
-            direction.sqrMagnitude < 0.0001f)
-        {
-            return false;
-        }
-
-        // Probe near the capsule's feet so low props are detected as reliably as
-        // tall walls. The obstacle mask excludes the ground, so this stays clear
-        // of the floor while still catching small crates, stones, and decorations.
-        Vector3 origin = transform.position + Vector3.up * obstacleProbeRadius;
-        return Physics.SphereCast(
-            origin,
-            obstacleProbeRadius,
-            direction.normalized,
-            out _,
-            distance,
-            flowField.obstacleLayer,
-            QueryTriggerInteraction.Ignore);
-    }
-
-    public void FinishAttack()
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this))
-            return;
-
-        if (targetPlayer == null || !targetPlayer.IsAlive)
-        {
             ChangeState(EnemyState.Idle);
             return;
         }
 
-        float range = GetStatValue(EnemyStatType.WeaponRange, 1f);
-        ChangeState(Vector3.Distance(transform.position, targetPlayer.transform.position) <= range
-            ? EnemyState.Idle
-            : EnemyState.isChasing);
+        ResolveTargetAndState();
+        attackCooldownTimer = Mathf.Max(0f, attackCooldownTimer - Time.deltaTime);
     }
 
-    private void UpdateAttack(float deltaTime)
+    public void ChangeState(EnemyState newState)
     {
-        attackElapsed += deltaTime;
-        FaceCurrentTarget();
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
+        EnemyState previous = State;
+        if (previous == newState) return;
 
-        float hitTime = Mathf.Min(attackHitDelay, attackAnimationDuration);
-        if (!attackDamageResolved && attackElapsed >= hitTime)
+        if (UseNetworkState) networkState.Value = newState;
+        else
         {
-            attackDamageResolved = true;
-            combat?.Attack();
+            offlineState = newState;
+            HandleStateChanged(previous, newState);
         }
-
-        if (attackElapsed >= attackAnimationDuration)
-            FinishAttack();
     }
 
-    private void FaceCurrentTarget()
+    public void EnterKnockbackState()
+    {
+        enemyHealth?.Runtime?.SetState(VampireHunt.Enemies.Contracts.EnemyState.Stunned);
+        ChangeState(EnemyState.Knockback);
+    }
+
+    private void ResolveTargetAndState()
     {
         if (targetPlayer == null)
+            targetPlayer = ResolveTargetTransform();
+        if (targetPlayer == null)
+        {
+            SetVelocity(Vector3.zero);
+            ChangeState(EnemyState.Idle);
             return;
+        }
 
-        Vector3 direction = targetPlayer.transform.position - transform.position;
-        direction.y = 0f;
-        if (direction.sqrMagnitude <= 0.001f)
+        EntityId targetId = EnemyLegacyEntityIds.Resolve(targetPlayer.gameObject);
+        if (!targetId.IsValid)
+        {
+            SetVelocity(Vector3.zero);
+            ChangeState(EnemyState.Idle);
             return;
-
-        Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
-        transform.rotation = Quaternion.Lerp(
-            transform.rotation,
-            targetRotation,
-            Time.deltaTime * turnSmooth);
-    }
-
-    private void HandleNetworkStateChanged(EnemyState previousState, EnemyState newState)
-    {
-        HandleStateChanged(previousState, newState);
-    }
-
-    private void HandleStateChanged(EnemyState previousState, EnemyState newState)
-    {
-        if (newState == EnemyState.isAttacking)
-        {
-            attackElapsed = 0f;
-            attackDamageResolved = false;
-        }
-        else if (previousState == EnemyState.isAttacking)
-        {
-            attackElapsed = 0f;
-            attackDamageResolved = false;
         }
 
-        animationController?.ApplyState(newState, true);
-    }
+        Vector3 position = transform.position;
+        Vector3 targetPosition = targetPlayer.position;
+        float distance = Vector3.Distance(position, targetPosition);
+        WorldPosition self = ToWorldPosition(position);
+        WorldPosition target = ToWorldPosition(targetPosition);
+        EnemyPerceptionData perception = new EnemyPerceptionData(
+            enemyHealth.Runtime.Id,
+            self,
+            targetId,
+            target,
+            distance,
+            true,
+            true);
+        EnemyIntent intent = enemyHealth.Runtime.Decide(in perception);
 
-    private void StartSlowStop()
-    {
-        CancelSlowStop();
-        slowCoroutine = StartCoroutine(SlowStop());
-    }
-
-    private IEnumerator SlowStop()
-    {
-        Vector3 velocity = body != null ? body.linearVelocity : Vector3.zero;
-        while (velocity.magnitude > 0.05f)
+        if (intent.ShouldAttack)
         {
-            velocity = Vector3.MoveTowards(velocity, Vector3.zero, slowDeceleration * Time.deltaTime);
-            SetVelocity(velocity);
-            yield return null;
+            SetVelocity(Vector3.zero);
+            ChangeState(EnemyState.isAttacking);
+            if (attackCooldownTimer <= 0f)
+            {
+                combat?.Attack();
+                enemyHealth.Runtime.RecordAttack(Time.time);
+                attackCooldownTimer = enemyHealth.GetStatValue(EnemyStatType.AttackCooldown);
+            }
+            return;
         }
+
+        if (intent.ShouldMove)
+        {
+            Vector3 direction = new Vector3(intent.Direction.X, 0f, intent.Direction.Y).normalized;
+            float speed = enemyHealth.Runtime.MoveSpeed;
+            SetVelocity(direction * speed);
+            if (direction.sqrMagnitude > 0.0001f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+                transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSmooth);
+            }
+            ChangeState(EnemyState.isChasing);
+            return;
+        }
+
         SetVelocity(Vector3.zero);
-        slowCoroutine = null;
+        ChangeState(intent.State == VampireHunt.Enemies.Contracts.EnemyState.Recovering
+            ? EnemyState.isChasing
+            : EnemyState.Idle);
     }
 
-    private void StopMovement() => StartSlowStop();
-
-    private void CancelSlowStop()
+    private Transform ResolveTargetTransform()
     {
-        if (slowCoroutine == null)
-            return;
-        StopCoroutine(slowCoroutine);
-        slowCoroutine = null;
+        PlayerNetworkState player = NetworkPlayerRegistry.GetClosestAlive(transform.position);
+        if (player != null) return player.transform;
+
+        FlowFieldManager manager = FindFirstObjectByType<FlowFieldManager>();
+        return manager != null ? manager.player : null;
+    }
+
+    public void FinishAttack()
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this)) return;
+        ChangeState(targetPlayer == null ? EnemyState.Idle : EnemyState.isChasing);
+    }
+
+    private void HandleNetworkStateChanged(EnemyState previous, EnemyState next) =>
+        HandleStateChanged(previous, next);
+
+    private void HandleStateChanged(EnemyState previous, EnemyState next)
+    {
+        animationController?.ApplyState(next, true);
     }
 
     private void SetVelocity(Vector3 velocity)
     {
-        if (body != null)
-            body.linearVelocity = velocity;
+        if (body != null) body.linearVelocity = velocity;
     }
 
-    private float GetStatValue(EnemyStatType stat, float fallback)
-    {
-        if (enemyHealth != null) return enemyHealth.GetStatValue(stat);
-        return stats != null ? EnemyRunStats.GetValue(stats, stat) : fallback;
-    }
+    private static WorldPosition ToWorldPosition(Vector3 position) =>
+        new WorldPosition(position.x, position.y, position.z);
 }
 
+/// <summary>Legacy serialized state enum retained for prefab/animation APIs.</summary>
 public enum EnemyState
 {
-    Idle,
-    isChasing,
-    isAttacking,
-    Knockback
+    Idle = 0,
+    isChasing = 1,
+    isAttacking = 2,
+    Knockback = 3
 }

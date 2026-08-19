@@ -32,6 +32,37 @@ namespace VampireHunt.Tests.Modules.Spawning
             Assert.That(director.Tick(context).GateOpen, Is.False);
         }
 
+        [Test]
+        public void DirectorHonorsConfiguredFirstSpawnDelay()
+        {
+            EnemySpawnSpec spec = new EnemySpawnSpec(
+                "basic",
+                5,
+                0,
+                4f,
+                baseSpawnsPerInterval: 1,
+                maxSpawnsPerTick: 1,
+                firstSpawnDelay: 3f);
+            TestSpawner spawner = new TestSpawner(0);
+            EnemySpawnDirector director = new EnemySpawnDirector(
+                spec,
+                new SpawnPressurePolicy(spec),
+                new SpawnCandidateSampler(new TestLocations()),
+                spawner,
+                new TestGate(true));
+            WorldPosition[] targets = { new WorldPosition(10f, 0f, 10f) };
+
+            SpawnTickResult early = director.Tick(new SpawnContext(2.9d, 2.9f, 0, targets));
+            SpawnTickResult first = director.Tick(new SpawnContext(3d, 0.1f, 0, targets));
+            SpawnTickResult beforeNext = director.Tick(new SpawnContext(6.9d, 3.9f, 0, targets));
+            SpawnTickResult next = director.Tick(new SpawnContext(7d, 0.1f, 0, targets));
+
+            Assert.That(early.SpawnedCount, Is.Zero);
+            Assert.That(first.SpawnedCount, Is.EqualTo(1));
+            Assert.That(beforeNext.SpawnedCount, Is.Zero);
+            Assert.That(next.SpawnedCount, Is.EqualTo(1));
+        }
+
         private sealed class TestLocations : ISpawnLocationQuery
         {
             public bool IsValid(WorldPosition position) => position.X > 0f;

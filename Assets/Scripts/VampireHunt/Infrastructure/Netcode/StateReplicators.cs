@@ -101,17 +101,57 @@ namespace VampireHunt.Infrastructure.Netcode
             out EnemyStateDto dto)
         {
             EnemyReplicationTier tier = policy.GetTier(distanceToNearestPlayer);
-            bool changed = !captured.TryGetValue(snapshot.Id, out CapturedEnemy previous) ||
-                !previous.Matches(snapshot);
-            bool periodic = policy.ShouldSend(tier, tick);
-            bool dirty = changed || periodic;
+            bool hasPrevious = captured.TryGetValue(snapshot.Id, out CapturedEnemy previous);
+            bool changed = !hasPrevious || !previous.Matches(snapshot);
+            bool periodic = hasPrevious && ShouldSendPeriodic(tier, previous, now);
+            // A tier change selects the cadence for subsequent captures; it
+            // does not bypass that cadence by itself.  Position/state changes
+            // therefore continue to obey the distance bandwidth policy.
+            bool dirty = !hasPrevious || changed || periodic;
 
-            uint sequence = previous.Sequence;
+            uint sequence = hasPrevious ? previous.Sequence : 0U;
             if (changed) sequence = Next(sequence);
+
+            // `now` is the authoritative server replication frame/time.  A
+            // Capture that is sampled but not emitted must not advance the
+            // entity's cadence; otherwise dictionary iteration order can make
+            // one entity consume another entity's periodic slot.  Keep the
+            // previous send timestamp for all non-dirty samples.
+            double lastSentAt = hasPrevious ? previous.LastSentAt : 0d;
+            bool hasSent = hasPrevious && previous.HasSent;
+            if (dirty)
+            {
+                lastSentAt = NormalizeServerTime(now, hasPrevious ? previous.LastSentAt : 0d);
+                hasSent = true;
+            }
+
             dto = EnemyStateDto.From(snapshot, sequence, dirty, tier, positionScale);
-            captured[snapshot.Id] = new CapturedEnemy(snapshot, sequence, now);
-            tick = tick == long.MaxValue ? 0L : tick + 1L;
+            captured[snapshot.Id] = new CapturedEnemy(
+                snapshot,
+                sequence,
+                tier,
+                lastSentAt,
+                hasSent);
+
+            // Kept as an observation/debug value for callers that used the
+            // original API.  It is deliberately not part of scheduling.
+            if (IsFinite(now) && now >= 0d && now <= long.MaxValue)
+                tick = (long)Math.Floor(now);
             return dirty;
+        }
+
+        /// <summary>
+        /// Captures using an explicit authoritative server frame.  This is
+        /// useful when a transport has a frame counter instead of a clock;
+        /// it deliberately shares the same per-entity last-send state.
+        /// </summary>
+        public bool CaptureAtServerFrame(
+            EnemySnapshot snapshot,
+            float distanceToNearestPlayer,
+            long serverFrame,
+            out EnemyStateDto dto)
+        {
+            return Capture(snapshot, distanceToNearestPlayer, Math.Max(0L, serverFrame), out dto);
         }
 
         public bool ApplyNetworkState(
@@ -144,18 +184,59 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private static uint Next(uint value) => value == uint.MaxValue ? 1U : value + 1U;
 
+        private bool ShouldSendPeriodic(
+            EnemyReplicationTier tier,
+            CapturedEnemy previous,
+            double now)
+        {
+            if (!previous.HasSent || !IsFinite(now)) return false;
+            if (now < previous.LastSentAt) return false;
+
+            int interval = tier == EnemyReplicationTier.Near
+                ? 1
+                : tier == EnemyReplicationTier.Mid
+                    ? policy.MidIntervalTicks
+                    : tier == EnemyReplicationTier.Far
+                        ? policy.FarIntervalTicks
+                        : 0;
+            if (interval <= 0) return false;
+            return now - previous.LastSentAt >= interval;
+        }
+
+        private static double NormalizeServerTime(double candidate, double previous)
+        {
+            // A malformed or regressing transport timestamp must never poison
+            // a future cadence.  Keeping the prior value makes this capture a
+            // real snapshot send without inventing time progression, and also
+            // prevents a wall-clock correction from making an entity eligible
+            // again before its last actual send.
+            return IsFinite(candidate) && candidate >= previous ? candidate : previous;
+        }
+
+        private static bool IsFinite(double value) =>
+            !double.IsNaN(value) && !double.IsInfinity(value);
+
         private readonly struct CapturedEnemy
         {
             private readonly EnemySnapshot snapshot;
-            public CapturedEnemy(EnemySnapshot snapshot, uint sequence, double capturedAt)
+            public CapturedEnemy(
+                EnemySnapshot snapshot,
+                uint sequence,
+                EnemyReplicationTier tier,
+                double lastSentAt,
+                bool hasSent)
             {
                 this.snapshot = snapshot;
                 Sequence = sequence;
-                CapturedAt = capturedAt;
+                Tier = tier;
+                LastSentAt = lastSentAt;
+                HasSent = hasSent;
             }
 
             public uint Sequence { get; }
-            public double CapturedAt { get; }
+            public EnemyReplicationTier Tier { get; }
+            public double LastSentAt { get; }
+            public bool HasSent { get; }
             public bool Matches(EnemySnapshot other)
             {
                 return snapshot.Id == other.Id && snapshot.Health == other.Health &&

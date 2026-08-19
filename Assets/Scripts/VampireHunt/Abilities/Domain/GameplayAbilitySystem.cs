@@ -63,6 +63,10 @@ namespace VampireHunt.Abilities.Domain
                 instant.SetContext(context);
                 if (spec.ExecuteOnApplication)
                     executor.Execute(instant, in context);
+                // Instant effects are never retained in activeEffects. Any
+                // Attribute Execution they created therefore has to be
+                // released before the instance becomes unreachable.
+                executor.RemoveModifiers(instant);
                 executor.PublishCue(instant, GameplayCuePhase.Executed);
                 return true;
             }
@@ -79,7 +83,11 @@ namespace VampireHunt.Abilities.Domain
                         existing.AddStack();
                         existing.Refresh();
                         existing.SetContext(context);
-                        executor.RemoveModifiers(existing);
+                        // Rebuild only the spec-owned registrations. An
+                        // Attribute Execution contribution remains owned by
+                        // the effect when this application does not execute
+                        // it, and Execute replaces it when it does.
+                        executor.RemoveBaseModifiers(existing);
                         executor.ApplyModifiers(existing);
                         if (spec.ExecuteOnApplication)
                             executor.Execute(existing, in context);

@@ -15,7 +15,7 @@ namespace VampireHunt.Player.Application
         private readonly BloodPactOfferService bloodPacts;
         private readonly IMovementClock clock;
 
-        public PlayerCommandService(
+        internal PlayerCommandService(
             IPlayerRepository repository,
             IPlayerOwnership ownership = null,
             PlayerCombatService combat = null,
@@ -31,7 +31,7 @@ namespace VampireHunt.Player.Application
             this.clock = clock;
         }
 
-        public PlayerCommandService(
+        internal PlayerCommandService(
             IPlayerRepository repository,
             IPlayerOwnership ownership,
             PlayerCombatService combat,

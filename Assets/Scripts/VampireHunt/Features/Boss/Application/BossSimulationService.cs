@@ -56,5 +56,12 @@ namespace VampireHunt.Boss.Application
                 attacks.TryStartAttack(bossId);
             }
         }
+
+        public AttackStartResult TryStartAttack(EntityId bossId) => attacks.TryStartAttack(bossId);
+
+        public AttackStartResult TryStartAttack(EntityId bossId, BossAttackId attackId) =>
+            attacks.TryStartAttack(bossId, attackId);
+
+        public void CancelAttack(EntityId bossId) => attacks.CancelAttack(bossId);
     }
 }

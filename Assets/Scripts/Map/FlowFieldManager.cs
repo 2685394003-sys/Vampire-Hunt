@@ -1,5 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
+using VampireHunt.Core;
+using VampireHunt.Navigation.Contracts;
+using VampireHunt.Navigation.Domain;
+using EntityId = VampireHunt.Core.EntityId;
 
 public enum CellState
 {
@@ -19,7 +23,7 @@ public struct FlowCell
 /// marked dirty; moving players rebuild inexpensive cost fields without doing
 /// 72,000 Physics.CheckBox calls per second.
 /// </summary>
-public sealed class FlowFieldManager : MonoBehaviour
+public sealed class FlowFieldManager : MonoBehaviour, INavigationField
 {
     [Header("网格设置 / Grid Settings")]
     public float cellSize = 1.2f;
@@ -237,11 +241,11 @@ public sealed class FlowFieldManager : MonoBehaviour
                 continue;
             Transform target = playerState.transform;
             BuildOrRefreshField(target);
-            staleKeys.Remove(target.GetEntityId());
+            staleKeys.Remove(EnemyLegacyEntityIds.Resolve(target.gameObject));
         }
 
         if (player != null)
-            staleKeys.Remove(player.GetEntityId());
+            staleKeys.Remove(EnemyLegacyEntityIds.Resolve(player.gameObject));
 
         foreach (EntityId key in staleKeys)
             targetFields.Remove(key);
@@ -252,7 +256,7 @@ public sealed class FlowFieldManager : MonoBehaviour
         if (target == null)
             return;
 
-        EntityId key = target.GetEntityId();
+        EntityId key = EnemyLegacyEntityIds.Resolve(target.gameObject);
         Vector2Int targetCell = WorldToGrid(target.position);
         if (!targetFields.TryGetValue(key, out TargetFlowField field) ||
             field.cells.GetLength(0) != gridWidth ||
@@ -482,7 +486,7 @@ public sealed class FlowFieldManager : MonoBehaviour
         if (target == null)
             return Vector3.zero;
 
-        EntityId key = target.GetEntityId();
+        EntityId key = EnemyLegacyEntityIds.Resolve(target.gameObject);
         if (!targetFields.TryGetValue(key, out TargetFlowField field))
         {
             BuildOrRefreshField(target);
@@ -508,6 +512,54 @@ public sealed class FlowFieldManager : MonoBehaviour
             return PlanarDirection(enemyWorldPosition, GridToWorld(recoveryCell));
 
         return Vector3.zero;
+    }
+
+    Direction INavigationField.SampleDirection(WorldPosition position, WorldPosition targetPosition)
+    {
+        Vector3 origin = new(position.X, position.Y, position.Z);
+        Vector3 flow = GetFlowDirection(origin);
+        if (flow.sqrMagnitude < 0.0001f)
+        {
+            Vector3 targetWorld = new(targetPosition.X, targetPosition.Y, targetPosition.Z);
+            flow = PlanarDirection(origin, targetWorld);
+        }
+
+        return flow.sqrMagnitude < 0.0001f
+            ? Direction.None
+            : new Direction(Mathf.RoundToInt(flow.x), Mathf.RoundToInt(flow.z));
+    }
+
+    bool INavigationField.IsWalkable(WorldPosition position)
+    {
+        Vector2Int cell = WorldToGrid(new Vector3(position.X, position.Y, position.Z));
+        return IsInGrid(cell.x, cell.y) && GetCellState(cell.x, cell.y) == CellState.Walkable;
+    }
+
+    WorldPosition INavigationField.TryFindRecovery(WorldPosition position)
+    {
+        if (((INavigationField)this).IsWalkable(position)) return position;
+
+        Vector2Int origin = WorldToGrid(new Vector3(position.X, position.Y, position.Z));
+        for (int radius = 1; radius <= RecoverySearchRadius; radius++)
+        {
+            for (int x = origin.x - radius; x <= origin.x + radius; x++)
+            {
+                for (int z = origin.y - radius; z <= origin.y + radius; z++)
+                {
+                    if (Mathf.Max(Mathf.Abs(x - origin.x), Mathf.Abs(z - origin.y)) != radius ||
+                        !IsInGrid(x, z) ||
+                        GetCellState(x, z) != CellState.Walkable)
+                    {
+                        continue;
+                    }
+
+                    Vector3 recovery = GridToWorld(new Vector2Int(x, z));
+                    return new WorldPosition(recovery.x, position.Y, recovery.z);
+                }
+            }
+        }
+
+        return position;
     }
 
     private bool TryFindRecoveryCell(

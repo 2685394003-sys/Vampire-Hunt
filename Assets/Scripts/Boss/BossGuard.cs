@@ -1,13 +1,17 @@
 using System;
-using System.Collections;
 using UnityEngine;
 
 public enum BossGuardSide
 {
-    Left,
-    Right
+    Left = 0,
+    Right = 1
 }
 
+/// <summary>
+/// Legacy guard collider/visual adapter. Guard integrity, mitigation and the
+/// vulnerable transition are owned by BossEncounterState; this component only
+/// forwards hit/debug commands and mirrors the read-only projection.
+/// </summary>
 [DisallowMultipleComponent]
 public sealed class BossGuard : MonoBehaviour, IDamageable
 {
@@ -33,57 +37,38 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
     public event Action<BossGuard> Broken;
     public event Action<BossGuard, int, int> HealthChanged;
 
-    private Coroutine flashCoroutine;
-    private Color baseColor = Color.white;
+    private BossController controller;
     private Camera viewCamera;
+    private int previousHealth;
 
     private void Awake()
     {
         spriteRenderer ??= GetComponentInChildren<SpriteRenderer>(true);
         hitCollider ??= GetComponent<Collider>();
         bossRoot ??= transform.parent;
+        controller ??= GetComponentInParent<BossController>();
         viewCamera = Camera.main;
-        if (spriteRenderer != null)
-        {
-            baseColor = spriteRenderer.color;
-        }
-
         CurrentHealth = maxHealth;
+        previousHealth = CurrentHealth;
         ApplyVisualState();
     }
 
     private void Start()
     {
-        if (independentMovement &&
-            !NetworkAuthority.IsNetworkActive &&
-            bossRoot != null &&
-            transform.parent != null)
-        {
+        if (independentMovement && !NetworkAuthority.IsNetworkActive && bossRoot != null && transform.parent != null)
             transform.SetParent(null, true);
-        }
     }
 
     private void FixedUpdate()
     {
-        if (!NetworkAuthority.IsServerOrOffline()) return;
-        if (!independentMovement || bossRoot == null)
-        {
-            return;
-        }
-
+        if (!NetworkAuthority.IsServerOrOffline() || !independentMovement || bossRoot == null) return;
         viewCamera ??= Camera.main;
-        Vector3 cameraRight = viewCamera != null
+        Vector3 right = viewCamera != null
             ? Vector3.ProjectOnPlane(viewCamera.transform.right, Vector3.up).normalized
             : Vector3.right;
-        float sideSign = side == BossGuardSide.Left ? -1f : 1f;
-        Vector3 targetPosition = bossRoot.position +
-                                 cameraRight * (formationDistance * sideSign) +
-                                 Vector3.up * formationHeight;
-
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            targetPosition,
-            followSpeed * Time.fixedDeltaTime);
+        float sign = side == BossGuardSide.Left ? -1f : 1f;
+        Vector3 target = bossRoot.position + right * (formationDistance * sign) + Vector3.up * formationHeight;
+        transform.position = Vector3.MoveTowards(transform.position, target, followSpeed * Time.fixedDeltaTime);
     }
 
     public void Configure(BossGuardSide guardSide, BossConfig config)
@@ -99,129 +84,68 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
             formationHeight = Mathf.Max(0f, config.guardFormationHeight);
             followSpeed = Mathf.Max(0.1f, config.guardFollowSpeed);
         }
-
-        CurrentHealth = maxHealth;
-        ApplyVisualState();
+        SyncFromController(false);
     }
 
     public void TakeDamage(int amount)
     {
-        if (!NetworkAuthority.IsServerOrOffline()) return;
-        if (amount <= 0 || IsBroken)
-        {
-            return;
-        }
-
-        CurrentHealth = Mathf.Max(0, CurrentHealth - amount);
-        HealthChanged?.Invoke(this, CurrentHealth, maxHealth);
-
-        if (CurrentHealth <= 0)
-        {
-            Break();
-            return;
-        }
-
-        if (flashCoroutine != null)
-        {
-            StopCoroutine(flashCoroutine);
-        }
-        flashCoroutine = StartCoroutine(HitFlashRoutine());
+        if (!NetworkAuthority.IsServerOrOffline() || amount <= 0 || IsBroken) return;
+        controller ??= GetComponentInParent<BossController>();
+        if (controller == null) return;
+        BossCommandResult result = controller.ApplyDamageFromGuardShell(amount, transform.position);
+        if (result == BossCommandResult.Succeeded) SyncFromController(true);
     }
 
     [ContextMenu("Boss/修复护卫")]
     public void Restore()
     {
         if (!NetworkAuthority.IsServerOrOffline()) return;
-        CurrentHealth = maxHealth;
-        if (hitCollider != null)
-        {
-            hitCollider.enabled = true;
-        }
-
-        ApplyVisualState();
-        HealthChanged?.Invoke(this, CurrentHealth, maxHealth);
+        controller ??= GetComponentInParent<BossController>();
+        if (controller != null && controller.RestoreGuardFromShell()) SyncFromController(true);
     }
 
     [ContextMenu("Boss/调试：护卫 -5 HP")]
-    private void DebugDamage()
-    {
-        if (!Application.isPlaying)
-        {
-            Debug.LogWarning("[Boss 护卫] 请进入 Play 模式后再测试伤害。", this);
-            return;
-        }
-
-        TakeDamage(5);
-    }
+    private void DebugDamage() => TakeDamage(5);
 
     [ContextMenu("Boss/调试：直接击破护卫")]
-    private void DebugBreak()
-    {
-        if (!Application.isPlaying)
-        {
-            Debug.LogWarning("[Boss 护卫] 请进入 Play 模式后再测试击破。", this);
-            return;
-        }
-
-        TakeDamage(Mathf.Max(1, CurrentHealth));
-    }
+    private void DebugBreak() => TakeDamage(Mathf.Max(1, CurrentHealth));
 
     public void DisableForBossDeath()
     {
-        if (!NetworkAuthority.IsServerOrOffline()) return;
         CurrentHealth = 0;
-        if (hitCollider != null)
-        {
-            hitCollider.enabled = false;
-        }
+        if (hitCollider != null) hitCollider.enabled = false;
         ApplyVisualState();
         gameObject.SetActive(false);
     }
 
-    private void Break()
+    internal void SyncFromController(bool emitEvents)
     {
-        if (hitCollider != null)
-        {
-            hitCollider.enabled = false;
-        }
+        controller ??= GetComponentInParent<BossController>();
+        int next = controller != null && controller.TryGetGuardProjection(out int current, out int maximum)
+            ? Mathf.Clamp(current, 0, Mathf.Max(1, maximum))
+            : Mathf.Clamp(CurrentHealth, 0, maxHealth);
+        if (controller != null && controller.TryGetGuardProjection(out _, out int projectedMax))
+            maxHealth = Mathf.Max(1, projectedMax);
 
+        int old = CurrentHealth;
+        CurrentHealth = next;
+        previousHealth = old;
+        if (hitCollider != null) hitCollider.enabled = !IsBroken;
         ApplyVisualState();
-        Broken?.Invoke(this);
-    }
-
-    private IEnumerator HitFlashRoutine()
-    {
-        if (spriteRenderer == null)
-        {
-            yield break;
-        }
-
-        spriteRenderer.color = Color.white;
-        if (hitFlashDuration > 0f)
-        {
-            yield return new WaitForSeconds(hitFlashDuration);
-        }
-
-        flashCoroutine = null;
-        ApplyVisualState();
+        if (!emitEvents || old == CurrentHealth) return;
+        HealthChanged?.Invoke(this, CurrentHealth, maxHealth);
+        if (old > 0 && CurrentHealth <= 0) Broken?.Invoke(this);
     }
 
     private void ApplyVisualState()
     {
-        if (spriteRenderer == null)
-        {
-            return;
-        }
-
-        Color color = baseColor;
-        if (IsBroken)
-        {
-            color.a = brokenAlpha;
-        }
+        if (spriteRenderer == null) return;
+        Color color = Color.white;
+        if (IsBroken) color.a = brokenAlpha;
         else if (IsDamaged)
         {
-            color = Color.Lerp(baseColor, Color.gray, 0.45f);
-            color.a = Mathf.Min(baseColor.a, 0.65f);
+            color = Color.Lerp(Color.white, Color.gray, 0.45f);
+            color.a = 0.65f;
         }
         spriteRenderer.color = color;
     }

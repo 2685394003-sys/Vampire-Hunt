@@ -24,7 +24,7 @@ namespace VampireHunt.Enemies.Application
     /// Settles an enemy death exactly once. Reward delivery and the lifecycle
     /// event are independent of pooled presentation object lifetime.
     /// </summary>
-    public sealed class EnemyDeathService
+    internal sealed class EnemyDeathService
     {
         private readonly IEnemyRepository repository;
         private readonly IRewardService rewardService;

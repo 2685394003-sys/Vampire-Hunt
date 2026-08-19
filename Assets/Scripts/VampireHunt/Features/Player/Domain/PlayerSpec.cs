@@ -17,6 +17,10 @@ namespace VampireHunt.Player.Domain
         public double DashDuration { get; }
         public double DashSpeedMultiplier { get; }
         public double AttackInterval { get; }
+        public float AttackConeAngle { get; }
+        public float KnockbackForce { get; }
+        public float KnockbackDuration { get; }
+        public float StunDuration { get; }
 
         public PlayerSpec(
             int maxHealth,
@@ -27,7 +31,11 @@ namespace VampireHunt.Player.Domain
             double dashDuration,
             double dashSpeedMultiplier,
             double attackInterval,
-            IReadOnlyDictionary<PlayerStat, float> baseValues)
+            IReadOnlyDictionary<PlayerStat, float> baseValues,
+            float attackConeAngle = 110f,
+            float knockbackForce = 5f,
+            float knockbackDuration = 0.2f,
+            float stunDuration = 0.2f)
         {
             MaxHealth = Math.Max(1, maxHealth);
             MaxStamina = Math.Max(0f, maxStamina);
@@ -37,6 +45,10 @@ namespace VampireHunt.Player.Domain
             DashDuration = Math.Max(0d, dashDuration);
             DashSpeedMultiplier = Math.Max(1d, dashSpeedMultiplier);
             AttackInterval = Math.Max(0d, attackInterval);
+            AttackConeAngle = ClampFinite(attackConeAngle, 0f, 180f, 110f);
+            KnockbackForce = NonNegativeFinite(knockbackForce, 5f);
+            KnockbackDuration = NonNegativeFinite(knockbackDuration, 0.2f);
+            StunDuration = NonNegativeFinite(stunDuration, 0.2f);
 
             Dictionary<PlayerStat, float> copy = new();
             if (baseValues != null)
@@ -50,7 +62,7 @@ namespace VampireHunt.Player.Domain
             this.baseValues = copy;
         }
 
-        public PlayerAggregate CreateAggregate(EntityId id)
+        internal PlayerAggregate CreateAggregate(EntityId id)
         {
             return new PlayerAggregate(
                 id,
@@ -70,5 +82,13 @@ namespace VampireHunt.Player.Domain
 
         public float GetBaseValue(PlayerStat stat) =>
             baseValues != null && baseValues.TryGetValue(stat, out float value) ? value : 0f;
+
+        private static float NonNegativeFinite(float value, float fallback) =>
+            float.IsNaN(value) || float.IsInfinity(value) ? fallback : Math.Max(0f, value);
+
+        private static float ClampFinite(float value, float minimum, float maximum, float fallback) =>
+            float.IsNaN(value) || float.IsInfinity(value)
+                ? fallback
+                : value < minimum ? minimum : value > maximum ? maximum : value;
     }
 }

@@ -11,7 +11,10 @@ namespace VampireHunt.Enemies.Domain
     /// One logical enemy life. Reusing a pooled view requires ResetForSpawn
     /// with a newly allocated EntityId; the old id is never restored.
     /// </summary>
-    public sealed class EnemyAggregate
+    // Aggregates are mutable domain state and must never be a cross-module
+    // contract. Consumers outside this assembly receive EnemySnapshot and
+    // command/result ports instead.
+    internal sealed class EnemyAggregate
     {
         private bool _deathHandled;
         private EntityId _targetId;

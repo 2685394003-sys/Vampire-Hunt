@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 596c0a9f9e60f554a924f21abcb91014, type: 3}
+  m_Name: EnemySpawnConfig
+  m_EditorClassIdentifier: VampireHunt.Spawning::VampireHunt.Spawning.Authoring.EnemySpawnConfig
+  enemyTypeId: enemy_0001
+  maxAlive: 300
+  poolPrewarm: 32
+  spawnInterval: 4
+  firstSpawnDelay: 3
+  minSpawnRadius: 15
+  spawnRadius: 25
+  baseSpawnsPerInterval: 2
+  growthPerMinute: 4
+  maxSpawnsPerTick: 20
+  maxSampleAttempts: 16
+  spawnHeightOffset: 0
+  minWaveSpawnSeparation: 1
+  bossDirectionProbability: 0.7
+  bossDirectionHalfAngle: 55
+  pauseDuringBossTransition: 1
+  stopWhenBossDies: 1
+  resumeDelayAfterPhase: 3
+  requireWalkable: 1
+  spawnBlockingLayers:
+    serializedVersion: 2
+    m_Bits: 200
+  spawnClearanceRadius: 0.6

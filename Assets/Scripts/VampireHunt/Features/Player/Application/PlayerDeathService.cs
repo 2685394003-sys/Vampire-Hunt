@@ -11,7 +11,7 @@ namespace VampireHunt.Player.Application
         private readonly IPlayerRepository repository;
         private readonly IPlayerDeathSink events;
 
-        public PlayerDeathService(IPlayerRepository repository, IPlayerDeathSink events = null)
+        internal PlayerDeathService(IPlayerRepository repository, IPlayerDeathSink events = null)
         {
             this.repository = repository ?? throw new ArgumentNullException(nameof(repository));
             this.events = events;

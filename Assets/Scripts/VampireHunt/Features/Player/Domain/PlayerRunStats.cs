@@ -84,11 +84,14 @@ namespace VampireHunt.Player.Domain
     }
 
     /// <summary>Base values plus deterministic in-run modifiers; no asset state is mutated.</summary>
-    public sealed class PlayerRunStats : IStatSnapshot, IAttributeModifierTarget
+    public sealed class PlayerRunStats : IStatSnapshot, IPreciseAttributeModifierTarget
     {
         private readonly Dictionary<PlayerStat, float> baseValues;
         private readonly Dictionary<string, ActiveModifier> modifiers =
             new(StringComparer.Ordinal);
+        private readonly Dictionary<StatModifierHandle, string> modifierIdsByHandle =
+            new();
+        private ulong nextModifierHandle = 1UL;
 
         private sealed class ActiveModifier
         {
@@ -171,6 +174,38 @@ namespace VampireHunt.Player.Domain
         public int RemoveModifiers(EntityId sourceId) =>
             RemoveBySource(sourceId.ToString());
 
+        /// <summary>
+        /// Registers a modifier under a unique handle. Unlike the legacy
+        /// source-based entry point, this never merges with a sibling effect
+        /// that happens to use the same source/stat/operation.
+        /// </summary>
+        public StatModifierHandle AddModifierWithHandle(StatModifier modifier)
+        {
+            StatModifierHandle handle = AllocateModifierHandle();
+            string modifierId = BuildHandleModifierId(handle);
+            PlayerStat stat = ToPlayerStat(modifier.Stat);
+            PlayerStatModifierOperation operation = (PlayerStatModifierOperation)modifier.Operation;
+            PlayerStatModifier definition = new PlayerStatModifier(
+                modifierId,
+                modifier.SourceId.ToString(),
+                stat,
+                operation,
+                modifier.Magnitude);
+
+            if (!AddModifier(definition)) return StatModifierHandle.Invalid;
+            modifierIdsByHandle.Add(handle, modifierId);
+            return handle;
+        }
+
+        public bool RemoveModifier(StatModifierHandle handle)
+        {
+            if (!handle.IsValid || !modifierIdsByHandle.TryGetValue(handle, out string modifierId))
+                return false;
+
+            modifierIdsByHandle.Remove(handle);
+            return modifiers.Remove(modifierId);
+        }
+
         public bool AddModifier(PlayerStatModifier modifier)
         {
             if (string.IsNullOrWhiteSpace(modifier.ModifierId) ||
@@ -196,7 +231,7 @@ namespace VampireHunt.Player.Domain
         }
 
         public bool RemoveModifier(string modifierId) =>
-            !string.IsNullOrWhiteSpace(modifierId) && modifiers.Remove(modifierId);
+            !string.IsNullOrWhiteSpace(modifierId) && RemoveModifierById(modifierId);
 
         public int RemoveBySource(string sourceId)
         {
@@ -205,7 +240,7 @@ namespace VampireHunt.Player.Domain
             foreach (KeyValuePair<string, ActiveModifier> pair in modifiers)
                 if (string.Equals(pair.Value.Definition.SourceId, sourceId, StringComparison.Ordinal))
                     removals.Add(pair.Key);
-            foreach (string id in removals) modifiers.Remove(id);
+            foreach (string id in removals) RemoveModifierById(id);
             return removals.Count;
         }
 
@@ -217,7 +252,40 @@ namespace VampireHunt.Player.Domain
             return snapshot;
         }
 
-        public void ResetModifiers() => modifiers.Clear();
+        public void ResetModifiers()
+        {
+            modifiers.Clear();
+            modifierIdsByHandle.Clear();
+        }
+
+        private static PlayerStat ToPlayerStat(StatKey stat) =>
+            (PlayerStat)Math.Max(0, stat.Value - 1);
+
+        private static string BuildHandleModifierId(StatModifierHandle handle) =>
+            $"__gameplay-effect:{handle.Value}";
+
+        private bool RemoveModifierById(string modifierId)
+        {
+            if (string.IsNullOrWhiteSpace(modifierId)) return false;
+            bool removed = modifiers.Remove(modifierId);
+            if (!removed) return false;
+
+            List<StatModifierHandle> handles = new();
+            foreach (KeyValuePair<StatModifierHandle, string> pair in modifierIdsByHandle)
+                if (string.Equals(pair.Value, modifierId, StringComparison.Ordinal)) handles.Add(pair.Key);
+            foreach (StatModifierHandle handle in handles) modifierIdsByHandle.Remove(handle);
+            return true;
+        }
+
+        private StatModifierHandle AllocateModifierHandle()
+        {
+            if (nextModifierHandle == 0UL)
+                throw new InvalidOperationException("Modifier handle allocation exhausted the ulong range.");
+
+            StatModifierHandle handle = new(nextModifierHandle);
+            nextModifierHandle = nextModifierHandle == ulong.MaxValue ? 0UL : nextModifierHandle + 1UL;
+            return handle;
+        }
 
         private static bool IsFinite(float value) =>
             !float.IsNaN(value) && !float.IsInfinity(value);

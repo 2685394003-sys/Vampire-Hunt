@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using VampireHunt.Boss.Domain;
+using VampireHunt.Enemies.Contracts;
+using VampireHunt.Player.Contracts;
 using VampireHunt.Player.Domain;
 using VampireHunt.Spawning.Contracts;
 
@@ -15,18 +17,47 @@ namespace VampireHunt.Bootstrap
     /// <summary>Immutable output of ConfigCatalog; no authoring asset is retained.</summary>
     public sealed class GameSpecs
     {
-        public GameSpecs(PlayerSpec player, BossSpec boss, EnemySpawnSpec enemySpawn)
+        public GameSpecs(
+            PlayerSpec player,
+            BossSpec boss,
+            EnemySpawnSpec enemySpawn,
+            EnemySpec enemy,
+            IReadOnlyList<BloodPactOption> bloodPacts = null)
         {
             if (player.MaxHealth <= 0) throw new ArgumentException("Player spec must have positive health.", nameof(player));
             Boss = boss ?? throw new ArgumentNullException(nameof(boss));
             EnemySpawn = enemySpawn ?? throw new ArgumentNullException(nameof(enemySpawn));
+            Enemy = enemy ?? throw new ArgumentNullException(nameof(enemy));
             Player = player;
+            BloodPacts = CopyBloodPacts(bloodPacts);
         }
 
         public PlayerSpec Player { get; }
         public BossSpec Boss { get; }
         public EnemySpawnSpec EnemySpawn { get; }
+        public EnemySpec Enemy { get; }
         public EnemySpawnSpec Spawn => EnemySpawn;
+        public IReadOnlyList<BloodPactOption> BloodPacts { get; }
+
+        private static IReadOnlyList<BloodPactOption> CopyBloodPacts(
+            IReadOnlyList<BloodPactOption> source)
+        {
+            if (source == null || source.Count == 0)
+                return Array.Empty<BloodPactOption>();
+
+            BloodPactOption[] copy = new BloodPactOption[source.Count];
+            HashSet<BloodPactId> ids = new();
+            for (int i = 0; i < source.Count; i++)
+            {
+                BloodPactOption option = source[i];
+                if (!option.Id.IsValid)
+                    throw new ArgumentException("Blood Pact options require a valid id.", nameof(source));
+                if (!ids.Add(option.Id))
+                    throw new ArgumentException($"Duplicate Blood Pact id '{option.Id}'.", nameof(source));
+                copy[i] = option;
+            }
+            return Array.AsReadOnly(copy);
+        }
     }
 
     /// <summary>
@@ -108,6 +139,44 @@ namespace VampireHunt.Bootstrap
         IDisposable Create(GameCompositionContext context);
     }
 
+    /// <summary>
+    /// Explicit seams for the concrete runtime adapters. Offline and Netcode
+    /// are alternatives; Presentation and UI are not required by a
+    /// dedicated server but are required by a client runtime.
+    /// </summary>
+    public sealed class CompositionFactorySet
+    {
+        public CompositionFactorySet(
+            IModuleFactory gameplay,
+            IModuleFactory offline,
+            IModuleFactory netcode,
+            IModuleFactory presentation = null,
+            IModuleFactory ui = null)
+        {
+            Gameplay = gameplay ?? throw new ArgumentNullException(nameof(gameplay));
+            Offline = offline;
+            Netcode = netcode;
+            Presentation = presentation;
+            Ui = ui;
+        }
+
+        public IModuleFactory Gameplay { get; }
+        public IModuleFactory Offline { get; }
+        public IModuleFactory Netcode { get; }
+        public IModuleFactory Presentation { get; }
+        public IModuleFactory Ui { get; }
+    }
+
+    /// <summary>
+    /// Provider seam used by the Unity launcher. Production scenes use
+    /// DefaultCompositionFactoryProvider; tests may inject a bounded factory
+    /// set. A missing provider remains a fail-fast startup error.
+    /// </summary>
+    public interface ICompositionFactoryProvider
+    {
+        CompositionFactorySet CreateFactories();
+    }
+
     public sealed class DelegateModuleFactory : IModuleFactory
     {
         private readonly Func<GameCompositionContext, IDisposable> create;
@@ -128,13 +197,6 @@ namespace VampireHunt.Bootstrap
     {
         bool IsInstalled { get; }
         void Install(GameCompositionContext context);
-    }
-
-    internal sealed class EmptyModuleInstallation : IDisposable
-    {
-        public static readonly EmptyModuleInstallation Instance = new();
-        private EmptyModuleInstallation() { }
-        public void Dispose() { }
     }
 
     internal sealed class ActionModuleInstallation : IDisposable

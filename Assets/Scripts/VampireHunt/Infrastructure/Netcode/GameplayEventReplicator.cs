@@ -27,6 +27,11 @@ namespace VampireHunt.Infrastructure.Netcode
         public void Publish(IGameplayEvent @event)
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
+            // A host presents its authoritative event locally before the RPC
+            // loops back. Marking the id here prevents the host copy from
+            // being delivered twice while remote clients keep independent
+            // deduplication sets.
+            if (@event.EventId != 0UL) receivedIds.Add(@event.EventId);
             outgoing.Enqueue(new GameplayEventEnvelope(@event));
         }
 
@@ -65,11 +70,11 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool Receive(GameplayEventEnvelope envelope, IGameplayEventIngress target)
         {
-            if (target == null || envelope.Event == null) return false;
+            if (target == null || !envelope.TryToDomain(out IGameplayEvent @event)) return false;
             // EventId zero is used by local/domain events that have not been
             // assigned a transport id; those must not all collapse into one.
             if (envelope.EventId != 0UL && !receivedIds.Add(envelope.EventId)) return false;
-            target.Push(envelope.Event);
+            target.Push(@event);
             return true;
         }
 

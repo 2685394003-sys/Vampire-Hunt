@@ -184,8 +184,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 426245968}
-  - component: {fileID: 426245967}
-  - component: {fileID: 426245966}
   m_Layer: 0
   m_Name: WwiseGlobal
   m_TagString: Untagged
@@ -193,44 +191,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &426245966
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 426245965}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ed39f2b237e573f4f85990bb5d1440ac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: AK.Wwise.Unity.Addressables::AK.Wwise.Unity.WwiseAddressables.InitBankHolder
-  InitBank: {fileID: 11400000, guid: 8077b593f304d3247ae1398050db92de, type: 2}
---- !u!114 &426245967
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 426245965}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 52bbe9a4e8be3f948befd2a1b3aefcef, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkInitializer
-  InitializationSettings: {fileID: 11400000, guid: 5bf1ca424a7bf61498ce852ff02947b6, type: 2}
-  basePath: 
-  language: 
-  defaultPoolSize: 0
-  lowerPoolSize: 0
-  streamingPoolSize: 0
-  memoryCutoffThreshold: 0
-  monitorPoolSize: 0
-  monitorQueuePoolSize: 0
-  callbackManagerBufferSize: 0
-  spatialAudioPoolSize: 0
-  maxSoundPropagationDepth: 0
-  engineLogging: 0
 --- !u!4 &426245968
 Transform:
   m_ObjectHideFlags: 0
@@ -1146,6 +1106,55 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: 1576704023}
   m_ActionId: 44b200b1-1557-4083-816c-b22cbdf77ddf
+--- !u!1 &1933738375
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1933738377}
+  - component: {fileID: 1933738376}
+  m_Layer: 0
+  m_Name: '[SceneBindings]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1933738376
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1933738375}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a77dadefa58d4d64bb8387f3aeda69e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Bootstrap::VampireHunt.Bootstrap.SceneBindings
+  gameplayRoot: {fileID: 1933738377}
+  mainCamera: {fileID: 0}
+  adapterBindings:
+  - {fileID: 5556990140403556764}
+  - {fileID: 7067644473392103940}
+--- !u!4 &1933738377
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1933738375}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &5556990140403556762
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1248,6 +1257,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3131526762871752954, guid: cd5344b430a78d84888a844b25069ffd, type: 3}
   m_PrefabInstance: {fileID: 5556990140403556762}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &5556990140403556764 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3565648561745439476, guid: cd5344b430a78d84888a844b25069ffd, type: 3}
+  m_PrefabInstance: {fileID: 5556990140403556762}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5bcd5680db34b0449c41a24653ff723, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHudController
 --- !u!1001 &7067644473392103938
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1354,6 +1374,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 564763550808484255, guid: 9e11c906a38e8444798bc57326124f45, type: 3}
   m_PrefabInstance: {fileID: 7067644473392103938}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7067644473392103940 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 515504934458358699, guid: 9e11c906a38e8444798bc57326124f45, type: 3}
+  m_PrefabInstance: {fileID: 7067644473392103938}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 915027986fcbf0843ac2e8f378252740, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BloodPactSelectionController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1361,3 +1392,4 @@ SceneRoots:
   - {fileID: 893639927}
   - {fileID: 804944007}
   - {fileID: 426245968}
+  - {fileID: 1933738377}

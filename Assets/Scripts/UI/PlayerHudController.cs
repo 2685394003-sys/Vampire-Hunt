@@ -1,13 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
+using VampireHunt.Player.Contracts;
+using VampireHunt.UI.Contracts;
 
 /// <summary>
-/// Drives the lower-left player HUD from the local PlayerNetworkState.
-/// This controller is intentionally independent from the legacy HPUI,
-/// StaminaUI, SPUI and UI components.
+/// Unity view for the lower-left player HUD. It renders only a read model;
+/// player lookup and mutable gameplay state remain outside the view.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class PlayerHudController : MonoBehaviour
+public sealed class PlayerHudController : MonoBehaviour, IPlayerHudView
 {
     [Header("Visibility")]
     [SerializeField] private CanvasGroup canvasGroup;
@@ -24,37 +25,11 @@ public sealed class PlayerHudController : MonoBehaviour
     [Header("Blood Pact / Scarlet")]
     [SerializeField] private RectTransform bloodPactFill;
     [SerializeField] private Text bloodPactValue;
-
-    [SerializeField, Min(0.05f)] private float playerLookupInterval = 0.25f;
-
-    private PlayerNetworkState boundPlayer;
-    private float nextPlayerLookupTime;
+    [SerializeField, Min(1f)] private float bloodPactMaximum = 100f;
 
     private void OnEnable()
     {
         SetVisible(!hideUntilLocalPlayerIsReady);
-        TryBindLocalPlayer();
-    }
-
-    private void OnDisable()
-    {
-        UnbindPlayer();
-    }
-
-    private void Update()
-    {
-        if (boundPlayer != null)
-        {
-            return;
-        }
-
-        if (Time.unscaledTime < nextPlayerLookupTime)
-        {
-            return;
-        }
-
-        nextPlayerLookupTime = Time.unscaledTime + playerLookupInterval;
-        TryBindLocalPlayer();
     }
 
     public void Configure(
@@ -77,47 +52,18 @@ public sealed class PlayerHudController : MonoBehaviour
         RefreshPreviewValues();
     }
 
-    private void TryBindLocalPlayer()
+    public void Render(IPlayerReadModel model)
     {
-        PlayerNetworkState localPlayer = NetworkPlayerRegistry.GetLocalPlayer();
-        if (localPlayer == null)
+        if (model == null)
         {
+            SetVisible(!hideUntilLocalPlayerIsReady);
             return;
         }
 
-        BindPlayer(localPlayer);
-    }
-
-    private void BindPlayer(PlayerNetworkState player)
-    {
-        if (boundPlayer == player)
-        {
-            return;
-        }
-
-        UnbindPlayer();
-        boundPlayer = player;
-        boundPlayer.HealthChanged += HandleHealthChanged;
-        boundPlayer.StaminaChanged += HandleStaminaChanged;
-        boundPlayer.ScarletChanged += HandleBloodPactChanged;
-
-        HandleHealthChanged(boundPlayer.CurrentHealth, boundPlayer.MaxHealth);
-        HandleStaminaChanged(boundPlayer.CurrentStamina, boundPlayer.MaxStamina);
-        HandleBloodPactChanged(boundPlayer.CurrentScarlet, boundPlayer.MaxScarlet);
+        HandleHealthChanged(model.Health, model.MaxHealth);
+        HandleStaminaChanged(model.Stamina, model.MaxStamina);
+        HandleBloodPactChanged(model.Scarlet, bloodPactMaximum);
         SetVisible(true);
-    }
-
-    private void UnbindPlayer()
-    {
-        if (boundPlayer == null)
-        {
-            return;
-        }
-
-        boundPlayer.HealthChanged -= HandleHealthChanged;
-        boundPlayer.StaminaChanged -= HandleStaminaChanged;
-        boundPlayer.ScarletChanged -= HandleBloodPactChanged;
-        boundPlayer = null;
     }
 
     private void HandleHealthChanged(int current, int maximum)

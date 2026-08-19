@@ -5,7 +5,9 @@ using VampireHunt.Enemies.Domain;
 
 namespace VampireHunt.Enemies.Application
 {
-    public interface IEnemyRepository
+    // The repository is an application-internal port because its return type
+    // is the mutable EnemyAggregate. Cross-module adapters must use Contracts.
+    internal interface IEnemyRepository
     {
         EnemyAggregate Get(EntityId enemyId);
         bool TryGet(EntityId enemyId, out EnemyAggregate enemy);

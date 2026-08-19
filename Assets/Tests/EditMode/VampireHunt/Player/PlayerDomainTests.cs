@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using VampireHunt.Combat.Application;
@@ -39,19 +40,45 @@ namespace VampireHunt.Tests.Player
         {
             PlayerVitals vitals = new(100, invincibilityDuration: 0.8d);
             MutableGameClock clock = new() { Now = 10d };
+            RecordingCombatSink sink = new();
             CombatApplicationService combat = new(
                 new CombatResolver(new FixedRandom()),
                 new PlayerVitalsDirectory(vitals),
+                eventSink: sink,
                 clock: clock);
             DamageRequest request = new(EnemyId, PlayerId, 10);
 
             DamageResult first = combat.ApplyDamage(request);
+            clock.Now = 10.4d;
+            DamageResult blocked = combat.ApplyDamage(request);
+
+            Assert.That(first.AppliedDamage, Is.EqualTo(10));
+            Assert.That(blocked.AppliedDamage, Is.Zero);
+            Assert.That(sink.Events, Has.Count.EqualTo(1),
+                "An invincibility-blocked hit must not emit a zero-damage presentation event.");
+
             clock.Now = 11d;
             DamageResult afterWindow = combat.ApplyDamage(request);
 
-            Assert.That(first.AppliedDamage, Is.EqualTo(10));
             Assert.That(afterWindow.AppliedDamage, Is.EqualTo(10),
                 "Combat must evaluate PlayerVitals with the server clock instead of a constant timestamp.");
+            Assert.That(sink.Events, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void CombatApplication_RejectsTimeDependentReceiverWithoutAuthoritativeClock()
+        {
+            PlayerVitals vitals = new(100, invincibilityDuration: 0.8d);
+            CombatApplicationService combat = new(
+                new CombatResolver(new FixedRandom()),
+                new PlayerVitalsDirectory(vitals));
+
+            InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+                () => combat.ApplyDamage(new DamageRequest(EnemyId, PlayerId, 10)));
+
+            Assert.That(error.Message, Does.Contain("authoritative game clock"));
+            Assert.That(vitals.CurrentHealth, Is.EqualTo(100),
+                "A missing clock must fail before mutating a time-dependent receiver.");
         }
 
         [Test]
@@ -108,6 +135,156 @@ namespace VampireHunt.Tests.Player
                 "A stale client delta must not create movement budget when no server time has elapsed.");
             Assert.That(verdict.Code, Is.EqualTo(MovementVerdictCode.InvalidPose));
             Assert.That(corrector.Corrections, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void MovementValidation_UsesServerReceiveTime_AndAcceptsInclusiveTimestampBounds()
+        {
+            InMemoryRepository repository = new(CreatePlayer());
+            InMemoryMovementState movement = new();
+            MutableMovementClock clock = new() { Now = 100d };
+            MovementValidationService validator = new(
+                repository,
+                movement,
+                new RecordingMovementCorrector(),
+                new OpenMovementWorld(),
+                clock,
+                new MovementValidationOptions(5f, maximumReportAge: 0.25d, maximumFutureSkew: 0.1d));
+
+            MovementVerdict lowerBoundary = validator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 99.75d, 1u));
+
+            clock.Now = 100.1d;
+            MovementVerdict upperBoundary = validator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100.2d, 2u));
+
+            Assert.That(lowerBoundary.Accepted, Is.True);
+            Assert.That(upperBoundary.Accepted, Is.True,
+                "ReportedAt bounds are inclusive, while the movement budget is based on server receive time.");
+        }
+
+        [Test]
+        public void MovementValidation_AuthorizesDashAndUsesDashBudget()
+        {
+            PlayerAggregate player = CreatePlayer();
+            InMemoryRepository repository = new(player);
+            InMemoryMovementState movement = new();
+            MutableMovementClock clock = new() { Now = 100d };
+            MovementValidationService validator = new(
+                repository,
+                movement,
+                new RecordingMovementCorrector(),
+                new OpenMovementWorld(),
+                clock,
+                new MovementValidationOptions(5f, dashSpeedMultiplier: 2f));
+
+            Assert.That(validator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
+
+            clock.Now = 100.1d;
+            MovementVerdict dash = validator.Validate(
+                PlayerId,
+                new MovementPose(new WorldPosition(0.9f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u, true));
+
+            Assert.That(dash.Accepted, Is.True);
+            Assert.That(player.MobilityState.Stamina, Is.EqualTo(85f).Within(0.0001f));
+            Assert.That(player.MobilityState.IsDashing(clock.Now), Is.True);
+        }
+
+        [Test]
+        public void MovementValidation_RejectsOutOfBoundsAndThroughWallWithoutCommittingEitherPose()
+        {
+            PlayerAggregate boundsPlayer = CreatePlayer();
+            InMemoryMovementState boundsMovement = new();
+            MutableMovementClock boundsClock = new() { Now = 100d };
+            MovementValidationService boundsValidator = new(
+                new InMemoryRepository(boundsPlayer),
+                boundsMovement,
+                new RecordingMovementCorrector(),
+                new BoundsBlockingMovementWorld(false, true),
+                boundsClock,
+                new MovementValidationOptions(5f));
+            Assert.That(boundsValidator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
+
+            boundsClock.Now = 100.1d;
+            MovementVerdict outOfBounds = boundsValidator.Validate(
+                PlayerId,
+                new MovementPose(new WorldPosition(1f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u));
+
+            PlayerAggregate wallPlayer = CreatePlayer();
+            InMemoryMovementState wallMovement = new();
+            MutableMovementClock wallClock = new() { Now = 100d };
+            MovementValidationService wallValidator = new(
+                new InMemoryRepository(wallPlayer),
+                wallMovement,
+                new RecordingMovementCorrector(),
+                new BoundsBlockingMovementWorld(true, false),
+                wallClock,
+                new MovementValidationOptions(5f));
+            Assert.That(wallValidator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
+
+            wallClock.Now = 100.1d;
+            MovementVerdict throughWall = wallValidator.Validate(
+                PlayerId,
+                new MovementPose(new WorldPosition(0.1f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u));
+
+            Assert.That(outOfBounds.Code, Is.EqualTo(MovementVerdictCode.OutOfBounds));
+            Assert.That(throughWall.Code, Is.EqualTo(MovementVerdictCode.ThroughWall));
+            Assert.That(boundsMovement.TryGetLastAcceptedPose(PlayerId, out MovementPose boundsPose), Is.True);
+            Assert.That(boundsPose.Position, Is.EqualTo(WorldPosition.Origin));
+            Assert.That(wallMovement.TryGetLastAcceptedPose(PlayerId, out MovementPose wallPose), Is.True);
+            Assert.That(wallPose.Position, Is.EqualTo(WorldPosition.Origin));
+        }
+
+        [Test]
+        public void MovementValidation_ContinuousViolationsDoNotAdvanceHistoryOrUseClientDelta()
+        {
+            InMemoryRepository repository = new(CreatePlayer());
+            InMemoryMovementState movement = new();
+            RecordingMovementCorrector corrector = new();
+            MutableMovementClock clock = new() { Now = 100d };
+            MovementValidationService validator = new(
+                repository,
+                movement,
+                corrector,
+                new OpenMovementWorld(),
+                clock,
+                new MovementValidationOptions(5f));
+
+            Assert.That(validator.Validate(
+                PlayerId,
+                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
+
+            clock.Now = 100.1d;
+            MovementVerdict firstViolation = validator.Validate(
+                PlayerId,
+                new MovementPose(new WorldPosition(2f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u));
+            clock.Now = 100.2d;
+            MovementVerdict secondViolation = validator.Validate(
+                PlayerId,
+                new MovementPose(new WorldPosition(2f, 0f, 0f), new MoveVector(1f, 0f), 100.2d, 3u));
+
+            Assert.That(firstViolation.Code, Is.EqualTo(MovementVerdictCode.TooFast));
+            Assert.That(secondViolation.Code, Is.EqualTo(MovementVerdictCode.TooFast));
+            Assert.That(corrector.Corrections, Is.EqualTo(2));
+            Assert.That(movement.TryGetLastAcceptedPose(PlayerId, out MovementPose previous), Is.True);
+            Assert.That(previous.Sequence, Is.EqualTo(1u));
+
+            // At 100.4 the server has granted exactly two metres from the
+            // accepted receive at 100.0. A client-time-delta implementation
+            // would still use the rejected packet's 0.1s and remain red.
+            clock.Now = 100.4d;
+            MovementVerdict recovered = validator.Validate(
+                PlayerId,
+                new MovementPose(new WorldPosition(2f, 0f, 0f), new MoveVector(1f, 0f), 100.4d, 4u));
+            Assert.That(recovered.Accepted, Is.True);
         }
 
         [Test]
@@ -180,6 +357,83 @@ namespace VampireHunt.Tests.Player
             Assert.That(result.Accepted, Is.True);
             Assert.That(result.TargetsHit, Is.EqualTo(1));
             Assert.That(damage.Calls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void RuntimeEndpoint_DelegatesDamageWithoutApplyingASecondHealthWrite()
+        {
+            CountingDamageResolver damage = new();
+            IPlayerRuntimePort runtime = PlayerRuntimeEndpointFactory.Create(
+                PlayerId,
+                CreateSpec(),
+                new PlayerRuntimeValues(15f, 10f, 5f, 2f, 0.2f, 2f, 110f),
+                damageResolver: damage,
+                hitQuery: new FakeHitQuery(),
+                positions: new FakePositionQuery());
+
+            PlayerDamageResult result = runtime.ApplyDamage(
+                new PlayerDamageCommand(EnemyId, PlayerId, 12, WorldPosition.Origin));
+
+            Assert.That(result.Accepted, Is.True);
+            Assert.That(result.AppliedDamage, Is.EqualTo(12));
+            Assert.That(damage.Calls, Is.EqualTo(1));
+            Assert.That(runtime.Health, Is.EqualTo(100),
+                "The Player endpoint delegates mutation to Combat; it must not subtract health a second time.");
+
+            PlayerDamageResult wrongTarget = runtime.ApplyDamage(
+                new PlayerDamageCommand(EnemyId, EnemyId, 12, WorldPosition.Origin));
+            Assert.That(wrongTarget.Accepted, Is.False);
+            Assert.That(damage.Calls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void RuntimeEndpoint_UsesDomainVitalsForHealingWithoutASecondHealthStore()
+        {
+            IPlayerRuntimePort runtime = PlayerRuntimeEndpointFactory.Create(
+                PlayerId,
+                CreateSpec(),
+                new PlayerRuntimeValues(15f, 10f, 5f, 2f, 0.2f, 2f, 110f));
+
+            IAuthoritativeDamageReceiver receiver = (IAuthoritativeDamageReceiver)runtime;
+            receiver.ApplyDamage(
+                new ResolvedDamage(EnemyId, PlayerId, 20, false, new HitContext(WorldPosition.Origin)),
+                1d);
+            int applied = runtime.ApplyHealing(20);
+
+            Assert.That(applied, Is.EqualTo(20));
+            Assert.That(runtime.Health, Is.EqualTo(100),
+                "Healing is owned by PlayerVitals through the combat capability, not a duplicate adapter field.");
+        }
+
+        [Test]
+        public void RuntimeEndpoint_SubmitAttackBuildsCombatAgainstItsOwnRepository()
+        {
+            CountingDamageResolver damage = new();
+            IPlayerRuntimePort runtime = PlayerRuntimeEndpointFactory.Create(
+                PlayerId,
+                CreateSpec(),
+                damageResolver: damage,
+                hitQuery: new FakeHitQuery(new FakeTarget(EnemyId)),
+                positions: new FakePositionQuery());
+
+            CommandResult result = runtime.SubmitAttack(
+                new AttackCommand(PlayerId, new WorldPosition(1f, 0f, 0f), 1u));
+
+            Assert.That(result.Accepted, Is.True,
+                "Supplying the query/resolver ports must let the endpoint construct its own combat service.");
+            Assert.That(damage.Calls, Is.EqualTo(1),
+                "The command path must reach the hit query and damage resolver exactly once.");
+        }
+
+        private static PlayerSpec CreateSpec()
+        {
+            Dictionary<PlayerStat, float> values = new()
+            {
+                [PlayerStat.BaseAttack] = 10f,
+                [PlayerStat.InvincibleTime] = 0.8f,
+                [PlayerStat.AttackRange] = 2f
+            };
+            return new PlayerSpec(100, 100f, 15f, 10f, 1d, 0.2d, 2d, 1d, values);
         }
 
         private static PlayerAggregate CreatePlayer()
@@ -264,6 +518,11 @@ namespace VampireHunt.Tests.Player
             public double Now { get; }
         }
 
+        private sealed class MutableMovementClock : IMovementClock
+        {
+            public double Now { get; set; }
+        }
+
         private sealed class InMemoryMovementState : IMovementState
         {
             private bool hasPose;
@@ -303,6 +562,21 @@ namespace VampireHunt.Tests.Player
             public bool IsPathClear(WorldPosition from, WorldPosition to) => true;
         }
 
+        private sealed class BoundsBlockingMovementWorld : IMovementWorldQuery
+        {
+            private readonly bool insideBounds;
+            private readonly bool pathClear;
+
+            public BoundsBlockingMovementWorld(bool insideBounds, bool pathClear)
+            {
+                this.insideBounds = insideBounds;
+                this.pathClear = pathClear;
+            }
+
+            public bool IsInsideBounds(WorldPosition position) => insideBounds || position == WorldPosition.Origin;
+            public bool IsPathClear(WorldPosition from, WorldPosition to) => pathClear;
+        }
+
         private sealed class FakeTarget : IMeleeHitTarget
         {
             public FakeTarget(EntityId id) => Id = id;
@@ -338,6 +612,12 @@ namespace VampireHunt.Tests.Player
                 Calls++;
                 return new DamageResult(request.BaseDamage, request.BaseDamage, false, false, request.HitPosition);
             }
+        }
+
+        private sealed class RecordingCombatSink : IGameplayEventSink
+        {
+            public readonly List<IGameplayEvent> Events = new();
+            public void Publish(IGameplayEvent @event) => Events.Add(@event);
         }
     }
 }

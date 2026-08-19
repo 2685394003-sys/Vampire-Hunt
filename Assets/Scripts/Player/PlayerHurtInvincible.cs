@@ -1,66 +1,73 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerHurtInvincible : MonoBehaviour
+/// <summary>
+/// Legacy hurt-flash presenter. Invincibility is read from the Player
+/// snapshot; this component never starts timers or decides whether damage is
+/// legal.
+/// </summary>
+public sealed class PlayerHurtInvincible : MonoBehaviour
 {
-
-    private float invincibleTimer;
     private SpriteRenderer playerSprite;
     private Color originalColor;
     private PlayerNetworkState playerState;
 
-    void Start()
+    private void Start()
     {
         playerState = PlayerNetworkState.EnsureForMigration(gameObject);
         playerSprite = GetComponent<SpriteRenderer>();
         if (playerSprite != null) originalColor = playerSprite.color;
+        if (playerState != null) playerState.HealthChanged += HandleHealthChanged;
     }
 
-    void Update()
+    private void OnDestroy()
     {
-        if (!NetworkAuthority.IsServerOrOffline(playerState))
-            return;
-
-        // 无敌倒计时
-        if (invincibleTimer > 0)
-        {
-            invincibleTimer -= Time.deltaTime;
-            DoFlashEffect();
-        }
-        else
-        {
-            // 无敌结束，恢复正常不透明
-            if (playerSprite != null) playerSprite.color = originalColor;
-        }
+        if (playerState != null) playerState.HealthChanged -= HandleHealthChanged;
+        RestoreColor();
     }
 
-    // 受伤时外部调用，开启无敌+闪烁
+    private void Update()
+    {
+        if (playerState == null) return;
+
+        if (playerState.Snapshot.IsInvincibleWindow)
+            DoFlashEffect();
+        else
+            RestoreColor();
+    }
+
+    /// <summary>
+    /// Compatibility entry retained for AnimationEvents. The authoritative
+    /// damage application already opens the invincibility window in Domain.
+    /// </summary>
+    [System.Obsolete("Invincibility is opened by PlayerVitals through the damage application.")]
     public void EnterInvincibleState()
     {
-        if (!NetworkAuthority.IsServerOrOffline(playerState))
-            return;
-
-        invincibleTimer = playerState != null ? playerState.InvincibleTime : 0f;
+        // Deliberately no-op: legacy callers must not create a second timer.
     }
 
-    // 透明度交替闪烁
-    void DoFlashEffect()
+    /// <summary>Read-only compatibility check for old callers.</summary>
+    public bool CanTakeDamage() =>
+        playerState != null &&
+        NetworkAuthority.IsServerOrOffline(playerState) &&
+        !playerState.Snapshot.IsInvincibleWindow;
+
+    private void HandleHealthChanged(int currentHealth, int maxHealth)
     {
-        // 0完全透明，1不透明，交替切换
+        // The next Update reads the authoritative snapshot. Keeping this
+        // callback makes the presenter react to local and replicated hits
+        // without owning any gameplay state.
+    }
+
+    private void DoFlashEffect()
+    {
         if (playerSprite == null) return;
         float frequency = playerState != null ? playerState.FlashSpeed : 10f;
-        float alpha = Mathf.Sin(Time.time * Mathf.PI * 2f * frequency) > 0f ? 1f : 0f;
+        float alpha = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f * frequency) > 0f ? 1f : 0f;
         playerSprite.color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
     }
 
-    // 扣血专用校验函数：返回true代表可以扣血，false无敌不扣
-    public bool CanTakeDamage()
+    private void RestoreColor()
     {
-        if (!NetworkAuthority.IsServerOrOffline(playerState))
-            return false;
-
-        return invincibleTimer <= 0;
+        if (playerSprite != null) playerSprite.color = originalColor;
     }
-    
 }

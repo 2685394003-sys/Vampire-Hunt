@@ -139,6 +139,7 @@ namespace VampireHunt.Boss.Domain
         public float Speed { get; }
         public float Lifetime { get; }
         public float RotationOffsetDegrees { get; }
+        public float Knockback { get; }
 
         public ProjectileRequest(
             float spawnAt,
@@ -148,7 +149,8 @@ namespace VampireHunt.Boss.Domain
             int damage,
             float speed,
             float lifetime,
-            float rotationOffsetDegrees = 0f)
+            float rotationOffsetDegrees = 0f,
+            float knockback = 0f)
         {
             SpawnAt = Math.Max(0f, spawnAt);
             Origin = origin;
@@ -158,6 +160,7 @@ namespace VampireHunt.Boss.Domain
             Speed = Math.Max(0f, speed);
             Lifetime = Math.Max(0f, lifetime);
             RotationOffsetDegrees = rotationOffsetDegrees;
+            Knockback = Math.Max(0f, knockback);
         }
     }
 

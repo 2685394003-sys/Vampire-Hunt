@@ -105,10 +105,32 @@ namespace VampireHunt.Player.Domain
             return true;
         }
 
+        /// <summary>
+        /// Consumes a raw stamina amount for an adapter compatibility path.
+        /// Dash legality remains in ConsumeDash; this method never changes
+        /// cooldown or dash duration.
+        /// </summary>
+        public bool TrySpendStamina(float amount)
+        {
+            if (amount < 0f || float.IsNaN(amount) || float.IsInfinity(amount) ||
+                Stamina + 0.0001f < amount)
+                return false;
+            Stamina = Math.Max(0f, Stamina - amount);
+            return true;
+        }
+
         public void Recover(float deltaTime)
         {
             if (deltaTime <= 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime)) return;
             Stamina = Math.Min(MaxStamina, Stamina + StaminaRecoveryPerSecond * deltaTime);
+        }
+
+        public bool RestoreStamina(float amount)
+        {
+            if (amount <= 0f || float.IsNaN(amount) || float.IsInfinity(amount)) return false;
+            float previous = Stamina;
+            Stamina = Math.Min(MaxStamina, Stamina + amount);
+            return Stamina > previous;
         }
 
         public void SetMaxStamina(float maximum, bool preserveRatio = true)
@@ -161,6 +183,13 @@ namespace VampireHunt.Player.Domain
         public void AddCoins(int amount)
         {
             if (amount > 0) Coins = SaturatingAdd(Coins, amount);
+        }
+
+        public bool SpendCoins(int amount)
+        {
+            if (amount < 0 || Coins < amount) return false;
+            Coins -= amount;
+            return true;
         }
 
         public void AddExperience(int amount)

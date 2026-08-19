@@ -1,15 +1,18 @@
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using VampireHunt.Player.Contracts;
 
 /// <summary>
-/// Owner-side dash input adapter. Stamina validation and movement are performed
-/// by PlayerNetworkState and PlayerController on the server.
+/// Legacy Player Prefab dash input adapter. The application/domain validates
+/// the command and owns stamina/cooldown policy; this component only executes
+/// the accepted local motor movement.
 /// </summary>
 [RequireComponent(typeof(PlayerController))]
 [RequireComponent(typeof(PlayerNetworkState))]
 public sealed class PlayerDash : NetworkBehaviour
 {
+    // Serialized names are kept for existing prefab bindings.
     public InputAction shiftAction;
     public InputAction moveAction;
 
@@ -23,25 +26,13 @@ public sealed class PlayerDash : NetworkBehaviour
         playerState = PlayerNetworkState.EnsureForMigration(gameObject);
     }
 
-    private void OnEnable()
-    {
-        RefreshInputState();
-    }
+    private void OnEnable() => RefreshInputState();
 
-    private void OnDisable()
-    {
-        DisableInput();
-    }
+    private void OnDisable() => DisableInput();
 
-    public override void OnNetworkSpawn()
-    {
-        RefreshInputState();
-    }
+    public override void OnNetworkSpawn() => RefreshInputState();
 
-    public override void OnNetworkDespawn()
-    {
-        DisableInput();
-    }
+    public override void OnNetworkDespawn() => DisableInput();
 
     public void OnShiftPressed(InputAction.CallbackContext context)
     {
@@ -50,50 +41,22 @@ public sealed class PlayerDash : NetworkBehaviour
             playerController == null ||
             playerState == null ||
             !playerState.IsAlive)
-        {
             return;
-        }
 
-        Vector3 desiredDirection = playerController.GetLocalDesiredMoveWorld();
-        RequestDash(desiredDirection);
+        SubmitDashIntent(playerController.GetLocalDesiredMoveWorld());
     }
 
-    private void RequestDash(Vector3 desiredDirection)
+    /// <summary>Animation/input compatibility entry; submits intent only.</summary>
+    [System.Obsolete("Dash validation moved to PlayerMobilityState/PlayerCommandService.")]
+    public void RequestDash(Vector3 desiredDirection) => SubmitDashIntent(desiredDirection);
+
+    private void SubmitDashIntent(Vector3 desiredDirection)
     {
-        if (NetworkAuthority.IsNetworkActive)
-        {
-            RequestDashRpc(desiredDirection);
-        }
-        else
-        {
-            ServerTryDash(desiredDirection);
-        }
-    }
+        if (playerState == null || !NetworkAuthority.IsOwnerOrOffline(this)) return;
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-    private void RequestDashRpc(Vector3 desiredDirection)
-    {
-        ServerTryDash(desiredDirection);
-    }
-
-    private void ServerTryDash(Vector3 desiredDirection)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) || playerState == null)
-        {
-            return;
-        }
-
-        float cost = playerState.DashStaminaCost;
-        if (!playerState.TryConsumeStamina(cost))
-        {
-            return;
-        }
-
-        if (!playerController.ServerTryStartDash(desiredDirection, playerState.DashDuration))
-        {
-            // Dash was rejected after stamina validation; refund on the server.
-            playerState.RestoreStamina(cost);
-        }
+        CommandResult result = playerState.RequestDashIntent(desiredDirection);
+        if (result.Accepted)
+            playerController?.StartOwnerDash(desiredDirection);
     }
 
     private void RefreshInputState()
@@ -104,11 +67,7 @@ public sealed class PlayerDash : NetworkBehaviour
             return;
         }
 
-        if (inputEnabled)
-        {
-            return;
-        }
-
+        if (inputEnabled) return;
         shiftAction.Enable();
         moveAction.Enable();
         shiftAction.performed += OnShiftPressed;
@@ -117,11 +76,7 @@ public sealed class PlayerDash : NetworkBehaviour
 
     private void DisableInput()
     {
-        if (!inputEnabled)
-        {
-            return;
-        }
-
+        if (!inputEnabled) return;
         shiftAction.performed -= OnShiftPressed;
         shiftAction.Disable();
         moveAction.Disable();

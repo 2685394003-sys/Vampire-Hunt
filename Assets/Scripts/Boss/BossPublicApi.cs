@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using EntityId = VampireHunt.Core.EntityId;
 
 /// <summary>
 /// Boss encounter lifecycle states exposed to gameplay callers.

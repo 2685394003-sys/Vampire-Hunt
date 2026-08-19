@@ -1,4 +1,5 @@
 using System;
+using VampireHunt.Combat.Contracts;
 using VampireHunt.Core;
 
 namespace VampireHunt.Boss.Contracts
@@ -111,5 +112,38 @@ namespace VampireHunt.Boss.Contracts
     {
         EncounterMode Mode { get; }
         bool IsEncounterActive { get; }
+    }
+
+    /// <summary>
+    /// Unity/composition-facing Boss facade. The concrete aggregate and its
+    /// repositories remain internal to the Boss Application/Domain assembly.
+    /// </summary>
+    public interface IBossRuntimePort : IBossReadModel, IBossEncounterQuery
+    {
+        EntityId BossId { get; }
+        BossSnapshot Snapshot { get; }
+        IDamageReceiver DamageReceiver { get; }
+        int GuardIntegrity { get; }
+        int MaxGuardIntegrity { get; }
+
+        void Start(EncounterMode mode = EncounterMode.Hunt);
+        void Tick(float deltaTime);
+        bool TryStartAttack(BossAttackId attackId = BossAttackId.None);
+        void CancelAttack();
+        void SetInvulnerable(bool value);
+        void SetEncounterMode(EncounterMode mode);
+        bool BeginStagger(float seconds);
+        bool ExecuteStagger();
+        bool RestoreGuard();
+        DamageResult ApplyDamage(in DamageRequest request);
+        KnockbackImpulse ApplyKnockback(in KnockbackRequest request);
+
+        event Action<IGameplayEvent> GameplayEventProduced;
+    }
+
+    /// <summary>Optional composition seam for a legacy Boss MonoBehaviour.</summary>
+    public interface IBossRuntimeBinding
+    {
+        bool TryBind(IBossRuntimePort runtime);
     }
 }

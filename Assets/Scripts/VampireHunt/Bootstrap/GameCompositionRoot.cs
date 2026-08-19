@@ -27,6 +27,16 @@ namespace VampireHunt.Bootstrap
             this.uiInstaller = uiInstaller ?? new UiModuleInstaller();
         }
 
+        public static GameCompositionRoot Create(CompositionFactorySet factories)
+        {
+            CompositionFactorySet required = factories ?? throw new ArgumentNullException(nameof(factories));
+            return new GameCompositionRoot(
+                new GameplayModuleInstaller(required.Gameplay),
+                new NetcodeModuleInstaller(required.Offline, required.Netcode),
+                new PresentationModuleInstaller(required.Presentation),
+                new UiModuleInstaller(required.Ui));
+        }
+
         public GameplayModuleInstaller GameplayInstaller => gameplayInstaller;
         public NetcodeModuleInstaller NetcodeInstaller => netcodeInstaller;
         public PresentationModuleInstaller PresentationInstaller => presentationInstaller;
@@ -127,5 +137,6 @@ namespace VampireHunt.Bootstrap
         {
             if (disposed) throw new ObjectDisposedException(nameof(GameCompositionRoot));
         }
+
     }
 }

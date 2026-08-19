@@ -21,11 +21,12 @@ namespace VampireHunt.Tests.Infrastructure.Integration
             PlayerRewardAdapter adapter = new(progression);
             EntityId recipient = new(11UL);
 
-            adapter.Grant(recipient, new EnemyRewardGrant(7, 3));
+            adapter.Grant(recipient, new EnemyRewardGrant(7, 5, 3));
             int shared = adapter.GrantSharedScarlet(5);
 
             Assert.That(progression.LastReward.RecipientId, Is.EqualTo(recipient));
             Assert.That(progression.LastReward.Scarlet, Is.EqualTo(7));
+            Assert.That(progression.LastReward.Coins, Is.EqualTo(5));
             Assert.That(progression.LastReward.Experience, Is.EqualTo(3));
             Assert.That(shared, Is.EqualTo(5));
         }

@@ -1,41 +1,104 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using VampireHunt.Combat.Contracts;
+using VampireHunt.Core;
+using EntityId = VampireHunt.Core.EntityId;
 
-public class EnemyKnockBack : MonoBehaviour
+/// <summary>
+/// Motor adapter for the shared knockback capability.  Knockback strength and
+/// immunity are resolved by Combat; this component only executes the impulse
+/// on the pooled Unity body and restores the movement state afterwards.
+/// </summary>
+public class EnemyKnockBack : MonoBehaviour,
+    VampireHunt.Combat.Contracts.IKnockbackReceiver, INetworkPoolLifecycle
 {
-    private Rigidbody rb;
-    private FlowFieldEnemy Enemymovement;
+    private Rigidbody body;
+    private FlowFieldEnemy enemyMovement;
+    private Coroutine restoreCoroutine;
 
-    private void Start()
+    private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
-        Enemymovement = GetComponent<FlowFieldEnemy>();
+        body = GetComponent<Rigidbody>();
+        enemyMovement = GetComponent<FlowFieldEnemy>();
     }
 
-    public void EnemyKnockback(Transform playerTransform, float knockbackForce, float Stuntime, float knockbackTime)
+    public void EnemyKnockback(
+        Transform playerTransform,
+        float knockbackForce,
+        float stunTime,
+        float knockbackTime)
     {
-        if (!NetworkAuthority.IsServerOrOffline() || playerTransform == null)
-            return;
+        if (!NetworkAuthority.IsServerOrOffline() || playerTransform == null) return;
 
-        if (Enemymovement != null)
-            Enemymovement.EnterKnockbackState();
-        if (gameObject.activeSelf)
+        EntityId sourceId = EnemyLegacyEntityIds.Resolve(playerTransform.gameObject);
+        EntityId targetId = EnemyLegacyEntityIds.Resolve(gameObject);
+
+        Vector3 direction = transform.position - playerTransform.position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f) direction = Vector3.forward;
+        direction.Normalize();
+
+        KnockbackImpulse impulse = new KnockbackImpulse(
+            sourceId,
+            targetId,
+            ToWorldPosition(direction),
+            Mathf.Max(0f, knockbackForce),
+            Mathf.Max(0f, knockbackTime),
+            false);
+        ApplyKnockback(in impulse);
+        if (stunTime > 0f)
+            StartRestore(stunTime, knockbackTime);
+    }
+
+    public void ApplyKnockback(in KnockbackImpulse impulse)
+    {
+        if (!NetworkAuthority.IsServerOrOffline() || impulse.IsImmune) return;
+
+        enemyMovement?.EnterKnockbackState();
+        if (body != null)
         {
-            StartCoroutine(StunTime(Stuntime, knockbackTime));
+            Vector3 direction = new Vector3(
+                impulse.Direction.X,
+                impulse.Direction.Y,
+                impulse.Direction.Z);
+            body.linearVelocity = direction * impulse.Force;
         }
-        if (rb != null)
-        {
-            Vector3 direction = (transform.position - playerTransform.position).normalized;
-            rb.linearVelocity = direction * knockbackForce;
-        }
+
+        StartRestore(impulse.Duration, 0f);
     }
 
-    IEnumerator StunTime(float Stuntime, float knockbackTime)
+    public void OnTakenFromNetworkPool() => ResetPoolState();
+
+    public void OnReturnedToNetworkPool() => ResetPoolState();
+
+    private void ResetPoolState()
     {
-        yield return new WaitForSeconds(knockbackTime);
-        if (rb != null) rb.linearVelocity = Vector3.zero;
-        yield return new WaitForSeconds(Stuntime);
-        if (Enemymovement != null) Enemymovement.ChangeState(EnemyState.Idle);
+        if (restoreCoroutine != null)
+        {
+            StopCoroutine(restoreCoroutine);
+            restoreCoroutine = null;
+        }
+
+        if (body != null) body.linearVelocity = Vector3.zero;
+        enemyMovement?.ChangeState(EnemyState.Idle);
     }
+
+    private void StartRestore(float stunTime, float knockbackTime)
+    {
+        if (!isActiveAndEnabled) return;
+        if (restoreCoroutine != null) StopCoroutine(restoreCoroutine);
+        restoreCoroutine = StartCoroutine(RestoreAfter(stunTime, knockbackTime));
+    }
+
+    private IEnumerator RestoreAfter(float stunTime, float knockbackTime)
+    {
+        if (knockbackTime > 0f) yield return new WaitForSeconds(knockbackTime);
+        if (body != null) body.linearVelocity = Vector3.zero;
+        if (stunTime > 0f) yield return new WaitForSeconds(stunTime);
+        enemyMovement?.ChangeState(EnemyState.Idle);
+        restoreCoroutine = null;
+    }
+
+    private static WorldPosition ToWorldPosition(Vector3 position) =>
+        new WorldPosition(position.x, position.y, position.z);
 }

@@ -65,6 +65,23 @@ namespace VampireHunt.Tests.Infrastructure
         }
 
         [Test]
+        public void HostEventLoopback_IsQueuedForTransportButNotPresentedTwice()
+        {
+            GameplayEventReplicator replicator = new();
+            RecordingIngress ingress = new();
+            IGameplayEvent authoritative = new TestEvent(12UL, 3d);
+
+            replicator.Publish(authoritative);
+
+            Assert.That(replicator.PendingCount, Is.EqualTo(1));
+            Assert.That(
+                replicator.Receive(new GameplayEventEnvelope(authoritative), ingress),
+                Is.False,
+                "The host already presented the authoritative local event.");
+            Assert.That(ingress.Events, Is.Empty);
+        }
+
+        [Test]
         public void EnemyDtoQuantizesAndRoundTripsPosition()
         {
             EntityId id = new(3UL);

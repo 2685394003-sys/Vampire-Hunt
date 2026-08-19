@@ -3,22 +3,33 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
+using VampireHunt.Combat.Contracts;
+using VampireHunt.Core;
+using VampireHunt.Player.Contracts;
+using EntityId = VampireHunt.Core.EntityId;
 
 /// <summary>
-/// Server-owned per-player run state. PlayerStatsConfig is the immutable baseline;
-/// runtime modifiers are aggregated on the server and only final values replicate.
+/// Stable NetworkBehaviour kept on the shipped Player Prefab during migration.
+/// It is now only a state/command adapter: authoritative mutations are routed
+/// through IPlayerRuntimePort and network variables carry replicated snapshots.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
-public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGameplayAbilitySystemHost
+public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
+    IGameplayAbilitySystemHost, IPlayerRuntimeBinding, IPlayerBloodPactReadModel
 {
+    private static readonly EntityIdAllocator CompatibilityIds = new(5000000UL);
+    // Kept for source compatibility. Blood Pact cost is no longer read by the
+    // UI or spent here; the authoritative offer supplies its own Cost.
+    [Obsolete("Blood Pact cost is owned by BloodPactOfferService; read BloodPactOffer.Cost.")]
     public const float BloodPactScarletCost = 100f;
-
-    private static readonly List<PlayerNetworkState> ScarletShareRecipients = new();
 
     [SerializeField] private PlayerStatsConfig baseStats;
     [SerializeField] private bool hideVisualsWhenDead = true;
+    [SerializeField] private ulong logicalPlayerId;
 
+    // Network variables are a replication cache only. They are never used as
+    // an alternative domain store when a runtime port is bound.
     private readonly NetworkVariable<int> networkMaxHealth = ServerVariable(1);
     private readonly NetworkVariable<int> networkHealth = ServerVariable(1);
     private readonly NetworkVariable<float> networkMaxStamina = ServerVariable(100f);
@@ -41,36 +52,22 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     private readonly NetworkVariable<int> networkCoins = ServerVariable(0);
     private readonly NetworkVariable<bool> networkAlive = ServerVariable(true);
     private readonly NetworkVariable<bool> networkInitialized = ServerVariable(false);
-
-    private int offlineMaxHealth;
-    private int offlineHealth;
-    private float offlineMaxStamina;
-    private float offlineStamina;
-    private float offlineDashStaminaCost;
-    private float offlineStaminaRecovery;
-    private float offlineDamage;
-    private float offlineWeaponRange;
-    private float offlineMoveSpeed;
-    private float offlineDashSpeedMultiplier;
-    private float offlineDashDuration;
-    private float offlineAttackCooldown;
-    private float offlineKnockbackForce;
-    private float offlineCritRate;
-    private float offlineCritDamage;
-    private float offlineInvincibleTime;
-    private float offlineFlashSpeed;
-    private float offlineMaxScarlet;
-    private float offlineScarlet;
-    private int offlineCoins;
-    private bool offlineAlive;
-    private bool staminaRecoveryPaused;
-    private GameplayAbilitySystem abilitySystem;
+    private readonly NetworkVariable<uint> networkBloodPactOfferVersion = ServerVariable(0u);
+    private readonly NetworkVariable<int> networkBloodPactOfferCost = ServerVariable(0);
+    private readonly NetworkVariable<FixedString64Bytes> networkBloodPactOfferChoice0 =
+        ServerVariable(new FixedString64Bytes());
+    private readonly NetworkVariable<FixedString64Bytes> networkBloodPactOfferChoice1 =
+        ServerVariable(new FixedString64Bytes());
+    private readonly NetworkVariable<FixedString64Bytes> networkBloodPactOfferChoice2 =
+        ServerVariable(new FixedString64Bytes());
     private NetworkList<NetworkBloodPactState> networkBloodPacts;
+
     private readonly List<NetworkBloodPactState> offlineBloodPacts = new();
-    private readonly PlayerStatModifierCollection runModifiers = new();
-    private readonly HashSet<PlayerStatType> changedStatsScratch = new();
-    private readonly HashSet<string> selectedBloodPacts = new(StringComparer.Ordinal);
-    private int generatedModifierSequence;
+    private IPlayerRuntimePort runtime;
+    private PlayerSnapshot offlineSnapshot;
+    private BloodPactOffer currentOffer;
+    private uint commandSequence;
+    private bool networkEventsSubscribed;
 
     public event Action<int, int> HealthChanged;
     public event Action<float, float> StaminaChanged;
@@ -79,45 +76,45 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     public event Action<bool> AliveChanged;
     public event Action<PlayerStatType> RunStatChanged;
     public event Action BloodPactsChanged;
+    public event Action BloodPactOfferChanged;
     public event Action<GameplayCueEvent> GameplayCueRequested;
 
     public PlayerStatsConfig BaseStats => ResolveBaseStats();
     public string PlayerId => BaseStats != null ? BaseStats.PlayerId : "player_missing_config";
-    public int MaxHealth => UseNetworkValues ? networkMaxHealth.Value : offlineMaxHealth;
-    public int CurrentHealth => UseNetworkValues ? networkHealth.Value : offlineHealth;
-    public float MaxStamina => Read(networkMaxStamina, offlineMaxStamina);
-    public float CurrentStamina => Read(networkStamina, offlineStamina);
-    public float DashStaminaCost => Read(networkDashStaminaCost, offlineDashStaminaCost);
-    public float StaminaRecoverySpeed => Read(networkStaminaRecovery, offlineStaminaRecovery);
-    public float Damage => Read(networkDamage, offlineDamage);
-    public float WeaponRange => Read(networkWeaponRange, offlineWeaponRange);
-    public float MoveSpeed => Read(networkMoveSpeed, offlineMoveSpeed);
-    public float DashSpeedMultiplier => Read(networkDashSpeedMultiplier, offlineDashSpeedMultiplier);
-    public float DashDuration => Read(networkDashDuration, offlineDashDuration);
-    public float AttackCooldown => Read(networkAttackCooldown, offlineAttackCooldown);
-    public float KnockbackForce => Read(networkKnockbackForce, offlineKnockbackForce);
-    public float CritRate => Read(networkCritRate, offlineCritRate);
-    public float CritDamage => Read(networkCritDamage, offlineCritDamage);
-    public float InvincibleTime => Read(networkInvincibleTime, offlineInvincibleTime);
-    public float FlashSpeed => Read(networkFlashSpeed, offlineFlashSpeed);
-    public float MaxScarlet => Read(networkMaxScarlet, offlineMaxScarlet);
-    public float CurrentScarlet => Read(networkScarlet, offlineScarlet);
-    public int CurrentCoins => UseNetworkValues ? networkCoins.Value : offlineCoins;
-    public bool IsAlive => UseNetworkValues ? networkAlive.Value : offlineAlive;
-    public GameplayAbilitySystem AbilitySystem => abilitySystem;
-    public string GameplayOwnerId => PlayerId;
-    public float GameplayHealthRatio => MaxHealth > 0
-        ? Mathf.Clamp01((float)CurrentHealth / MaxHealth)
-        : 0f;
-    public int ActiveBloodPactCount => UseNetworkValues
-        ? networkBloodPacts?.Count ?? 0
-        : offlineBloodPacts.Count;
+    public EntityId LogicalPlayerId => ResolveLogicalPlayerId();
+    public IPlayerRuntimePort RuntimePort => runtime;
+    public PlayerSnapshot Snapshot => ReadSnapshot();
 
-    // Supplemental combat settings stay baseline-only until design adds them
-    // to the progression sheet.
-    public float KnockbackTime => BaseStats != null ? BaseStats.KnockbackDuration : 0f;
-    public float StunTime => BaseStats != null ? BaseStats.StunDuration : 0f;
-    public float AttackConeAngle => BaseStats != null ? BaseStats.AttackConeAngle : 110f;
+    public int MaxHealth => ReadSnapshot().MaxHealth;
+    public int CurrentHealth => ReadSnapshot().CurrentHealth;
+    public float MaxStamina => runtime != null ? runtime.MaxStamina : Read(networkMaxStamina, offlineSnapshot.MaxStamina);
+    public float CurrentStamina => runtime != null ? runtime.Stamina : Read(networkStamina, offlineSnapshot.Stamina);
+    public float DashStaminaCost => runtime != null ? runtime.Values.DashStaminaCost : Read(networkDashStaminaCost, BaseStatsValue(c => c.DashStaminaCost, 15f));
+    public float StaminaRecoverySpeed => runtime != null ? runtime.Values.StaminaRecoveryPerSecond : Read(networkStaminaRecovery, BaseStatsValue(c => c.StaminaRecoverSpeed, 15f));
+    public float Damage => runtime != null ? BaseStatsValue(c => c.BaseAttack, 10f) : Read(networkDamage, BaseStatsValue(c => c.BaseAttack, 10f));
+    public float WeaponRange => runtime != null ? runtime.Values.AttackRange : Read(networkWeaponRange, BaseStatsValue(c => c.AttackRange, 2f));
+    public float MoveSpeed => runtime != null ? runtime.Values.MoveSpeed : Read(networkMoveSpeed, BaseStatsValue(c => c.MoveSpeed, 5f));
+    public float DashSpeedMultiplier => runtime != null ? runtime.Values.DashSpeedMultiplier : Read(networkDashSpeedMultiplier, BaseStatsValue(c => c.DashSpeedMultiplier, 2f));
+    public float DashDuration => runtime != null ? runtime.Values.DashDuration : Read(networkDashDuration, BaseStatsValue(c => c.DashDuration, 0.15f));
+    public float AttackCooldown => runtime != null ? BaseStatsValue(c => c.AttackInterval, 1f) : Read(networkAttackCooldown, BaseStatsValue(c => c.AttackInterval, 1f));
+    public float KnockbackForce => runtime != null ? runtime.Values.KnockbackForce : Read(networkKnockbackForce, BaseStatsValue(c => c.KnockbackForce, 5f));
+    public float CritRate => runtime != null ? BaseStatsValue(c => c.CritRate, 0.05f) : Read(networkCritRate, BaseStatsValue(c => c.CritRate, 0.05f));
+    public float CritDamage => runtime != null ? BaseStatsValue(c => c.CritDamage, 2f) : Read(networkCritDamage, BaseStatsValue(c => c.CritDamage, 2f));
+    public float InvincibleTime => runtime != null ? BaseStatsValue(c => c.InvincibleTime, 0.8f) : Read(networkInvincibleTime, BaseStatsValue(c => c.InvincibleTime, 0.8f));
+    public float FlashSpeed => Read(networkFlashSpeed, BaseStatsValue(c => c.FlashSpeed, 10f));
+    public float MaxScarlet => runtime != null ? BaseStatsValue(c => c.MaxScarlet, 100f) : Read(networkMaxScarlet, BaseStatsValue(c => c.MaxScarlet, 100f));
+    public float CurrentScarlet => runtime != null ? runtime.Scarlet : Read(networkScarlet, offlineSnapshot.Scarlet);
+    int IPlayerBloodPactReadModel.BloodPactScarlet => Mathf.FloorToInt(CurrentScarlet);
+    bool IPlayerBloodPactReadModel.IsBloodPactPlayerAlive => IsAlive;
+    public int CurrentCoins => runtime != null ? runtime.Coins : Read(networkCoins, offlineSnapshot.Coins);
+    public bool IsAlive => runtime != null ? runtime.IsAlive : !UseNetworkValues ? offlineSnapshot.IsAlive : networkAlive.Value;
+    public GameplayAbilitySystem AbilitySystem => null;
+    public string GameplayOwnerId => PlayerId;
+    public float GameplayHealthRatio => MaxHealth > 0 ? Mathf.Clamp01((float)CurrentHealth / MaxHealth) : 0f;
+    public int ActiveBloodPactCount => ReadSnapshot().BloodPacts.Count;
+    public float KnockbackTime => runtime != null ? runtime.Values.KnockbackDuration : BaseStatsValue(c => c.KnockbackDuration, 0f);
+    public float StunTime => runtime != null ? runtime.Values.StunDuration : BaseStatsValue(c => c.StunDuration, 0f);
+    public float AttackConeAngle => runtime != null ? runtime.Values.AttackConeAngle : BaseStatsValue(c => c.AttackConeAngle, 110f);
     public LayerMask EnemyLayer => BaseStats != null ? BaseStats.EnemyLayer : 0;
 
     private bool UseNetworkValues => NetworkAuthority.IsNetworkActive && IsSpawned;
@@ -128,10 +125,8 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     public static PlayerNetworkState EnsureForMigration(GameObject playerObject)
     {
         if (playerObject == null) return null;
-
         PlayerNetworkState existing = playerObject.GetComponent<PlayerNetworkState>();
         if (existing != null) return existing;
-
         if (NetworkAuthority.IsNetworkActive)
         {
             Debug.LogError(
@@ -140,7 +135,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
                 playerObject);
             return null;
         }
-
         return playerObject.AddComponent<PlayerNetworkState>();
     }
 
@@ -150,142 +144,117 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
             null,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
-        abilitySystem = new GameplayAbilitySystem(this);
         ResolveBaseStats();
-        InitializeOfflineState();
+        offlineSnapshot = BuildFallbackSnapshot();
+        ApplyConfigToReplicationCache();
     }
 
     private void OnEnable() => NetworkPlayerRegistry.Register(this);
-    private void OnDisable() => NetworkPlayerRegistry.Unregister(this);
+
+    private void OnDisable()
+    {
+        UnsubscribeNetworkEvents();
+        NetworkPlayerRegistry.Unregister(this);
+    }
 
     public override void OnNetworkSpawn()
     {
         NetworkPlayerRegistry.Register(this);
         SubscribeNetworkEvents();
         networkBloodPacts.OnListChanged += HandleBloodPactListChanged;
-
-        if (IsServer && !networkInitialized.Value) InitializeNetworkState();
+        if (IsServer && !networkInitialized.Value) ApplyConfigToReplicationCache();
+        if (!IsServer) HandleNetworkOfferChanged();
+        CaptureRuntimeSnapshot();
         PublishAll();
-        BloodPactsChanged?.Invoke();
     }
 
     public override void OnNetworkDespawn()
     {
-        networkBloodPacts.OnListChanged -= HandleBloodPactListChanged;
+        if (networkBloodPacts != null) networkBloodPacts.OnListChanged -= HandleBloodPactListChanged;
         UnsubscribeNetworkEvents();
         NetworkPlayerRegistry.Unregister(this);
     }
 
-    private void Update()
+    /// <summary>Binds the application endpoint supplied by the composition root.</summary>
+    public bool TryBind(IPlayerRuntimePort next)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return;
-
-        abilitySystem?.Tick(Time.deltaTime);
-
-        changedStatsScratch.Clear();
-        if (runModifiers.Tick(Time.deltaTime, changedStatsScratch) > 0)
-        {
-            foreach (PlayerStatType stat in changedStatsScratch) RecalculateStat(stat);
-        }
-
-        if (!IsAlive ||
-            staminaRecoveryPaused ||
-            CurrentStamina >= MaxStamina)
-        {
-            return;
-        }
-
-        SetStamina(Mathf.Min(
-            MaxStamina,
-            CurrentStamina + StaminaRecoverySpeed * Time.deltaTime));
-    }
-
-    public bool TryConsumeStamina(float amount)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            amount < 0f ||
-            CurrentStamina + 0.0001f < amount)
-        {
-            return false;
-        }
-
-        SetStamina(CurrentStamina - amount);
+        if (next == null || (logicalPlayerId != 0UL && next.PlayerId != LogicalPlayerId)) return false;
+        if (runtime != null) runtime.SnapshotChanged -= HandleRuntimeSnapshotChanged;
+        runtime = next;
+        runtime.SnapshotChanged += HandleRuntimeSnapshotChanged;
+        currentOffer = default;
+        CaptureRuntimeSnapshot();
+        PublishAll();
         return true;
     }
 
-    public void RestoreStamina(float amount)
+    public bool TryGetBloodPactOffer(out BloodPactOffer offer)
     {
-        if (NetworkAuthority.IsServerOrOffline(this) && amount > 0f)
-            SetStamina(CurrentStamina + amount);
-    }
-
-    public void SetStaminaRecoveryPaused(bool value)
-    {
-        if (NetworkAuthority.IsServerOrOffline(this)) staminaRecoveryPaused = value;
-    }
-
-    public bool TryConsumeScarlet(float amount)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            amount < 0f ||
-            CurrentScarlet + 0.0001f < amount)
+        if (runtime != null && runtime.TryGetBloodPactOffer(out offer))
         {
-            return false;
+            currentOffer = offer;
+            return true;
         }
 
-        SetScarlet(CurrentScarlet - amount);
+        if (UseNetworkValues && TryReadNetworkOffer(out offer))
+        {
+            currentOffer = offer;
+            return true;
+        }
+
+        // An offer is single-use. Do not leave a stale UI offer alive after a
+        // successful selection or a server-side invalidation.
+        currentOffer = default;
+        offer = default;
+        return false;
+    }
+
+    public bool RequestBloodPactOffer()
+    {
+        if (runtime != null && NetworkAuthority.IsServerOrOffline(this))
+        {
+            if (!runtime.TryCreateBloodPactOffer(out BloodPactOffer offer)) return false;
+            currentOffer = offer;
+            CaptureOffer();
+            BloodPactOfferChanged?.Invoke();
+            return true;
+        }
+
+        if (!UseNetworkValues || !IsOwner || !IsSpawned) return false;
+        RequestBloodPactOfferRpc();
         return true;
     }
 
-    public void AddScarlet(float amount)
+    [Obsolete("Submit a SelectBloodPactCommand through IPlayerCommandGateway; this method only preserves the UnityEvent entry point.")]
+    public bool RequestBloodPactSelection(string pactId)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            amount <= 0f ||
-            float.IsNaN(amount) ||
-            float.IsInfinity(amount))
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(pactId) || pactId.Length > 64 || !IsAlive)
+            return false;
 
+        // A network client may only have the replicated offer cache. It still
+        // needs to be able to submit the selection intent without a local
+        // runtime endpoint; the server will validate it against its offer.
+        if (runtime == null && (!UseNetworkValues || !TryReadNetworkOffer(out BloodPactOffer replicatedOffer)))
+            return false;
+
+        BloodPactId selection = new(pactId);
+        uint offerVersion = currentOffer.OfferVersion;
+        if (runtime != null && runtime.TryGetBloodPactOffer(out BloodPactOffer offer))
+            offerVersion = offer.OfferVersion;
+        else if (UseNetworkValues && TryReadNetworkOffer(out BloodPactOffer networkOffer))
+        {
+            currentOffer = networkOffer;
+            offerVersion = networkOffer.OfferVersion;
+        }
+        if (offerVersion == 0U) return false;
+
+        uint sequence = NextCommandSequence();
+        SelectBloodPactCommand command = new(LogicalPlayerId, selection, offerVersion, sequence);
         if (!NetworkAuthority.IsNetworkActive)
-        {
-            AddScarletDirect(amount);
-            return;
-        }
-
-        NetworkPlayerRegistry.GetPlayers(ScarletShareRecipients);
-        if (ScarletShareRecipients.Count == 0)
-        {
-            AddScarletDirect(amount);
-            return;
-        }
-
-        float share = amount / ScarletShareRecipients.Count;
-        foreach (PlayerNetworkState recipient in ScarletShareRecipients)
-        {
-            if (recipient != null && NetworkAuthority.IsServerOrOffline(recipient))
-            {
-                recipient.AddScarletDirect(share);
-            }
-        }
-    }
-
-    public void AddCoins(int amount)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0) return;
-
-        long nextValue = (long)CurrentCoins + amount;
-        SetCoins((int)Math.Min(int.MaxValue, nextValue));
-    }
-
-    public int RestoreHealth(int amount)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || !IsAlive)
-            return 0;
-
-        int previous = CurrentHealth;
-        SetHealth(Mathf.Min(MaxHealth, previous + amount));
-        return CurrentHealth - previous;
+            return runtime != null && runtime.SelectBloodPact(command).Accepted;
+        if (!IsSpawned || !IsOwner) return false;
+        SubmitBloodPactRpc(new FixedString64Bytes(selection.Value), offerVersion, sequence);
+        return true;
     }
 
     public bool HasBloodPact(string pactId) => GetBloodPactStacks(pactId) > 0;
@@ -293,290 +262,147 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
     public int GetBloodPactStacks(string pactId)
     {
         if (string.IsNullOrWhiteSpace(pactId)) return 0;
-        if (UseNetworkValues)
-        {
-            for (int index = 0; index < networkBloodPacts.Count; index++)
-                if (string.Equals(
-                        networkBloodPacts[index].PactId.ToString(),
-                        pactId,
-                        StringComparison.Ordinal))
-                    return networkBloodPacts[index].Stacks;
-            return 0;
-        }
-
-        for (int index = 0; index < offlineBloodPacts.Count; index++)
-            if (string.Equals(
-                    offlineBloodPacts[index].PactId.ToString(),
-                    pactId,
-                    StringComparison.Ordinal))
-                return offlineBloodPacts[index].Stacks;
+        BloodPactId id = new(pactId);
+        if (runtime != null && runtime.TryGetBloodPactStacks(id, out int stacks)) return stacks;
+        IReadOnlyList<BloodPactStack> pacts = ReadSnapshot().BloodPacts;
+        for (int i = 0; i < pacts.Count; i++) if (pacts[i].Id == id) return pacts[i].Stacks;
         return 0;
     }
 
-    public bool TrySpendCoins(int amount)
+    public CommandResult RequestAttackIntent(Vector3 aimAt)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            amount < 0 ||
-            CurrentCoins < amount)
-        {
-            return false;
-        }
-
-        SetCoins(CurrentCoins - amount);
-        return true;
-    }
-
-    /// <summary>
-    /// Requests a server-authoritative blood-pact purchase. The server owns the
-    /// fixed cost and validates the pact database entry and duplicate state.
-    /// </summary>
-    public bool RequestBloodPactSelection(string pactId)
-    {
-        if (string.IsNullOrWhiteSpace(pactId) || pactId.Length > 64)
-        {
-            return false;
-        }
-
+        if (runtime == null || !IsAlive || !NetworkAuthority.IsOwnerOrOffline(this))
+            return new CommandResult(CommandResultStatus.Rejected, "Player runtime is unavailable");
+        WorldPosition aim = ToWorldPosition(aimAt);
+        uint sequence = NextCommandSequence();
         if (!NetworkAuthority.IsNetworkActive)
-        {
-            return ServerTrySelectBloodPact(pactId.Trim());
-        }
-
-        if (!IsSpawned || !IsOwner)
-        {
-            return false;
-        }
-
-        RequestBloodPactSelectionRpc(new FixedString64Bytes(pactId.Trim()));
-        return true;
+            return runtime.SubmitAttack(new AttackCommand(LogicalPlayerId, aim, sequence));
+        if (!IsSpawned || !IsOwner) return new CommandResult(CommandResultStatus.Unauthorized);
+        SubmitAttackRpc(aimAt, sequence);
+        return CommandResult.Accept(sequence);
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-    private void RequestBloodPactSelectionRpc(FixedString64Bytes pactId)
+    public CommandResult RequestDashIntent(Vector3 direction)
     {
-        ServerTrySelectBloodPact(pactId.ToString());
+        if (runtime == null || !IsAlive || !NetworkAuthority.IsOwnerOrOffline(this))
+            return new CommandResult(CommandResultStatus.Rejected, "Player runtime is unavailable");
+        MoveVector move = new(direction.x, 0f, direction.z);
+        uint sequence = NextCommandSequence();
+        if (!NetworkAuthority.IsNetworkActive)
+            return runtime.SubmitDash(new DashCommand(LogicalPlayerId, move, sequence));
+        if (!IsSpawned || !IsOwner) return new CommandResult(CommandResultStatus.Unauthorized);
+        SubmitDashRpc(direction, sequence);
+        return CommandResult.Accept(sequence);
     }
 
-    private bool ServerTrySelectBloodPact(string pactId)
+    public bool ApplyDamage(int amount) =>
+        ApplyDamage(new PlayerDamageCommand(LogicalPlayerId, LogicalPlayerId, amount, ToWorldPosition(transform.position)));
+
+    public bool ApplyDamage(PlayerDamageCommand command)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            CurrentScarlet + 0.0001f < BloodPactScarletCost)
-        {
-            return false;
-        }
-
-        BloodPactConfig database = BloodPactConfig.LoadDefault();
-        if (database == null ||
-            !database.TryGet(pactId, out BloodPactDefinition pact) ||
-            !pact.IsPlayerPact ||
-            !pact.IsRuntimeImplemented ||
-            (!pact.IsRepeatable && selectedBloodPacts.Contains(pactId)) ||
-            !TryConsumeScarlet(BloodPactScarletCost))
-        {
-            return false;
-        }
-
-        if (!pact.ApplyEffects(this))
-        {
-            AddScarletDirect(BloodPactScarletCost);
-            return false;
-        }
-
-        if (!pact.IsRepeatable)
-        {
-            selectedBloodPacts.Add(pactId);
-        }
-        AddOrStackBloodPactSnapshot(pactId);
-        return true;
+        if (!NetworkAuthority.IsServerOrOffline(this) || runtime == null) return false;
+        PlayerDamageResult result = runtime.ApplyDamage(command);
+        CaptureRuntimeSnapshot();
+        return result.Accepted && result.AppliedDamage > 0;
     }
 
-    public bool ApplyDamage(int amount)
+    public int RestoreHealth(int amount)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || !IsAlive)
-            return false;
-
-        SetHealth(Mathf.Max(0, CurrentHealth - amount));
-        if (CurrentHealth <= 0) SetAlive(false);
-        return true;
+        if (!NetworkAuthority.IsServerOrOffline(this) || runtime == null) return 0;
+        int result = runtime.ApplyHealing(amount);
+        CaptureRuntimeSnapshot();
+        return result;
     }
 
     public void HealToFull()
     {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return;
-        SetHealth(MaxHealth);
-        SetAlive(true);
-    }
-
-    public void ReportAttackHit(
-        IGameplayAbilitySystemHost target,
-        float damageDealt,
-        bool wasCritical,
-        Vector3 position,
-        int combatTextTargetKey = 0)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0f) return;
-
-        GameplayEventData hit = new(
-            GameplayEventType.AttackHit,
-            this,
-            target,
-            damageDealt,
-            wasCritical,
-            position);
-        abilitySystem.SendEvent(in hit);
-
-        BroadcastDamageText(
-            Mathf.Max(1, Mathf.RoundToInt(damageDealt)),
-            wasCritical,
-            position,
-            combatTextTargetKey);
-
-        if (!wasCritical) return;
-        GameplayEventData critical = new(
-            GameplayEventType.CriticalHit,
-            this,
-            target,
-            damageDealt,
-            true,
-            position);
-        abilitySystem.SendEvent(in critical);
-    }
-
-    /// <summary>
-    /// Broadcasts server-confirmed effect damage without producing AttackHit or
-    /// CriticalHit events. Periodic effects must use this path to avoid retriggering
-    /// on-hit abilities from their own damage ticks.
-    /// </summary>
-    public void ReportGameplayEffectDamage(
-        int damageDealt,
-        Vector3 position,
-        int combatTextTargetKey = 0)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) || damageDealt <= 0) return;
-        BroadcastDamageText(
-            damageDealt,
-            false,
-            position,
-            combatTextTargetKey);
-    }
-
-    private void BroadcastDamageText(
-        int damage,
-        bool wasCritical,
-        Vector3 position,
-        int targetKey)
-    {
-        ulong sourceKey = UseNetworkValues
-            ? OwnerClientId
-            : unchecked((ulong)(uint)GetEntityId().GetHashCode());
-
-        if (UseNetworkValues)
-        {
-            ShowDamageTextRpc(damage, wasCritical, position, targetKey, sourceKey);
-            return;
-        }
-
-        CombatTextService.ShowDamage(damage, wasCritical, position, targetKey, sourceKey);
-    }
-
-    [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Unreliable)]
-    private void ShowDamageTextRpc(
-        int damage,
-        bool wasCritical,
-        Vector3 position,
-        int targetKey,
-        ulong sourceKey)
-    {
-        CombatTextService.ShowDamage(damage, wasCritical, position, targetKey, sourceKey);
-    }
-
-    public void ReportEnemyKilled(Vector3 position)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return;
-        GameplayEventData killed = new(
-            GameplayEventType.EnemyKilled,
-            this,
-            null,
-            1f,
-            false,
-            position);
-        abilitySystem.SendEvent(in killed);
+        if (!NetworkAuthority.IsServerOrOffline(this) || runtime == null) return;
+        runtime.RestoreToFull();
+        CaptureRuntimeSnapshot();
     }
 
     public void ForceDeath()
     {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return;
-        SetHealth(0);
-        SetAlive(false);
+        if (!NetworkAuthority.IsServerOrOffline(this) || runtime == null) return;
+        runtime.ForceDeath(default);
+        CaptureRuntimeSnapshot();
     }
 
-    /// <summary>
-    /// Rolls one server-authoritative damage value for one hit target. Multi-target
-    /// attacks must call this once per unique target so each target rolls crit alone.
-    /// </summary>
-    public int RollAttackDamage(out bool wasCritical)
+    public bool TryConsumeStamina(float amount) =>
+        NetworkAuthority.IsServerOrOffline(this) && runtime != null && runtime.TryConsumeStamina(amount);
+
+    public void RestoreStamina(float amount)
     {
-        wasCritical = NetworkAuthority.IsServerOrOffline(this) &&
-                      CritRate > 0f &&
-                      UnityEngine.Random.value < CritRate;
-        float result = Damage * (wasCritical ? CritDamage : 1f);
-        return Mathf.Max(0, Mathf.RoundToInt(result));
+        if (NetworkAuthority.IsServerOrOffline(this)) runtime?.RestoreStamina(amount);
     }
 
-    public void ResetForNewRun()
+    public void SetStaminaRecoveryPaused(bool value)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return;
-
-        abilitySystem?.Clear();
-        runModifiers.Clear();
-        selectedBloodPacts.Clear();
-        ClearBloodPactSnapshots();
-        generatedModifierSequence = 0;
-        staminaRecoveryPaused = false;
-
-        if (UseNetworkValues) InitializeNetworkState();
-        else
-        {
-            InitializeOfflineState();
-            PublishAll();
-        }
+        // Retained as an AnimationEvent/legacy entry point. Recovery windows
+        // are now represented by PlayerMobilityState and server tick state.
     }
+
+    public bool TryConsumeScarlet(float amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || amount < 0f || amount > int.MaxValue || runtime == null)
+            return false;
+        return runtime.TrySpendScarlet(Mathf.RoundToInt(amount));
+    }
+
+    public void AddScarlet(float amount)
+    {
+        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0f || amount > int.MaxValue || runtime == null)
+            return;
+        runtime.AddScarlet(Mathf.RoundToInt(amount));
+    }
+
+    public void AddCoins(int amount)
+    {
+        if (NetworkAuthority.IsServerOrOffline(this)) runtime?.AddCoins(amount);
+    }
+
+    public bool TrySpendCoins(int amount) =>
+        NetworkAuthority.IsServerOrOffline(this) && runtime != null && runtime.TrySpendCoins(amount);
+
+    public bool ResetForNewRun() =>
+        NetworkAuthority.IsServerOrOffline(this) && runtime != null && runtime.ResetForNewRun();
+
+    void IPlayerRunStats.ResetForNewRun() => ResetForNewRun();
 
     public bool ApplyRunUpgrade(PlayerStatUpgrade upgrade)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
+        if (!NetworkAuthority.IsServerOrOffline(this) || runtime == null ||
             !Enum.IsDefined(typeof(PlayerStatType), upgrade.stat) ||
-            !Enum.IsDefined(typeof(PlayerStatOperation), upgrade.operation) ||
-            float.IsNaN(upgrade.value) ||
-            float.IsInfinity(upgrade.value) ||
-            (upgrade.operation == PlayerStatOperation.Multiply && upgrade.value < 0f))
-        {
-            return false;
-        }
-
-        string modifierId =
-            $"legacy:{++generatedModifierSequence}:{(int)upgrade.stat}";
-        PlayerModifierOperation operation = upgrade.operation == PlayerStatOperation.Add
-            ? PlayerModifierOperation.Flat
-            : PlayerModifierOperation.Multiplicative;
-        return AddStatModifier(new PlayerStatModifier(
-            modifierId,
+            !Enum.IsDefined(typeof(PlayerStatOperation), upgrade.operation)) return false;
+        byte operation = upgrade.operation == PlayerStatOperation.Add ? (byte)0 : (byte)2;
+        return runtime.TryApplyModifier(new PlayerModifierCommand(
+            $"legacy:{++commandSequence}:{(int)upgrade.stat}",
             "legacy_upgrade",
-            upgrade.stat,
+            (ushort)upgrade.stat,
             operation,
             upgrade.value));
     }
 
     public bool AddStatModifier(PlayerStatModifier modifier)
     {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            !runModifiers.AddOrStack(modifier, out PlayerStatType changedStat))
+        if (!NetworkAuthority.IsServerOrOffline(this) || runtime == null) return false;
+        byte operation = modifier.operation switch
         {
-            return false;
-        }
-
-        RecalculateStat(changedStat);
-        return true;
+            PlayerModifierOperation.Flat => 0,
+            PlayerModifierOperation.AdditivePercent => 1,
+            PlayerModifierOperation.Multiplicative => 2,
+            _ => 255
+        };
+        if (operation == 255) return false;
+        return runtime.TryApplyModifier(new PlayerModifierCommand(
+            modifier.modifierId,
+            modifier.sourceId,
+            (ushort)modifier.stat,
+            operation,
+            modifier.value,
+            modifier.stacks,
+            modifier.maxStacks,
+            modifier.durationSeconds));
     }
 
     public bool AddGameplayModifier(
@@ -586,7 +412,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         PlayerModifierOperation operation,
         float value)
     {
-        if (!Enum.IsDefined(typeof(PlayerStatType), (int)stat)) return false;
         return AddStatModifier(new PlayerStatModifier(
             modifierId,
             sourceId,
@@ -595,87 +420,21 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
             value));
     }
 
-    public bool RemoveGameplayModifier(string modifierId) =>
-        RemoveStatModifier(modifierId);
+    public bool RemoveGameplayModifier(string modifierId) => RemoveStatModifier(modifierId);
+    public bool RemoveStatModifier(string modifierId) =>
+        NetworkAuthority.IsServerOrOffline(this) && runtime != null && runtime.RemoveModifier(modifierId);
 
-    public int DamageGameplay(int amount, IGameplayAbilitySystemHost source)
+    public int RemoveStatModifiersFromSource(string sourceId) =>
+        NetworkAuthority.IsServerOrOffline(this) ? runtime?.RemoveModifiersFromSource(sourceId) ?? 0 : 0;
+
+    public bool TryGetStatBreakdown(PlayerStatType stat, out PlayerStatBreakdown breakdown)
     {
-        int previous = CurrentHealth;
-        return ApplyDamage(amount) ? previous - CurrentHealth : 0;
+        // Read-only compatibility path. The authoritative modifier collection
+        // remains inside Player Application; old components cannot mutate it.
+        breakdown = default;
+        return false;
     }
 
-    public int HealGameplay(int amount) => RestoreHealth(amount);
-    public void AddScarletGameplay(float amount) => AddScarlet(amount);
-    public void AddCoinsGameplay(int amount) => AddCoins(amount);
-
-    public void EmitGameplayCue(in GameplayCueEvent cueEvent)
-    {
-        if (string.IsNullOrWhiteSpace(cueEvent.CueTag)) return;
-        if (NetworkAuthority.IsNetworkActive && IsSpawned)
-        {
-            if (!IsServer) return;
-            if (cueEvent.CueTag.Length > 60)
-            {
-                Debug.LogWarning($"[GAS] Cue tag is too long for network transport: {cueEvent.CueTag}", this);
-                return;
-            }
-            GameplayCueRpc(
-                new FixedString64Bytes(cueEvent.CueTag),
-                (byte)cueEvent.Type,
-                cueEvent.Magnitude);
-            return;
-        }
-
-        GameplayCueRequested?.Invoke(cueEvent);
-    }
-
-    [Rpc(SendTo.ClientsAndHost)]
-    private void GameplayCueRpc(FixedString64Bytes cueTag, byte eventType, float magnitude)
-    {
-        GameplayCueEvent cue = new(
-            cueTag.ToString(),
-            (GameplayCueEventType)eventType,
-            magnitude);
-        GameplayCueRequested?.Invoke(cue);
-    }
-
-    public bool RemoveStatModifier(string modifierId)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this) ||
-            !runModifiers.Remove(modifierId, out PlayerStatType changedStat))
-        {
-            return false;
-        }
-
-        RecalculateStat(changedStat);
-        return true;
-    }
-
-    public int RemoveStatModifiersFromSource(string sourceId)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this)) return 0;
-
-        changedStatsScratch.Clear();
-        int removed = runModifiers.RemoveBySource(sourceId, changedStatsScratch);
-        foreach (PlayerStatType stat in changedStatsScratch) RecalculateStat(stat);
-        return removed;
-    }
-
-    public bool TryGetStatBreakdown(
-        PlayerStatType stat,
-        out PlayerStatBreakdown breakdown)
-    {
-        if (!NetworkAuthority.IsServerOrOffline(this))
-        {
-            breakdown = default;
-            return false;
-        }
-
-        breakdown = CalculateStatBreakdown(stat);
-        return true;
-    }
-
-    /// <summary>Compatibility helper for the existing Boss phase reward.</summary>
     public void ApplyUpgrade(int damageBonus, float moveSpeedBonus, int maxHealthBonus)
     {
         ApplyRunUpgrade(new PlayerStatUpgrade(PlayerStatType.BaseAttack, damageBonus));
@@ -683,505 +442,350 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats, IGam
         ApplyRunUpgrade(new PlayerStatUpgrade(PlayerStatType.MaxHealth, maxHealthBonus));
     }
 
-    private PlayerStatsConfig ResolveBaseStats()
+    public int DamageGameplay(int amount, IGameplayAbilitySystemHost source)
     {
-        if (baseStats == null) baseStats = PlayerStatsConfig.LoadDefault();
-        if (baseStats == null)
-        {
-            Debug.LogError(
-                "[Player Stats] Missing PlayerStatsConfig. Assign one on PlayerNetworkState " +
-                "or create Resources/GameBalance/PlayerMainStats.asset.",
-                this);
-        }
-        return baseStats;
-    }
-
-    private void InitializeOfflineState()
-    {
-        PlayerStatsConfig config = ResolveBaseStats();
-        offlineMaxHealth = config != null ? config.MaxHealth : 1;
-        offlineHealth = offlineMaxHealth;
-        offlineMaxStamina = config != null ? config.MaxStamina : 100f;
-        offlineStamina = offlineMaxStamina;
-        offlineDashStaminaCost = config != null ? config.DashStaminaCost : 15f;
-        offlineStaminaRecovery = config != null ? config.StaminaRecoverSpeed : 15f;
-        offlineDamage = config != null ? config.BaseAttack : 10f;
-        offlineWeaponRange = config != null ? config.AttackRange : 2f;
-        offlineMoveSpeed = config != null ? config.MoveSpeed : 5f;
-        offlineDashSpeedMultiplier = config != null ? config.DashSpeedMultiplier : 2f;
-        offlineDashDuration = config != null ? config.DashDuration : 0.15f;
-        offlineAttackCooldown = config != null ? config.AttackInterval : 1f;
-        offlineKnockbackForce = config != null ? config.KnockbackForce : 5f;
-        offlineCritRate = config != null ? config.CritRate : 0.05f;
-        offlineCritDamage = config != null ? config.CritDamage : 2f;
-        offlineInvincibleTime = config != null ? config.InvincibleTime : 0.8f;
-        offlineFlashSpeed = config != null ? config.FlashSpeed : 10f;
-        offlineMaxScarlet = config != null ? config.MaxScarlet : 100f;
-        offlineScarlet = 0f;
-        offlineCoins = 0;
-        offlineAlive = true;
-        offlineBloodPacts.Clear();
-    }
-
-    private void InitializeNetworkState()
-    {
-        PlayerStatsConfig config = ResolveBaseStats();
-        networkMaxHealth.Value = config != null ? config.MaxHealth : 1;
-        networkHealth.Value = networkMaxHealth.Value;
-        networkMaxStamina.Value = config != null ? config.MaxStamina : 100f;
-        networkStamina.Value = networkMaxStamina.Value;
-        networkDashStaminaCost.Value = config != null ? config.DashStaminaCost : 15f;
-        networkStaminaRecovery.Value = config != null ? config.StaminaRecoverSpeed : 15f;
-        networkDamage.Value = config != null ? config.BaseAttack : 10f;
-        networkWeaponRange.Value = config != null ? config.AttackRange : 2f;
-        networkMoveSpeed.Value = config != null ? config.MoveSpeed : 5f;
-        networkDashSpeedMultiplier.Value = config != null ? config.DashSpeedMultiplier : 2f;
-        networkDashDuration.Value = config != null ? config.DashDuration : 0.15f;
-        networkAttackCooldown.Value = config != null ? config.AttackInterval : 1f;
-        networkKnockbackForce.Value = config != null ? config.KnockbackForce : 5f;
-        networkCritRate.Value = config != null ? config.CritRate : 0.05f;
-        networkCritDamage.Value = config != null ? config.CritDamage : 2f;
-        networkInvincibleTime.Value = config != null ? config.InvincibleTime : 0.8f;
-        networkFlashSpeed.Value = config != null ? config.FlashSpeed : 10f;
-        networkMaxScarlet.Value = config != null ? config.MaxScarlet : 100f;
-        networkScarlet.Value = 0f;
-        networkCoins.Value = 0;
-        networkAlive.Value = true;
-        networkBloodPacts.Clear();
-        networkInitialized.Value = true;
-    }
-
-    private float GetBaseStatValue(PlayerStatType stat)
-    {
-        PlayerStatsConfig config = ResolveBaseStats();
-        if (config == null) return 0f;
-
-        return stat switch
-        {
-            PlayerStatType.MaxHealth => config.MaxHealth,
-            PlayerStatType.MaxStamina => config.MaxStamina,
-            PlayerStatType.DashStaminaCost => config.DashStaminaCost,
-            PlayerStatType.StaminaRecovery => config.StaminaRecoverSpeed,
-            PlayerStatType.BaseAttack => config.BaseAttack,
-            PlayerStatType.AttackRange => config.AttackRange,
-            PlayerStatType.AttackInterval => config.AttackInterval,
-            PlayerStatType.KnockbackForce => config.KnockbackForce,
-            PlayerStatType.MoveSpeed => config.MoveSpeed,
-            PlayerStatType.DashSpeedMultiplier => config.DashSpeedMultiplier,
-            PlayerStatType.DashDuration => config.DashDuration,
-            PlayerStatType.CritRate => config.CritRate,
-            PlayerStatType.CritDamage => config.CritDamage,
-            PlayerStatType.InvincibleTime => config.InvincibleTime,
-            PlayerStatType.FlashSpeed => config.FlashSpeed,
-            PlayerStatType.MaxScarlet => config.MaxScarlet,
-            _ => 0f
-        };
-    }
-
-    private PlayerStatBreakdown CalculateStatBreakdown(PlayerStatType stat)
-    {
-        GetStatLimits(stat, out float minimum, out float maximum);
-        PlayerStatBreakdown result = runModifiers.Evaluate(
-            stat,
-            GetBaseStatValue(stat),
-            minimum,
-            maximum);
-
-        if (stat != PlayerStatType.MaxHealth) return result;
-        return new PlayerStatBreakdown(
-            result.Stat,
-            result.BaseValue,
-            result.FlatBonus,
-            result.AdditivePercent,
-            result.MultiplicativeFactor,
-            result.UnclampedValue,
-            Mathf.Max(1, Mathf.RoundToInt(result.FinalValue)),
-            result.ModifierCount);
-    }
-
-    private static void GetStatLimits(
-        PlayerStatType stat,
-        out float minimum,
-        out float maximum)
-    {
-        maximum = float.PositiveInfinity;
-        switch (stat)
-        {
-            case PlayerStatType.MaxHealth:
-            case PlayerStatType.CritDamage:
-                minimum = 1f;
-                break;
-            case PlayerStatType.AttackInterval:
-            case PlayerStatType.FlashSpeed:
-            case PlayerStatType.DashSpeedMultiplier:
-            case PlayerStatType.DashDuration:
-                minimum = 0.01f;
-                break;
-            case PlayerStatType.CritRate:
-                minimum = 0f;
-                maximum = 1f;
-                break;
-            default:
-                minimum = 0f;
-                break;
-        }
-    }
-
-    private void RecalculateStat(PlayerStatType stat)
-    {
-        PlayerStatBreakdown breakdown = CalculateStatBreakdown(stat);
-        SetStatValue(stat, breakdown.FinalValue);
-
-        // In network play the NetworkVariable callback is the single event source.
-        if (!UseNetworkValues) RunStatChanged?.Invoke(stat);
-    }
-
-    private void SetStatValue(PlayerStatType stat, float value)
-    {
-        switch (stat)
-        {
-            case PlayerStatType.MaxHealth:
-                SetMaxHealth(Mathf.Max(1, Mathf.RoundToInt(value)));
-                break;
-            case PlayerStatType.MaxStamina:
-                SetMaxStamina(Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.DashStaminaCost:
-                SetRuntimeFloat(networkDashStaminaCost, ref offlineDashStaminaCost, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.StaminaRecovery:
-                SetRuntimeFloat(networkStaminaRecovery, ref offlineStaminaRecovery, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.BaseAttack:
-                SetRuntimeFloat(networkDamage, ref offlineDamage, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.AttackRange:
-                SetRuntimeFloat(networkWeaponRange, ref offlineWeaponRange, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.AttackInterval:
-                SetRuntimeFloat(networkAttackCooldown, ref offlineAttackCooldown, Mathf.Max(0.01f, value));
-                break;
-            case PlayerStatType.KnockbackForce:
-                SetRuntimeFloat(networkKnockbackForce, ref offlineKnockbackForce, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.MoveSpeed:
-                SetRuntimeFloat(networkMoveSpeed, ref offlineMoveSpeed, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.DashSpeedMultiplier:
-                SetRuntimeFloat(
-                    networkDashSpeedMultiplier,
-                    ref offlineDashSpeedMultiplier,
-                    Mathf.Max(0.01f, value));
-                break;
-            case PlayerStatType.DashDuration:
-                SetRuntimeFloat(
-                    networkDashDuration,
-                    ref offlineDashDuration,
-                    Mathf.Max(0.01f, value));
-                break;
-            case PlayerStatType.CritRate:
-                SetRuntimeFloat(networkCritRate, ref offlineCritRate, Mathf.Clamp01(value));
-                break;
-            case PlayerStatType.CritDamage:
-                SetRuntimeFloat(networkCritDamage, ref offlineCritDamage, Mathf.Max(1f, value));
-                break;
-            case PlayerStatType.InvincibleTime:
-                SetRuntimeFloat(networkInvincibleTime, ref offlineInvincibleTime, Mathf.Max(0f, value));
-                break;
-            case PlayerStatType.FlashSpeed:
-                SetRuntimeFloat(networkFlashSpeed, ref offlineFlashSpeed, Mathf.Max(0.01f, value));
-                break;
-            case PlayerStatType.MaxScarlet:
-                SetMaxScarlet(Mathf.Max(0f, value));
-                break;
-        }
-    }
-
-    private void SetMaxHealth(int value)
-    {
-        int previous = MaxHealth;
-        int previousHealth = CurrentHealth;
-        int delta = value - previous;
-        if (UseNetworkValues)
-        {
-            networkMaxHealth.Value = value;
-            networkHealth.Value = Mathf.Clamp(networkHealth.Value + Mathf.Max(0, delta), 0, value);
-        }
-        else
-        {
-            offlineMaxHealth = value;
-            offlineHealth = Mathf.Clamp(offlineHealth + Mathf.Max(0, delta), 0, value);
-            HealthChanged?.Invoke(offlineHealth, offlineMaxHealth);
-        }
-        NotifyGameplayHealthChanged(previousHealth);
-    }
-
-    private void SetMaxStamina(float value)
-    {
-        float delta = value - MaxStamina;
-        SetRuntimeFloat(networkMaxStamina, ref offlineMaxStamina, value);
-        SetStamina(Mathf.Min(value, CurrentStamina + Mathf.Max(0f, delta)));
-    }
-
-    private void SetMaxScarlet(float value)
-    {
-        SetRuntimeFloat(networkMaxScarlet, ref offlineMaxScarlet, value);
-    }
-
-    private void SetHealth(int value)
-    {
-        value = Mathf.Clamp(value, 0, MaxHealth);
+        EntityId sourceId = source is PlayerNetworkState player ? player.LogicalPlayerId : LogicalPlayerId;
         int previous = CurrentHealth;
-        if (previous == value) return;
-        if (UseNetworkValues) networkHealth.Value = value;
-        else
-        {
-            offlineHealth = value;
-            HealthChanged?.Invoke(offlineHealth, offlineMaxHealth);
-        }
-        NotifyGameplayHealthChanged(previous);
+        ApplyDamage(new PlayerDamageCommand(sourceId, LogicalPlayerId, amount, ToWorldPosition(transform.position)));
+        return Math.Max(0, previous - CurrentHealth);
     }
 
-    private void SetStamina(float value)
+    public int HealGameplay(int amount) => RestoreHealth(amount);
+    public void AddScarletGameplay(float amount) => AddScarlet(amount);
+    public void AddCoinsGameplay(int amount) => AddCoins(amount);
+
+    [Obsolete("Gameplay cues are emitted by Player Application and consumed by Presenters.")]
+    public void EmitGameplayCue(in GameplayCueEvent cueEvent) => GameplayCueRequested?.Invoke(cueEvent);
+
+    [Obsolete("Attack damage is resolved by PlayerCombatService; use IPlayerCommandGateway.")]
+    public int RollAttackDamage(out bool wasCritical)
     {
-        value = Mathf.Clamp(value, 0f, MaxStamina);
-        if (UseNetworkValues) networkStamina.Value = value;
-        else if (!Mathf.Approximately(offlineStamina, value))
-        {
-            offlineStamina = value;
-            StaminaChanged?.Invoke(offlineStamina, offlineMaxStamina);
-        }
+        wasCritical = false;
+        return 0;
     }
 
-    private void SetScarlet(float value)
+    [Obsolete("Confirmed attack events are produced by CombatApplicationService.")]
+    public void ReportAttackHit(IGameplayAbilitySystemHost target, float damageDealt, bool wasCritical, Vector3 position, int combatTextTargetKey = 0)
     {
-        if (float.IsNaN(value)) return;
-        value = float.IsPositiveInfinity(value) ? float.MaxValue : Mathf.Max(0f, value);
-        if (UseNetworkValues) networkScarlet.Value = value;
-        else if (!Mathf.Approximately(offlineScarlet, value))
-        {
-            offlineScarlet = value;
-            ScarletChanged?.Invoke(offlineScarlet, offlineMaxScarlet);
-        }
     }
 
-    private void AddScarletDirect(float amount)
+    [Obsolete("Confirmed effect damage is produced by CombatApplicationService.")]
+    public void ReportGameplayEffectDamage(int damageDealt, Vector3 position, int combatTextTargetKey = 0)
     {
-        double nextValue = (double)CurrentScarlet + amount;
-        SetScarlet(nextValue >= float.MaxValue ? float.MaxValue : (float)nextValue);
     }
 
-    private void SetCoins(int value)
+    [Obsolete("Enemy death is emitted by EnemyDeathService.")]
+    public void ReportEnemyKilled(Vector3 position)
     {
-        value = Mathf.Max(0, value);
-        if (UseNetworkValues) networkCoins.Value = value;
-        else if (offlineCoins != value)
-        {
-            offlineCoins = value;
-            CoinsChanged?.Invoke(offlineCoins);
-        }
     }
 
-    private void SetAlive(bool value)
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void SubmitAttackRpc(Vector3 aimAt, uint sequence)
     {
-        if (UseNetworkValues) networkAlive.Value = value;
-        else if (offlineAlive != value)
-        {
-            offlineAlive = value;
-            ApplyAlivePresentation(value);
-            AliveChanged?.Invoke(value);
-        }
+        if (runtime == null) return;
+        runtime.SubmitAttack(new AttackCommand(LogicalPlayerId, ToWorldPosition(aimAt), sequence));
+        CaptureRuntimeSnapshot();
     }
 
-    private void AddOrStackBloodPactSnapshot(string pactId)
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void SubmitDashRpc(Vector3 direction, uint sequence)
     {
-        if (string.IsNullOrWhiteSpace(pactId)) return;
+        if (runtime == null) return;
+        runtime.SubmitDash(new DashCommand(LogicalPlayerId, new MoveVector(direction.x, 0f, direction.z), sequence));
+        CaptureRuntimeSnapshot();
+    }
 
-        if (UseNetworkValues)
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void SubmitBloodPactRpc(FixedString64Bytes selection, uint offerVersion, uint sequence)
+    {
+        if (runtime == null) return;
+        runtime.SelectBloodPact(new SelectBloodPactCommand(
+            LogicalPlayerId,
+            new BloodPactId(selection.ToString()),
+            offerVersion,
+            sequence));
+        CaptureRuntimeSnapshot();
+        CaptureOffer();
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestBloodPactOfferRpc()
+    {
+        if (runtime == null || !runtime.TryCreateBloodPactOffer(out BloodPactOffer offer)) return;
+        currentOffer = offer;
+        CaptureOffer();
+        BloodPactOfferChanged?.Invoke();
+    }
+
+    private void HandleRuntimeSnapshotChanged(PlayerSnapshot next)
+    {
+        offlineSnapshot = next;
+        CaptureRuntimeSnapshot();
+        PublishAll();
+    }
+
+    private void CaptureRuntimeSnapshot()
+    {
+        if (runtime == null) return;
+        offlineSnapshot = runtime.Snapshot;
+        if (!UseNetworkValues || !IsServer) return;
+        PlayerSnapshot state = runtime.Snapshot;
+        networkMaxHealth.Value = state.MaxHealth;
+        networkHealth.Value = state.CurrentHealth;
+        networkMaxStamina.Value = state.MaxStamina;
+        networkStamina.Value = state.Stamina;
+        networkScarlet.Value = state.Scarlet;
+        networkCoins.Value = state.Coins;
+        networkAlive.Value = state.IsAlive;
+        SyncBloodPacts(state.BloodPacts);
+        networkInitialized.Value = true;
+        CaptureOffer();
+    }
+
+    private void CaptureOffer()
+    {
+        if (!UseNetworkValues || !IsServer) return;
+
+        BloodPactOffer offer = default;
+        if (runtime != null) runtime.TryGetBloodPactOffer(out offer);
+        networkBloodPactOfferVersion.Value = offer.IsValid ? offer.OfferVersion : 0u;
+        networkBloodPactOfferCost.Value = offer.IsValid ? offer.Cost : 0;
+        networkBloodPactOfferChoice0.Value = OfferChoice(offer, 0);
+        networkBloodPactOfferChoice1.Value = OfferChoice(offer, 1);
+        networkBloodPactOfferChoice2.Value = OfferChoice(offer, 2);
+    }
+
+    private static FixedString64Bytes OfferChoice(BloodPactOffer offer, int index) =>
+        offer.IsValid && index < offer.Choices.Count
+            ? new FixedString64Bytes(offer.Choices[index].Value)
+            : new FixedString64Bytes();
+
+    private bool TryReadNetworkOffer(out BloodPactOffer offer)
+    {
+        if (networkBloodPactOfferVersion.Value == 0u)
         {
-            for (int index = 0; index < networkBloodPacts.Count; index++)
-            {
-                NetworkBloodPactState state = networkBloodPacts[index];
-                if (!string.Equals(state.PactId.ToString(), pactId, StringComparison.Ordinal))
-                    continue;
-                state.Stacks = (ushort)Math.Min(ushort.MaxValue, state.Stacks + 1);
-                networkBloodPacts[index] = state;
-                return;
-            }
-            networkBloodPacts.Add(new NetworkBloodPactState(pactId));
-            return;
+            offer = default;
+            return false;
         }
 
-        for (int index = 0; index < offlineBloodPacts.Count; index++)
-        {
-            NetworkBloodPactState state = offlineBloodPacts[index];
-            if (!string.Equals(state.PactId.ToString(), pactId, StringComparison.Ordinal))
-                continue;
-            state.Stacks = (ushort)Math.Min(ushort.MaxValue, state.Stacks + 1);
-            offlineBloodPacts[index] = state;
-            BloodPactsChanged?.Invoke();
-            return;
-        }
-        offlineBloodPacts.Add(new NetworkBloodPactState(pactId));
+        List<BloodPactId> choices = new(3);
+        AddNetworkOfferChoice(choices, networkBloodPactOfferChoice0.Value);
+        AddNetworkOfferChoice(choices, networkBloodPactOfferChoice1.Value);
+        AddNetworkOfferChoice(choices, networkBloodPactOfferChoice2.Value);
+        offer = new BloodPactOffer(
+            LogicalPlayerId,
+            networkBloodPactOfferVersion.Value,
+            networkBloodPactOfferCost.Value,
+            choices);
+        return offer.IsValid;
+    }
+
+    private static void AddNetworkOfferChoice(List<BloodPactId> choices, FixedString64Bytes value)
+    {
+        string text = value.ToString();
+        if (!string.IsNullOrWhiteSpace(text)) choices.Add(new BloodPactId(text));
+    }
+
+    private void SyncBloodPacts(IReadOnlyList<BloodPactStack> pacts)
+    {
+        if (networkBloodPacts == null) return;
+        networkBloodPacts.Clear();
+        for (int i = 0; i < pacts.Count; i++)
+            networkBloodPacts.Add(new NetworkBloodPactState(pacts[i].Id.Value, (ushort)Mathf.Clamp(pacts[i].Stacks, 0, ushort.MaxValue)));
+    }
+
+    private PlayerSnapshot ReadSnapshot()
+    {
+        if (runtime != null) return runtime.Snapshot;
+        if (!UseNetworkValues) return offlineSnapshot;
+        List<BloodPactStack> pacts = new(networkBloodPacts?.Count ?? 0);
+        if (networkBloodPacts != null)
+            for (int i = 0; i < networkBloodPacts.Count; i++)
+                pacts.Add(new BloodPactStack(new BloodPactId(networkBloodPacts[i].PactId.ToString()), networkBloodPacts[i].Stacks));
+        return new PlayerSnapshot(
+            LogicalPlayerId,
+            networkHealth.Value,
+            networkMaxHealth.Value,
+            networkAlive.Value,
+            false,
+            networkStamina.Value,
+            networkMaxStamina.Value,
+            Mathf.Max(0, Mathf.RoundToInt(networkScarlet.Value)),
+            networkCoins.Value,
+            1,
+            0,
+            commandSequence,
+            false,
+            0d,
+            pacts);
+    }
+
+    private void PublishAll()
+    {
+        PlayerSnapshot state = ReadSnapshot();
+        HealthChanged?.Invoke(state.CurrentHealth, state.MaxHealth);
+        StaminaChanged?.Invoke(state.Stamina, state.MaxStamina);
+        ScarletChanged?.Invoke(state.Scarlet, MaxScarlet);
+        CoinsChanged?.Invoke(state.Coins);
+        AliveChanged?.Invoke(state.IsAlive);
         BloodPactsChanged?.Invoke();
     }
 
-    private void ClearBloodPactSnapshots()
+    private void ApplyConfigToReplicationCache()
     {
-        if (UseNetworkValues) networkBloodPacts.Clear();
-        else
-        {
-            offlineBloodPacts.Clear();
-            BloodPactsChanged?.Invoke();
-        }
+        PlayerStatsConfig config = ResolveBaseStats();
+        if (config == null) return;
+        offlineSnapshot = new PlayerSnapshot(
+            LogicalPlayerId,
+            Mathf.Max(1, config.MaxHealth),
+            Mathf.Max(1, config.MaxHealth),
+            true,
+            false,
+            Mathf.Max(0f, config.MaxStamina),
+            Mathf.Max(0f, config.MaxStamina),
+            0,
+            0,
+            1,
+            0,
+            commandSequence,
+            false,
+            0d,
+            offlineSnapshot.BloodPacts);
+
+        if (!UseNetworkValues || !IsServer) return;
+        networkMaxHealth.Value = offlineSnapshot.MaxHealth;
+        networkHealth.Value = offlineSnapshot.CurrentHealth;
+        networkMaxStamina.Value = offlineSnapshot.MaxStamina;
+        networkStamina.Value = offlineSnapshot.Stamina;
+        networkDashStaminaCost.Value = config.DashStaminaCost;
+        networkStaminaRecovery.Value = config.StaminaRecoverSpeed;
+        networkDamage.Value = config.BaseAttack;
+        networkWeaponRange.Value = config.AttackRange;
+        networkMoveSpeed.Value = config.MoveSpeed;
+        networkDashSpeedMultiplier.Value = config.DashSpeedMultiplier;
+        networkDashDuration.Value = config.DashDuration;
+        networkAttackCooldown.Value = config.AttackInterval;
+        networkKnockbackForce.Value = config.KnockbackForce;
+        networkCritRate.Value = config.CritRate;
+        networkCritDamage.Value = config.CritDamage;
+        networkInvincibleTime.Value = config.InvincibleTime;
+        networkFlashSpeed.Value = config.FlashSpeed;
+        networkMaxScarlet.Value = config.MaxScarlet;
+        networkScarlet.Value = 0f;
+        networkCoins.Value = 0;
+        networkAlive.Value = true;
+        networkInitialized.Value = true;
     }
 
-    private void NotifyGameplayHealthChanged(int previousHealth)
-    {
-        if (abilitySystem == null || previousHealth == CurrentHealth ||
-            !NetworkAuthority.IsServerOrOffline(this))
-        {
-            return;
-        }
+    private PlayerSnapshot BuildFallbackSnapshot() => new(
+        LogicalPlayerId,
+        Mathf.RoundToInt(BaseStatsValue(c => c.MaxHealth, 1)),
+        Mathf.RoundToInt(BaseStatsValue(c => c.MaxHealth, 1)),
+        true,
+        false,
+        BaseStatsValue(c => c.MaxStamina, 100f),
+        BaseStatsValue(c => c.MaxStamina, 100f),
+        0,
+        0,
+        1,
+        0,
+        0,
+        false,
+        0d,
+        Array.Empty<BloodPactStack>());
 
-        GameplayEventData healthChanged = new(
-            GameplayEventType.HealthChanged,
-            this,
-            this,
-            CurrentHealth - previousHealth,
-            false,
-            transform.position);
-        abilitySystem.SendEvent(in healthChanged);
+    private EntityId ResolveLogicalPlayerId()
+    {
+        if (runtime != null && runtime.PlayerId.IsValid) return runtime.PlayerId;
+        if (logicalPlayerId != 0UL) return new EntityId(logicalPlayerId);
+        ulong fallback = IsSpawned ? NetworkObjectId : CompatibilityIds.Allocate().Value;
+        logicalPlayerId = fallback == 0UL ? CompatibilityIds.Allocate().Value : fallback;
+        return new EntityId(logicalPlayerId);
+    }
+
+    private uint NextCommandSequence() => commandSequence == uint.MaxValue ? 1U : ++commandSequence;
+    private PlayerStatsConfig ResolveBaseStats()
+    {
+        if (baseStats == null) baseStats = PlayerStatsConfig.LoadDefault();
+        return baseStats;
+    }
+
+    private float BaseStatsValue(Func<PlayerStatsConfig, float> selector, float fallback)
+    {
+        PlayerStatsConfig config = ResolveBaseStats();
+        return config == null ? fallback : selector(config);
     }
 
     private float Read(NetworkVariable<float> networkValue, float offlineValue) =>
         UseNetworkValues ? networkValue.Value : offlineValue;
 
-    private void SetRuntimeFloat(
-        NetworkVariable<float> networkValue,
-        ref float offlineValue,
-        float value)
+    private int Read(NetworkVariable<int> networkValue, int offlineValue) =>
+        UseNetworkValues ? networkValue.Value : offlineValue;
+
+    private static WorldPosition ToWorldPosition(Vector3 value)
     {
-        if (UseNetworkValues) networkValue.Value = value;
-        else offlineValue = value;
+        if (float.IsNaN(value.x) || float.IsInfinity(value.x) || float.IsNaN(value.y) ||
+            float.IsInfinity(value.y) || float.IsNaN(value.z) || float.IsInfinity(value.z))
+            return WorldPosition.Origin;
+        return new WorldPosition(value.x, value.y, value.z);
     }
 
     private void SubscribeNetworkEvents()
     {
+        if (networkEventsSubscribed) return;
+        networkEventsSubscribed = true;
         networkHealth.OnValueChanged += HandleNetworkHealthChanged;
         networkMaxHealth.OnValueChanged += HandleNetworkMaxHealthChanged;
         networkStamina.OnValueChanged += HandleNetworkStaminaChanged;
         networkMaxStamina.OnValueChanged += HandleNetworkMaxStaminaChanged;
         networkScarlet.OnValueChanged += HandleNetworkScarletChanged;
-        networkMaxScarlet.OnValueChanged += HandleNetworkMaxScarletChanged;
         networkCoins.OnValueChanged += HandleNetworkCoinsChanged;
         networkAlive.OnValueChanged += HandleNetworkAliveChanged;
-        networkDashStaminaCost.OnValueChanged += HandleDashCostChanged;
-        networkStaminaRecovery.OnValueChanged += HandleStaminaRecoveryChanged;
-        networkDamage.OnValueChanged += HandleDamageChanged;
-        networkWeaponRange.OnValueChanged += HandleAttackRangeChanged;
-        networkMoveSpeed.OnValueChanged += HandleMoveSpeedChanged;
-        networkDashSpeedMultiplier.OnValueChanged += HandleDashSpeedMultiplierChanged;
-        networkDashDuration.OnValueChanged += HandleDashDurationChanged;
-        networkAttackCooldown.OnValueChanged += HandleAttackIntervalChanged;
-        networkKnockbackForce.OnValueChanged += HandleKnockbackChanged;
-        networkCritRate.OnValueChanged += HandleCritRateChanged;
-        networkCritDamage.OnValueChanged += HandleCritDamageChanged;
-        networkInvincibleTime.OnValueChanged += HandleInvincibleTimeChanged;
-        networkFlashSpeed.OnValueChanged += HandleFlashSpeedChanged;
+        networkBloodPactOfferVersion.OnValueChanged += HandleNetworkOfferVersionChanged;
+        networkBloodPactOfferCost.OnValueChanged += HandleNetworkOfferCostChanged;
+        networkBloodPactOfferChoice0.OnValueChanged += HandleNetworkOfferChoiceChanged;
+        networkBloodPactOfferChoice1.OnValueChanged += HandleNetworkOfferChoiceChanged;
+        networkBloodPactOfferChoice2.OnValueChanged += HandleNetworkOfferChoiceChanged;
     }
 
     private void UnsubscribeNetworkEvents()
     {
+        if (!networkEventsSubscribed) return;
+        networkEventsSubscribed = false;
         networkHealth.OnValueChanged -= HandleNetworkHealthChanged;
         networkMaxHealth.OnValueChanged -= HandleNetworkMaxHealthChanged;
         networkStamina.OnValueChanged -= HandleNetworkStaminaChanged;
         networkMaxStamina.OnValueChanged -= HandleNetworkMaxStaminaChanged;
         networkScarlet.OnValueChanged -= HandleNetworkScarletChanged;
-        networkMaxScarlet.OnValueChanged -= HandleNetworkMaxScarletChanged;
         networkCoins.OnValueChanged -= HandleNetworkCoinsChanged;
         networkAlive.OnValueChanged -= HandleNetworkAliveChanged;
-        networkDashStaminaCost.OnValueChanged -= HandleDashCostChanged;
-        networkStaminaRecovery.OnValueChanged -= HandleStaminaRecoveryChanged;
-        networkDamage.OnValueChanged -= HandleDamageChanged;
-        networkWeaponRange.OnValueChanged -= HandleAttackRangeChanged;
-        networkMoveSpeed.OnValueChanged -= HandleMoveSpeedChanged;
-        networkDashSpeedMultiplier.OnValueChanged -= HandleDashSpeedMultiplierChanged;
-        networkDashDuration.OnValueChanged -= HandleDashDurationChanged;
-        networkAttackCooldown.OnValueChanged -= HandleAttackIntervalChanged;
-        networkKnockbackForce.OnValueChanged -= HandleKnockbackChanged;
-        networkCritRate.OnValueChanged -= HandleCritRateChanged;
-        networkCritDamage.OnValueChanged -= HandleCritDamageChanged;
-        networkInvincibleTime.OnValueChanged -= HandleInvincibleTimeChanged;
-        networkFlashSpeed.OnValueChanged -= HandleFlashSpeedChanged;
+        networkBloodPactOfferVersion.OnValueChanged -= HandleNetworkOfferVersionChanged;
+        networkBloodPactOfferCost.OnValueChanged -= HandleNetworkOfferCostChanged;
+        networkBloodPactOfferChoice0.OnValueChanged -= HandleNetworkOfferChoiceChanged;
+        networkBloodPactOfferChoice1.OnValueChanged -= HandleNetworkOfferChoiceChanged;
+        networkBloodPactOfferChoice2.OnValueChanged -= HandleNetworkOfferChoiceChanged;
     }
 
-    private void HandleNetworkHealthChanged(int previous, int current) =>
-        HealthChanged?.Invoke(current, MaxHealth);
-    private void HandleNetworkMaxHealthChanged(int previous, int current)
+    private void HandleNetworkHealthChanged(int previous, int current) => HealthChanged?.Invoke(current, MaxHealth);
+    private void HandleNetworkMaxHealthChanged(int previous, int current) => HealthChanged?.Invoke(CurrentHealth, current);
+    private void HandleNetworkStaminaChanged(float previous, float current) => StaminaChanged?.Invoke(current, MaxStamina);
+    private void HandleNetworkMaxStaminaChanged(float previous, float current) => StaminaChanged?.Invoke(CurrentStamina, current);
+    private void HandleNetworkScarletChanged(float previous, float current) => ScarletChanged?.Invoke(current, MaxScarlet);
+    private void HandleNetworkCoinsChanged(int previous, int current) => CoinsChanged?.Invoke(current);
+    private void HandleNetworkAliveChanged(bool previous, bool current) => AliveChanged?.Invoke(current);
+    private void HandleNetworkOfferVersionChanged(uint previous, uint current) => HandleNetworkOfferChanged();
+    private void HandleNetworkOfferCostChanged(int previous, int current) => HandleNetworkOfferChanged();
+    private void HandleNetworkOfferChoiceChanged(FixedString64Bytes previous, FixedString64Bytes current) =>
+        HandleNetworkOfferChanged();
+
+    private void HandleNetworkOfferChanged()
     {
-        HealthChanged?.Invoke(CurrentHealth, current);
-        RunStatChanged?.Invoke(PlayerStatType.MaxHealth);
-    }
-    private void HandleNetworkStaminaChanged(float previous, float current) =>
-        StaminaChanged?.Invoke(current, MaxStamina);
-    private void HandleNetworkMaxStaminaChanged(float previous, float current)
-    {
-        StaminaChanged?.Invoke(CurrentStamina, current);
-        RunStatChanged?.Invoke(PlayerStatType.MaxStamina);
-    }
-    private void HandleNetworkScarletChanged(float previous, float current) =>
-        ScarletChanged?.Invoke(current, MaxScarlet);
-    private void HandleNetworkCoinsChanged(int previous, int current) =>
-        CoinsChanged?.Invoke(current);
-    private void HandleNetworkMaxScarletChanged(float previous, float current)
-    {
-        ScarletChanged?.Invoke(CurrentScarlet, current);
-        RunStatChanged?.Invoke(PlayerStatType.MaxScarlet);
-    }
-    private void HandleNetworkAliveChanged(bool previous, bool current)
-    {
-        ApplyAlivePresentation(current);
-        AliveChanged?.Invoke(current);
+        if (runtime == null && TryReadNetworkOffer(out BloodPactOffer offer))
+            currentOffer = offer;
+        else if (runtime == null)
+            currentOffer = default;
+        BloodPactOfferChanged?.Invoke();
     }
 
-    private void HandleBloodPactListChanged(
-        NetworkListEvent<NetworkBloodPactState> change) =>
-        BloodPactsChanged?.Invoke();
-
-    private void HandleDashCostChanged(float p, float c) => Notify(PlayerStatType.DashStaminaCost);
-    private void HandleStaminaRecoveryChanged(float p, float c) => Notify(PlayerStatType.StaminaRecovery);
-    private void HandleDamageChanged(float p, float c) => Notify(PlayerStatType.BaseAttack);
-    private void HandleAttackRangeChanged(float p, float c) => Notify(PlayerStatType.AttackRange);
-    private void HandleMoveSpeedChanged(float p, float c) => Notify(PlayerStatType.MoveSpeed);
-    private void HandleDashSpeedMultiplierChanged(float p, float c) =>
-        Notify(PlayerStatType.DashSpeedMultiplier);
-    private void HandleDashDurationChanged(float p, float c) => Notify(PlayerStatType.DashDuration);
-    private void HandleAttackIntervalChanged(float p, float c) => Notify(PlayerStatType.AttackInterval);
-    private void HandleKnockbackChanged(float p, float c) => Notify(PlayerStatType.KnockbackForce);
-    private void HandleCritRateChanged(float p, float c) => Notify(PlayerStatType.CritRate);
-    private void HandleCritDamageChanged(float p, float c) => Notify(PlayerStatType.CritDamage);
-    private void HandleInvincibleTimeChanged(float p, float c) => Notify(PlayerStatType.InvincibleTime);
-    private void HandleFlashSpeedChanged(float p, float c) => Notify(PlayerStatType.FlashSpeed);
-    private void Notify(PlayerStatType stat) => RunStatChanged?.Invoke(stat);
-
-    private void PublishAll()
-    {
-        ApplyAlivePresentation(IsAlive);
-        HealthChanged?.Invoke(CurrentHealth, MaxHealth);
-        StaminaChanged?.Invoke(CurrentStamina, MaxStamina);
-        ScarletChanged?.Invoke(CurrentScarlet, MaxScarlet);
-        CoinsChanged?.Invoke(CurrentCoins);
-        AliveChanged?.Invoke(IsAlive);
-    }
-
-    private void ApplyAlivePresentation(bool alive)
-    {
-        foreach (Collider playerCollider in GetComponentsInChildren<Collider>(true))
-            playerCollider.enabled = alive;
-
-        if (!hideVisualsWhenDead) return;
-        foreach (Renderer playerRenderer in GetComponentsInChildren<Renderer>(true))
-            playerRenderer.enabled = alive;
-    }
+    private void HandleBloodPactListChanged(NetworkListEvent<NetworkBloodPactState> change) => BloodPactsChanged?.Invoke();
 }

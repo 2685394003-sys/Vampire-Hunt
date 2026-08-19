@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using VampireHunt.Abilities.Contracts;
 using VampireHunt.Combat.Application;
 using VampireHunt.Combat.Contracts;
@@ -16,6 +17,7 @@ namespace VampireHunt.Abilities.Domain
     {
         private readonly CombatApplicationService combat;
         private readonly IAttributeModifierTarget attributeTarget;
+        private readonly IPreciseAttributeModifierTarget preciseAttributeTarget;
         private readonly IGameplayEventSink eventSink;
         private readonly IGameClock clock;
         private readonly GameplayEventIdAllocator eventIds;
@@ -29,6 +31,7 @@ namespace VampireHunt.Abilities.Domain
         {
             combat = combatApplicationService ?? throw new ArgumentNullException(nameof(combatApplicationService));
             attributeTarget = attributeModifierTarget;
+            preciseAttributeTarget = attributeModifierTarget as IPreciseAttributeModifierTarget;
             this.eventSink = eventSink;
             this.clock = clock;
             this.eventIds = eventIds ?? new GameplayEventIdAllocator();
@@ -49,6 +52,17 @@ namespace VampireHunt.Abilities.Domain
         {
             if (effect == null) throw new ArgumentNullException(nameof(effect));
             ValidateContext(context);
+            bool hasAttributeExecution = HasAttributeExecution(effect.Spec.Executions);
+            if (hasAttributeExecution)
+            {
+                EnsurePreciseAttributeTarget();
+                // Attribute executions represent the effect's current
+                // contribution. Re-application, refresh and periodic ticks
+                // replace that contribution instead of accumulating orphaned
+                // registrations under the same source id.
+                RemoveOwnedModifiers(effect, true);
+            }
+
             int damages = 0;
             int healings = 0;
             int modifierApplications = 0;
@@ -82,9 +96,10 @@ namespace VampireHunt.Abilities.Domain
                         break;
                     }
                     case GameplayExecutionType.Attribute:
-                        if (attributeTarget == null)
-                            throw new InvalidOperationException("An attribute execution requires IAttributeModifierTarget.");
-                        attributeTarget.AddModifier(execution.Modifier.Bind(context.SourceId));
+                        RegisterModifier(
+                            effect,
+                            execution.Modifier.Bind(context.SourceId),
+                            true);
                         modifierApplications++;
                         break;
                     default:
@@ -100,12 +115,13 @@ namespace VampireHunt.Abilities.Domain
             if (effect.Spec.Modifiers.Count == 0) return 0;
             if (attributeTarget == null)
                 throw new InvalidOperationException("An effect with modifiers requires IAttributeModifierTarget.");
+            EnsurePreciseAttributeTarget();
 
             int applied = 0;
             foreach (GameplayModifierSpec modifier in effect.Spec.Modifiers)
             {
                 StatModifier bound = modifier.Bind(effect.SourceId);
-                attributeTarget.AddModifier(bound);
+                RegisterModifier(effect, bound, false);
                 applied++;
             }
             return applied;
@@ -113,8 +129,18 @@ namespace VampireHunt.Abilities.Domain
 
         internal int RemoveModifiers(ActiveGameplayEffect effect)
         {
-            if (effect == null || effect.Spec.Modifiers.Count == 0 || attributeTarget == null) return 0;
-            return attributeTarget.RemoveModifiers(effect.SourceId);
+            if (effect == null || attributeTarget == null) return 0;
+            if (effect.OwnedModifierCount == 0) return 0;
+            EnsurePreciseAttributeTarget();
+            return RemoveOwnedModifiers(effect, false);
+        }
+
+        internal int RemoveBaseModifiers(ActiveGameplayEffect effect)
+        {
+            if (effect == null || attributeTarget == null) return 0;
+            if (effect.OwnedModifierCount == effect.OwnedExecutionModifierCount) return 0;
+            EnsurePreciseAttributeTarget();
+            return RemoveOwnedModifiers(effect, false, includeExecution: false);
         }
 
         internal void PublishCue(ActiveGameplayEffect effect, GameplayCuePhase phase)
@@ -142,6 +168,63 @@ namespace VampireHunt.Abilities.Domain
             if (value <= 0f) return 0;
             if (float.IsNaN(value) || float.IsInfinity(value) || value >= int.MaxValue) return int.MaxValue;
             return (int)Math.Round(value, MidpointRounding.AwayFromZero);
+        }
+
+        private void RegisterModifier(
+            ActiveGameplayEffect effect,
+            StatModifier modifier,
+            bool execution)
+        {
+            EnsurePreciseAttributeTarget();
+            StatModifierHandle handle = preciseAttributeTarget.AddModifierWithHandle(modifier);
+            if (!handle.IsValid)
+                throw new InvalidOperationException("The attribute target returned an invalid modifier handle.");
+            effect.RegisterModifier(handle, execution);
+        }
+
+        private int RemoveOwnedModifiers(
+            ActiveGameplayEffect effect,
+            bool executionOnly,
+            bool includeExecution = true)
+        {
+            StatModifierHandle[] handles = effect.CopyOwnedModifierHandles(executionOnly);
+            StatModifierHandle[] executionHandles = includeExecution
+                ? null
+                : effect.CopyOwnedModifierHandles(true);
+            int removed = 0;
+            foreach (StatModifierHandle handle in handles)
+            {
+                if (!includeExecution && Contains(executionHandles, handle))
+                    continue;
+
+                if (preciseAttributeTarget.RemoveModifier(handle)) removed++;
+                effect.ForgetModifier(handle);
+            }
+            return removed;
+        }
+
+        private static bool Contains(StatModifierHandle[] handles, StatModifierHandle value)
+        {
+            if (handles == null) return false;
+            for (int index = 0; index < handles.Length; index++)
+                if (handles[index] == value) return true;
+            return false;
+        }
+
+        private void EnsurePreciseAttributeTarget()
+        {
+            if (attributeTarget == null)
+                throw new InvalidOperationException("An attribute execution requires IAttributeModifierTarget.");
+            if (preciseAttributeTarget == null)
+                throw new InvalidOperationException(
+                    "Gameplay effects require IPreciseAttributeModifierTarget for exact modifier ownership.");
+        }
+
+        private static bool HasAttributeExecution(IReadOnlyList<GameplayEffectExecution> executions)
+        {
+            foreach (GameplayEffectExecution execution in executions)
+                if (execution.Type == GameplayExecutionType.Attribute) return true;
+            return false;
         }
     }
 

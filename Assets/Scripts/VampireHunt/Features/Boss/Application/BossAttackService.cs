@@ -65,6 +65,17 @@ namespace VampireHunt.Boss.Application
 
         public AttackStartResult TryStartAttack(EntityId bossId)
         {
+            return TryStartAttack(bossId, BossAttackId.None);
+        }
+
+        /// <summary>
+        /// Starts the domain-selected attack, or a specifically requested
+        /// attack for a validated legacy/debug command. Selection, cooldown,
+        /// phase gating and plan construction still happen in the Boss
+        /// application/domain layer; Unity adapters never recreate them.
+        /// </summary>
+        public AttackStartResult TryStartAttack(EntityId bossId, BossAttackId requestedAttack)
+        {
             BossAggregate boss = repository.Get(bossId);
             if (!boss.Vitals.IsAlive || boss.Encounter.Mode is EncounterMode.Inactive or EncounterMode.Defeated)
                 return new AttackStartResult(false, BossAttackId.None, "Encounter is not active.");
@@ -74,12 +85,20 @@ namespace VampireHunt.Boss.Application
                     bossId, boss.Phases.CurrentPhase, clock?.Now ?? 0d, out BossAttackContext context))
                 return new AttackStartResult(false, BossAttackId.None, "No authoritative target pose is available.");
 
-            BossAttackId attackId = boss.AttackSelector.Select(
-                new BossAttackSelectionContext(boss.Phases.CurrentPhase, boss.Attacks));
+            BossAttackId attackId = requestedAttack == BossAttackId.None
+                ? boss.AttackSelector.Select(
+                    new BossAttackSelectionContext(boss.Phases.CurrentPhase, boss.Attacks))
+                : requestedAttack;
             if (attackId == BossAttackId.None)
                 return new AttackStartResult(false, attackId, "No configured attack is ready.");
 
-            BossAttackSpec spec = boss.Spec.Attacks.Get(attackId);
+            if (!boss.Spec.Attacks.TryGet(attackId, out BossAttackSpec selectedSpec) ||
+                (int)boss.Phases.CurrentPhase < (int)selectedSpec.MinimumPhase ||
+                selectedSpec.Weight <= 0f ||
+                !boss.Attacks.Cooldowns.IsReady(attackId))
+                return new AttackStartResult(false, attackId, "Requested attack is not ready for this phase.");
+
+            BossAttackSpec spec = selectedSpec;
             AttackPlan plan = strategies[attackId].BuildPlan(context, spec);
             if (!boss.Attacks.TryBegin(plan, spec.Cooldown))
                 return new AttackStartResult(false, attackId, "Attack state rejected the plan.");
@@ -90,6 +109,8 @@ namespace VampireHunt.Boss.Application
             PublishCue(bossId, attackId, BossAttackCuePhase.Started, spec.Cue);
             return new AttackStartResult(true, attackId);
         }
+
+        public void CancelAttack(EntityId bossId) => Cancel(bossId);
 
         public void TickAttack(EntityId bossId, float deltaTime)
         {

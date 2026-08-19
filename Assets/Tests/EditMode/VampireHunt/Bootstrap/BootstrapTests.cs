@@ -6,6 +6,7 @@ using UnityEngine;
 using VampireHunt.Boss.Authoring;
 using VampireHunt.Boss.Contracts;
 using VampireHunt.Bootstrap;
+using VampireHunt.Enemies.Authoring;
 using VampireHunt.Player.Authoring;
 using VampireHunt.Spawning.Authoring;
 
@@ -17,16 +18,18 @@ namespace VampireHunt.Tests.Bootstrap
         public void ConfigCatalog_BuildSpecsConvertsAuthoringWithoutRetainingAssetsAsRuntimeSpecs()
         {
             PlayerDefinition player = ScriptableObject.CreateInstance<PlayerDefinition>();
+            EnemyDefinition enemy = ScriptableObject.CreateInstance<EnemyDefinition>();
             BossDefinition boss = CreateBossDefinition();
             EnemySpawnConfig spawn = ScriptableObject.CreateInstance<EnemySpawnConfig>();
             ConfigCatalog catalog = ScriptableObject.CreateInstance<ConfigCatalog>();
 
             try
             {
-                catalog.SetAuthoring(player, boss, spawn);
+                catalog.SetAuthoring(player, enemy, boss, spawn);
                 GameSpecs specs = catalog.BuildSpecs();
 
                 Assert.That(specs.Player.MaxHealth, Is.EqualTo(player.MaxHealth));
+                Assert.That(specs.Enemy.MaxHealth, Is.EqualTo(enemy.MaxHealth));
                 Assert.That(specs.Boss.MaxHealth, Is.EqualTo(boss.MaxHealth));
                 Assert.That(specs.EnemySpawn.SpawnInterval, Is.EqualTo(spawn.SpawnInterval));
             }
@@ -35,6 +38,7 @@ namespace VampireHunt.Tests.Bootstrap
                 UnityEngine.Object.DestroyImmediate(catalog);
                 UnityEngine.Object.DestroyImmediate(spawn);
                 UnityEngine.Object.DestroyImmediate(boss);
+                UnityEngine.Object.DestroyImmediate(enemy);
                 UnityEngine.Object.DestroyImmediate(player);
             }
         }
@@ -80,6 +84,11 @@ namespace VampireHunt.Tests.Bootstrap
             int presentationCreates = 0;
             int uiCreates = 0;
             GameCompositionRoot root = new(
+                gameplayInstaller: new GameplayModuleInstaller(
+                    new DelegateModuleFactory(_ => new DelegateDisposable(() => { }))),
+                netcodeInstaller: new NetcodeModuleInstaller(
+                    offlineFactory: new DelegateModuleFactory(_ => new DelegateDisposable(() => { })),
+                    netcodeFactory: new DelegateModuleFactory(_ => new DelegateDisposable(() => { }))),
                 presentationInstaller: new PresentationModuleInstaller(
                     new DelegateModuleFactory(_ =>
                     {
@@ -111,6 +120,23 @@ namespace VampireHunt.Tests.Bootstrap
         }
 
         [Test]
+        public void CompositionRoot_RejectsMissingRequiredFactory()
+        {
+            ConfigCatalog catalog = CreateCatalog(out List<UnityEngine.Object> assets);
+            GameCompositionRoot root = new();
+
+            try
+            {
+                Assert.Throws<InvalidOperationException>(() => root.Compose(catalog));
+            }
+            finally
+            {
+                root.Dispose();
+                DestroyAssets(assets);
+            }
+        }
+
+        [Test]
         public void NetcodeInstaller_RequiresExplicitNetcodeFactory()
         {
             GameCompositionContext context = CreateContext(RuntimeMode.Netcode, false, out List<UnityEngine.Object> assets);
@@ -127,14 +153,49 @@ namespace VampireHunt.Tests.Bootstrap
             }
         }
 
+        [Test]
+        public void RuntimeUpdateLoop_UsesAdoptedSimulationPhaseOrder()
+        {
+            RuntimeUpdateLoop loop = new();
+            List<RuntimeSimulationPhase> order = new();
+            try
+            {
+                loop.Add(RuntimeSimulationPhase.StateSnapshots, _ =>
+                    order.Add(RuntimeSimulationPhase.StateSnapshots));
+                loop.Add(RuntimeSimulationPhase.BossSimulation, _ =>
+                    order.Add(RuntimeSimulationPhase.BossSimulation));
+                loop.Add(RuntimeSimulationPhase.PlayerCommands, _ =>
+                    order.Add(RuntimeSimulationPhase.PlayerCommands));
+                loop.Add(RuntimeSimulationPhase.EnemySpawning, _ =>
+                    order.Add(RuntimeSimulationPhase.EnemySpawning));
+
+                loop.Tick(0.1f);
+
+                CollectionAssert.AreEqual(
+                    new[]
+                    {
+                        RuntimeSimulationPhase.PlayerCommands,
+                        RuntimeSimulationPhase.EnemySpawning,
+                        RuntimeSimulationPhase.BossSimulation,
+                        RuntimeSimulationPhase.StateSnapshots
+                    },
+                    order);
+            }
+            finally
+            {
+                loop.Dispose();
+            }
+        }
+
         private static ConfigCatalog CreateCatalog(out List<UnityEngine.Object> assets)
         {
             PlayerDefinition player = ScriptableObject.CreateInstance<PlayerDefinition>();
+            EnemyDefinition enemy = ScriptableObject.CreateInstance<EnemyDefinition>();
             BossDefinition boss = CreateBossDefinition();
             EnemySpawnConfig spawn = ScriptableObject.CreateInstance<EnemySpawnConfig>();
             ConfigCatalog catalog = ScriptableObject.CreateInstance<ConfigCatalog>();
-            catalog.SetAuthoring(player, boss, spawn);
-            assets = new List<UnityEngine.Object> { catalog, spawn, boss, player };
+            catalog.SetAuthoring(player, enemy, boss, spawn);
+            assets = new List<UnityEngine.Object> { catalog, spawn, boss, enemy, player };
             return catalog;
         }
 

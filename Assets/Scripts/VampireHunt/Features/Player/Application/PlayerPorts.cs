@@ -6,7 +6,7 @@ using VampireHunt.Player.Domain;
 
 namespace VampireHunt.Player.Application
 {
-    public interface IPlayerRepository
+    internal interface IPlayerRepository
     {
         PlayerAggregate Get(EntityId playerId);
         bool TryGet(EntityId playerId, out PlayerAggregate player);
@@ -53,11 +53,23 @@ namespace VampireHunt.Player.Application
             double maximumReportAge = 0.25d,
             double maximumFutureSkew = 0.1d)
         {
-            MaximumSpeed = maximumSpeed < 0f ? 0f : maximumSpeed;
-            DashSpeedMultiplier = dashSpeedMultiplier < 1f ? 1f : dashSpeedMultiplier;
-            MaximumReportAge = maximumReportAge < 0d ? 0d : maximumReportAge;
-            MaximumFutureSkew = maximumFutureSkew < 0d ? 0d : maximumFutureSkew;
+            MaximumSpeed = IsFinite(maximumSpeed) && maximumSpeed >= 0f ? maximumSpeed : 0f;
+            DashSpeedMultiplier = IsFinite(dashSpeedMultiplier) && dashSpeedMultiplier >= 1f
+                ? dashSpeedMultiplier
+                : 1f;
+            MaximumReportAge = IsFinite(maximumReportAge) && maximumReportAge >= 0d
+                ? maximumReportAge
+                : 0d;
+            MaximumFutureSkew = IsFinite(maximumFutureSkew) && maximumFutureSkew >= 0d
+                ? maximumFutureSkew
+                : 0d;
         }
+
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private static bool IsFinite(double value) =>
+            !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     public interface IMeleeHitTarget

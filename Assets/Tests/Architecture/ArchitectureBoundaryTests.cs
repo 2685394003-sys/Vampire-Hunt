@@ -1,11 +1,15 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using VampireHunt.Bootstrap;
 
 namespace VampireHunt.Tests.Architecture
 {
@@ -42,7 +46,58 @@ namespace VampireHunt.Tests.Architecture
                 ["VampireHunt.Player"] = Set("VampireHunt.Core", "VampireHunt.Stats", "VampireHunt.Combat", "VampireHunt.Abilities"),
                 ["VampireHunt.Enemies"] = Set("VampireHunt.Core", "VampireHunt.Stats", "VampireHunt.Combat", "VampireHunt.Abilities", "VampireHunt.Navigation"),
                 ["VampireHunt.Spawning"] = Set("VampireHunt.Core", "VampireHunt.Navigation"),
-                ["VampireHunt.Boss"] = Set("VampireHunt.Core", "VampireHunt.Stats", "VampireHunt.Combat", "VampireHunt.Abilities", "VampireHunt.Navigation")
+                ["VampireHunt.Boss"] = Set("VampireHunt.Core", "VampireHunt.Stats", "VampireHunt.Combat", "VampireHunt.Abilities", "VampireHunt.Navigation"),
+                ["VampireHunt.Infrastructure.Input"] = Set("VampireHunt.Core", "VampireHunt.Player"),
+                ["VampireHunt.Infrastructure.Integration"] = Set(
+                    "VampireHunt.Core",
+                    "VampireHunt.Stats",
+                    "VampireHunt.Combat",
+                    "VampireHunt.Abilities",
+                    "VampireHunt.Player",
+                    "VampireHunt.Enemies",
+                    "VampireHunt.Boss",
+                    "VampireHunt.Spawning"),
+                ["VampireHunt.Infrastructure.Netcode"] = Set(
+                    "VampireHunt.Core",
+                    "VampireHunt.Player",
+                    "VampireHunt.Enemies",
+                    "VampireHunt.Boss",
+                    "VampireHunt.Spawning",
+                    "VampireHunt.Combat",
+                    "VampireHunt.Abilities"),
+                ["VampireHunt.Infrastructure.UnityPhysics"] = Set(
+                    "VampireHunt.Core",
+                    "VampireHunt.Navigation",
+                    "VampireHunt.Combat",
+                    "VampireHunt.Player",
+                    "VampireHunt.Enemies",
+                    "VampireHunt.Boss",
+                    "VampireHunt.Spawning"),
+                ["VampireHunt.Presentation"] = Set(
+                    "VampireHunt.Core",
+                    "VampireHunt.Combat",
+                    "VampireHunt.Abilities",
+                    "VampireHunt.Player",
+                    "VampireHunt.Enemies",
+                    "VampireHunt.Boss",
+                    "VampireHunt.Navigation"),
+                ["VampireHunt.UI"] = Set("VampireHunt.Core", "VampireHunt.Player"),
+                ["VampireHunt.Bootstrap"] = Set(
+                    "VampireHunt.Core",
+                    "VampireHunt.Stats",
+                    "VampireHunt.Combat",
+                    "VampireHunt.Abilities",
+                    "VampireHunt.Navigation",
+                    "VampireHunt.Player",
+                    "VampireHunt.Enemies",
+                    "VampireHunt.Boss",
+                    "VampireHunt.Spawning",
+                    "VampireHunt.Infrastructure.Input",
+                    "VampireHunt.Infrastructure.Integration",
+                    "VampireHunt.Infrastructure.Netcode",
+                    "VampireHunt.Infrastructure.UnityPhysics",
+                    "VampireHunt.Presentation",
+                    "VampireHunt.UI")
             };
 
         [Test]
@@ -55,10 +110,10 @@ namespace VampireHunt.Tests.Architecture
             {
                 string assemblyName = pair.Key;
                 AssemblyDefinitionData definition = pair.Value;
-                if (!AllowedDependencies.TryGetValue(assemblyName, out HashSet<string> allowed))
-                {
-                    continue;
-                }
+                Assert.That(
+                    AllowedDependencies.TryGetValue(assemblyName, out HashSet<string> allowed),
+                    Is.True,
+                    $"No dependency policy exists for runtime assembly {assemblyName}.");
 
                 string[] unexpected = definition.References
                     .Where(reference => reference.StartsWith("VampireHunt.", StringComparison.Ordinal))
@@ -177,6 +232,19 @@ namespace VampireHunt.Tests.Architecture
         }
 
         [Test]
+        public void LegacyPlayerShell_DoesNotOwnTheApplicationSimulationTick()
+        {
+            string shellPath = ToAbsolutePath("Assets/Scripts/Player/PlayerNetworkState.cs");
+            Assert.That(File.Exists(shellPath), Is.True, "PlayerNetworkState compatibility shell is missing.");
+
+            string source = File.ReadAllText(shellPath);
+            Assert.That(
+                source.IndexOf("runtime.Tick(Time.deltaTime)", StringComparison.Ordinal) >= 0,
+                Is.False,
+                "Bootstrap owns the fixed simulation loop; PlayerNetworkState must not tick the same runtime again.");
+        }
+
+        [Test]
         public void NetworkPrefabs_HaveNoMissingScripts()
         {
             string prefabRoot = ToAbsolutePath("Assets/Prefabs/Network");
@@ -207,6 +275,125 @@ namespace VampireHunt.Tests.Architecture
                 missing,
                 Is.Empty,
                 "Network prefabs must contain zero Missing Script components: " + string.Join("; ", missing));
+        }
+
+        [Test]
+        public void RuntimeContent_HasNoUnresolvedMonoScripts()
+        {
+            List<string> unresolved = new();
+            foreach (string assetPath in EnumerateRuntimeContentAssetPaths())
+            {
+                string extension = Path.GetExtension(assetPath);
+                if (!string.Equals(extension, ".unity", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(extension, ".prefab", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!File.Exists(ToAbsolutePath(assetPath)))
+                {
+                    unresolved.Add($"{assetPath}: asset file is missing");
+                    continue;
+                }
+
+                if (string.Equals(extension, ".prefab", StringComparison.OrdinalIgnoreCase))
+                {
+                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+                    if (prefab == null)
+                        unresolved.Add($"{assetPath}: prefab could not be loaded");
+                    else
+                        CollectMissingScripts(prefab, assetPath, unresolved);
+                    continue;
+                }
+
+                Scene scene = SceneManager.GetSceneByPath(assetPath);
+                bool openedByTest = !scene.IsValid() || !scene.isLoaded;
+                try
+                {
+                    if (openedByTest)
+                    {
+                        if (string.Equals(
+                                assetPath,
+                                "Assets/Scenes/SampleScene.unity",
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            UnityEngine.TestTools.LogAssert.Expect(
+                                LogType.Error,
+                                "Unknown error occurred while loading 'Assets/New Terrain.asset'.");
+                        }
+                        scene = EditorSceneManager.OpenScene(assetPath, OpenSceneMode.Additive);
+                    }
+                    if (!scene.IsValid() || !scene.isLoaded)
+                    {
+                        unresolved.Add($"{assetPath}: scene could not be loaded");
+                        continue;
+                    }
+
+                    foreach (GameObject root in scene.GetRootGameObjects())
+                        CollectMissingScripts(root, assetPath, unresolved);
+                }
+                finally
+                {
+                    if (openedByTest && scene.IsValid() && scene.isLoaded)
+                        EditorSceneManager.CloseScene(scene, true);
+                }
+            }
+
+            Assert.That(
+                unresolved,
+                Is.Empty,
+                "Enabled build scenes, Resources, Addressables and network prefabs must contain zero unresolved scripts: " +
+                string.Join("; ", unresolved));
+        }
+
+        private static void CollectMissingScripts(
+            GameObject root,
+            string assetPath,
+            ICollection<string> unresolved)
+        {
+            Transform[] hierarchy = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < hierarchy.Length; i++)
+            {
+                int count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(
+                    hierarchy[i].gameObject);
+                if (count > 0)
+                    unresolved.Add(
+                        $"{assetPath}/{GetHierarchyPath(hierarchy[i])}: {count} missing script(s)");
+            }
+        }
+
+        [Test]
+        public void RuntimeConfigCatalogs_ArePresentAndBuildValidSpecs()
+        {
+            string[] guids = AssetDatabase.FindAssets("t:ConfigCatalog");
+            Assert.That(guids, Is.Not.Empty, "At least one runtime ConfigCatalog asset is required.");
+
+            List<string> invalid = new();
+            foreach (string guid in guids)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                ConfigCatalog catalog = AssetDatabase.LoadAssetAtPath<ConfigCatalog>(assetPath);
+                if (catalog == null)
+                {
+                    invalid.Add($"{assetPath}: could not load ConfigCatalog");
+                    continue;
+                }
+
+                try
+                {
+                    catalog.Validate();
+                    Assert.That(catalog.BuildSpecs(), Is.Not.Null, $"{assetPath} returned no GameSpecs.");
+                }
+                catch (Exception exception)
+                {
+                    invalid.Add($"{assetPath}: {exception.GetType().Name}: {exception.Message}");
+                }
+            }
+
+            Assert.That(
+                invalid,
+                Is.Empty,
+                "Every runtime ConfigCatalog must complete the production builder path: " + string.Join("; ", invalid));
         }
 
         [Test]
@@ -248,6 +435,67 @@ namespace VampireHunt.Tests.Architecture
                 $"Class-diagram types without a source declaration: {string.Join(", ", missing)}");
         }
 
+        private static IEnumerable<string> EnumerateRuntimeContentAssetPaths()
+        {
+            HashSet<string> paths = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (EditorBuildSettingsScene scene in EditorBuildSettings.scenes)
+            {
+                if (scene.enabled && !string.IsNullOrWhiteSpace(scene.path))
+                    paths.Add(scene.path.Replace('\\', '/'));
+            }
+
+            foreach (string assetPath in AssetDatabase.GetAllAssetPaths())
+            {
+                string normalized = assetPath.Replace('\\', '/');
+                if (normalized.StartsWith("Assets/Prefabs/Network/", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.IndexOf("/Resources/", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    paths.Add(normalized);
+                }
+            }
+
+            AddAddressableAssetPaths(paths);
+            return paths.OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static void AddAddressableAssetPaths(ISet<string> paths)
+        {
+            Type defaultObjectType = Type.GetType(
+                "UnityEditor.AddressableAssets.Settings.AddressableAssetSettingsDefaultObject, Unity.Addressables.Editor",
+                false);
+            object settings = defaultObjectType?.GetProperty("Settings")?.GetValue(null);
+            object groupsObject = settings?.GetType().GetProperty("groups")?.GetValue(settings);
+            if (groupsObject is not IEnumerable groups) return;
+
+            string[] allAssets = AssetDatabase.GetAllAssetPaths();
+            foreach (object group in groups)
+            {
+                if (group == null) continue;
+                object entriesObject = group.GetType().GetProperty("entries")?.GetValue(group);
+                if (entriesObject is not IEnumerable entries) continue;
+
+                foreach (object entry in entries)
+                {
+                    string assetPath = entry?.GetType().GetProperty("AssetPath")?.GetValue(entry) as string;
+                    if (string.IsNullOrWhiteSpace(assetPath)) continue;
+                    string normalized = assetPath.Replace('\\', '/');
+                    if (!AssetDatabase.IsValidFolder(normalized))
+                    {
+                        paths.Add(normalized);
+                        continue;
+                    }
+
+                    string prefix = normalized.TrimEnd('/') + "/";
+                    foreach (string nestedAsset in allAssets)
+                    {
+                        if (nestedAsset.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                            paths.Add(nestedAsset);
+                    }
+                }
+            }
+        }
+
         private static Dictionary<string, AssemblyDefinitionData> LoadRuntimeAssemblyDefinitions()
         {
             string absoluteRoot = ToAbsolutePath(RuntimeRoot);
@@ -256,8 +504,13 @@ namespace VampireHunt.Tests.Architecture
                 return new Dictionary<string, AssemblyDefinitionData>(StringComparer.Ordinal);
             }
 
-            Dictionary<string, AssemblyDefinitionData> definitions = new(StringComparer.Ordinal);
-            foreach (string file in Directory.EnumerateFiles(absoluteRoot, "*.asmdef", SearchOption.AllDirectories))
+            string[] files = Directory.EnumerateFiles(absoluteRoot, "*.asmdef", SearchOption.AllDirectories)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            Dictionary<string, string> guidToAssemblyName = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, AssemblyDefinitionJson> jsonByFile = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string file in files)
             {
                 AssemblyDefinitionJson json = JsonUtility.FromJson<AssemblyDefinitionJson>(File.ReadAllText(file));
                 if (json == null || string.IsNullOrWhiteSpace(json.name))
@@ -265,8 +518,36 @@ namespace VampireHunt.Tests.Architecture
                     Assert.Fail($"Invalid asmdef JSON: {ToAssetPath(file)}");
                 }
 
+                string metaPath = file + ".meta";
+                if (!File.Exists(metaPath))
+                {
+                    Assert.Fail($"Runtime asmdef is missing its .meta GUID: {ToAssetPath(file)}");
+                }
+
+                Match guidMatch = Regex.Match(
+                    File.ReadAllText(metaPath),
+                    @"(?m)^guid:\s*([0-9a-fA-F]{32})\s*$");
+                if (!guidMatch.Success)
+                {
+                    Assert.Fail($"Runtime asmdef has an invalid .meta GUID: {ToAssetPath(metaPath)}");
+                }
+
+                string guid = guidMatch.Groups[1].Value;
+                if (!guidToAssemblyName.TryAdd(guid, json.name))
+                {
+                    Assert.Fail($"Duplicate runtime asmdef GUID {guid} ({ToAssetPath(file)}).");
+                }
+
+                jsonByFile.Add(file, json);
+            }
+
+            Dictionary<string, AssemblyDefinitionData> definitions = new(StringComparer.Ordinal);
+            foreach (string file in files)
+            {
+                AssemblyDefinitionJson json = jsonByFile[file];
+
                 string[] references = (json.references ?? Array.Empty<string>())
-                    .Select(NormalizeReference)
+                    .Select(reference => ResolveReference(reference, guidToAssemblyName, json.name, file))
                     .Where(reference => !string.IsNullOrWhiteSpace(reference))
                     .ToArray();
                 definitions.Add(json.name, new AssemblyDefinitionData(json.name, references));
@@ -338,12 +619,40 @@ namespace VampireHunt.Tests.Architecture
             return path.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private static string NormalizeReference(string reference)
+        private static string ResolveReference(
+            string reference,
+            IReadOnlyDictionary<string, string> guidToAssemblyName,
+            string sourceAssemblyName,
+            string sourceFile)
         {
             const string guidPrefix = "GUID:";
-            return reference != null && reference.StartsWith(guidPrefix, StringComparison.Ordinal)
-                ? reference
-                : reference ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(reference)) return string.Empty;
+            if (!reference.StartsWith(guidPrefix, StringComparison.Ordinal))
+            {
+                // External package references are intentionally left in the
+                // graph as opaque names. Project references must still be
+                // known; silently accepting a misspelled VampireHunt name
+                // would make the policy fail open.
+                if (reference.StartsWith("VampireHunt.", StringComparison.Ordinal) &&
+                    !AllowedDependencies.ContainsKey(reference))
+                {
+                    Assert.Fail(
+                        $"{sourceAssemblyName} references unknown project assembly '{reference}' " +
+                        $"from {ToAssetPath(sourceFile)}.");
+                }
+
+                return reference;
+            }
+
+            string guid = reference.Substring(guidPrefix.Length);
+            if (!guidToAssemblyName.TryGetValue(guid, out string assemblyName))
+            {
+                Assert.Fail(
+                    $"{sourceAssemblyName} references unresolved asmdef GUID '{guid}' " +
+                    $"from {ToAssetPath(sourceFile)}.");
+            }
+
+            return assemblyName;
         }
 
         private static HashSet<string> Set(params string[] values) =>

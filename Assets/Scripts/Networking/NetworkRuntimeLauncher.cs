@@ -2,6 +2,7 @@ using System;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
+using VampireHunt.Bootstrap;
 
 public enum NetworkStartMode
 {
@@ -28,15 +29,65 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
     [SerializeField, Min(1)] private ushort port = 7777;
     [SerializeField] private bool batchModeStartsServer = true;
     [SerializeField] private bool showDevelopmentMenu = true;
+    [Header("Composition (required at runtime)")]
+    [SerializeField] private SceneBindings sceneBindings;
+    [SerializeField] private ConfigCatalog configCatalog;
+    [SerializeField] private MonoBehaviour compositionFactoryProvider;
 
     private NetworkManager manager;
     private UnityTransport transport;
+    private GameCompositionRoot compositionRoot;
+    private CompositionFactorySet configuredFactories;
+    private ICompositionFactoryProvider configuredFactoryProvider;
+    private RuntimeMode composedRuntimeMode;
+    private bool composedAsDedicatedServer;
 
     public string Address => address;
     public ushort Port => port;
     public bool IsListening => manager != null && manager.IsListening;
+    public bool IsComposed => compositionRoot != null && compositionRoot.IsComposed;
+    public GameCompositionRoot CompositionRoot => compositionRoot;
 
     public event Action<NetworkStartMode, bool> StartCompleted;
+
+    /// <summary>
+    /// Test/integration seam for the concrete adapter graph. Production
+    /// scenes should assign a MonoBehaviour implementing
+    /// ICompositionFactoryProvider instead.
+    /// </summary>
+    public void ConfigureComposition(
+        SceneBindings bindings,
+        ConfigCatalog catalog,
+        CompositionFactorySet factories)
+    {
+        EnsureCompositionConfigurationIsMutable();
+        sceneBindings = bindings ?? throw new ArgumentNullException(nameof(bindings));
+        configCatalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        configuredFactories = factories ?? throw new ArgumentNullException(nameof(factories));
+        configuredFactoryProvider = null;
+    }
+
+    /// <summary>Explicit provider seam for runtime adapter construction.</summary>
+    public void ConfigureCompositionProvider(
+        SceneBindings bindings,
+        ConfigCatalog catalog,
+        ICompositionFactoryProvider provider)
+    {
+        EnsureCompositionConfigurationIsMutable();
+        sceneBindings = bindings ?? throw new ArgumentNullException(nameof(bindings));
+        configCatalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        configuredFactoryProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+        configuredFactories = null;
+    }
+
+    /// <summary>
+    /// Composes exactly once for the requested launcher mode. Network start
+    /// methods call this same entry point, so no mode can bypass validation.
+    /// </summary>
+    public void ComposeRuntime(NetworkStartMode requestedMode = NetworkStartMode.None)
+    {
+        EnsureComposition(requestedMode);
+    }
 
     private void Awake()
     {
@@ -56,6 +107,9 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
         NetworkStartMode mode = ResolveStartMode(args);
         switch (mode)
         {
+            case NetworkStartMode.None:
+                EnsureComposition(NetworkStartMode.None);
+                break;
             case NetworkStartMode.Host:
                 StartHost();
                 break;
@@ -70,6 +124,7 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
 
     public bool StartHost()
     {
+        EnsureComposition(NetworkStartMode.Host);
         if (!CanStart(NetworkStartMode.Host)) return false;
         transport.SetConnectionData(address, port, "0.0.0.0");
         bool started = manager.StartHost();
@@ -80,6 +135,7 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
     public bool StartClient(string serverAddress = null)
     {
         if (!string.IsNullOrWhiteSpace(serverAddress)) address = serverAddress.Trim();
+        EnsureComposition(NetworkStartMode.Client);
         if (!CanStart(NetworkStartMode.Client)) return false;
         transport.SetConnectionData(address, port);
         bool started = manager.StartClient();
@@ -89,6 +145,7 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
 
     public bool StartServer()
     {
+        EnsureComposition(NetworkStartMode.Server);
         if (!CanStart(NetworkStartMode.Server)) return false;
         transport.SetConnectionData(address, port, "0.0.0.0");
         bool started = manager.StartServer();
@@ -99,6 +156,7 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
     public void Shutdown()
     {
         if (manager != null && manager.IsListening) manager.Shutdown();
+        DisposeComposition();
     }
 
     public void SetEndpoint(string serverAddress, ushort serverPort)
@@ -125,6 +183,84 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
             return false;
         }
         return true;
+    }
+
+    private void EnsureComposition(NetworkStartMode requestedMode)
+    {
+        RuntimeMode runtimeMode = requestedMode == NetworkStartMode.None
+            ? RuntimeMode.Offline
+            : RuntimeMode.Netcode;
+        bool dedicatedServer = requestedMode == NetworkStartMode.Server;
+
+        if (compositionRoot != null)
+        {
+            if (!compositionRoot.IsComposed)
+                throw new InvalidOperationException("The runtime composition root exists but is not composed.");
+            if (composedRuntimeMode != runtimeMode || composedAsDedicatedServer != dedicatedServer)
+            {
+                throw new InvalidOperationException(
+                    "The runtime composition is already bound to a different launcher mode; reload the scene before changing mode.");
+            }
+            return;
+        }
+
+        if (sceneBindings == null)
+            throw new InvalidOperationException("NetworkRuntimeLauncher requires SceneBindings before startup.");
+        if (configCatalog == null)
+            throw new InvalidOperationException("NetworkRuntimeLauncher requires ConfigCatalog before startup.");
+
+        CompositionFactorySet factories = configuredFactories;
+        if (factories == null)
+        {
+            ICompositionFactoryProvider provider = configuredFactoryProvider;
+            if (provider == null && compositionFactoryProvider != null)
+            {
+                provider = compositionFactoryProvider as ICompositionFactoryProvider;
+                if (provider == null)
+                {
+                    throw new InvalidOperationException(
+                        "The configured composition provider must implement ICompositionFactoryProvider.");
+                }
+            }
+
+            if (provider == null)
+            {
+                throw new InvalidOperationException(
+                    "NetworkRuntimeLauncher requires explicit gameplay/adapter factories; " +
+                    "empty module installation is not supported.");
+            }
+
+            factories = provider.CreateFactories();
+            if (factories == null)
+                throw new InvalidOperationException("The composition factory provider returned null.");
+        }
+
+        GameCompositionRoot next = GameCompositionRoot.Create(factories);
+        try
+        {
+            next.Compose(sceneBindings, configCatalog, runtimeMode, dedicatedServer);
+            compositionRoot = next;
+            composedRuntimeMode = runtimeMode;
+            composedAsDedicatedServer = dedicatedServer;
+        }
+        catch
+        {
+            next.Dispose();
+            throw;
+        }
+    }
+
+    private void EnsureCompositionConfigurationIsMutable()
+    {
+        if (compositionRoot != null)
+            throw new InvalidOperationException("Composition dependencies cannot change after composition.");
+    }
+
+    private void DisposeComposition()
+    {
+        GameCompositionRoot current = compositionRoot;
+        compositionRoot = null;
+        current?.Dispose();
     }
 
     private NetworkStartMode ResolveStartMode(string[] args)
@@ -176,5 +312,10 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
         if (GUILayout.Button("Shutdown")) Shutdown();
         GUI.enabled = true;
         GUILayout.EndArea();
+    }
+
+    private void OnDestroy()
+    {
+        DisposeComposition();
     }
 }

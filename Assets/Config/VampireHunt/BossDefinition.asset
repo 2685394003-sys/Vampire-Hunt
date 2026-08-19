@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc54328102eca6840b581bc1c0d80706, type: 3}
+  m_Name: BossDefinition
+  m_EditorClassIdentifier: VampireHunt.Boss::VampireHunt.Boss.Authoring.BossDefinition
+  maxHealth: 100
+  phases:
+  - phase: 1
+    enterAtHealthRatio: 0.7
+  - phase: 2
+    enterAtHealthRatio: 0.3
+  - phase: 3
+    enterAtHealthRatio: 0.1
+  attacks:
+  - {fileID: 11400000, guid: f7b8ee1128f97e64cbbd5ff7182b78c2, type: 2}
+  - {fileID: 11400000, guid: 6528383dc85183541815751414620283, type: 2}
+  - {fileID: 11400000, guid: 09ab62ac30b418c4c9a254f800341f03, type: 2}
+  guardIntegrity: 50
+  guardDamageReduction: 0.5
+  staggerSeconds: 4
+  contractTriggerHealthRatio: 0.2
+  contractSeconds: 30
+  contractCountdownRate: 2

@@ -29,7 +29,7 @@ namespace VampireHunt.Infrastructure.Integration
             if (reward == null) throw new ArgumentNullException(nameof(reward));
 
             int scarlet = reward.Scarlet;
-            int coins = 0;
+            int coins = reward.Coins;
             int experience = reward.Experience;
             int sharedScarlet = 0;
 

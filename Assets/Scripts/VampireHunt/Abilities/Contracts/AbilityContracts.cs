@@ -36,6 +36,34 @@ namespace VampireHunt.Abilities.Contracts
         public static bool operator !=(EffectId left, EffectId right) => !left.Equals(right);
     }
 
+    /// <summary>
+    /// Identity of one runtime ActiveGameplayEffect instance. It is distinct
+    /// from EffectId (the immutable spec id) and SourceId (the gameplay actor
+    /// that caused the effect), so ownership remains stable across stacking
+    /// and refresh operations.
+    /// </summary>
+    public readonly struct GameplayEffectHandle : IEquatable<GameplayEffectHandle>, IComparable<GameplayEffectHandle>
+    {
+        public ulong Value { get; }
+        public bool IsValid => Value != 0UL;
+        public static GameplayEffectHandle Invalid => default;
+
+        public GameplayEffectHandle(ulong value)
+        {
+            if (value == 0UL)
+                throw new ArgumentOutOfRangeException(nameof(value), "A gameplay effect handle must be valid.");
+            Value = value;
+        }
+
+        public bool Equals(GameplayEffectHandle other) => Value == other.Value;
+        public override bool Equals(object obj) => obj is GameplayEffectHandle other && Equals(other);
+        public override int GetHashCode() => Value.GetHashCode();
+        public int CompareTo(GameplayEffectHandle other) => Value.CompareTo(other.Value);
+        public override string ToString() => Value.ToString();
+        public static bool operator ==(GameplayEffectHandle left, GameplayEffectHandle right) => left.Equals(right);
+        public static bool operator !=(GameplayEffectHandle left, GameplayEffectHandle right) => !left.Equals(right);
+    }
+
     public readonly struct CueId : IEquatable<CueId>, IComparable<CueId>
     {
         public string Value { get; }
@@ -287,6 +315,18 @@ namespace VampireHunt.Abilities.Contracts
     {
         void AddModifier(StatModifier modifier);
         int RemoveModifiers(EntityId sourceId);
+    }
+
+    /// <summary>
+    /// Optional precise registration port for effect-owned modifiers. The
+    /// legacy source-based methods remain on <see cref="IAttributeModifierTarget"/>
+    /// so existing callers can continue to use broad source cleanup, while
+    /// gameplay effects use this contract to remove only their own entries.
+    /// </summary>
+    public interface IPreciseAttributeModifierTarget : IAttributeModifierTarget
+    {
+        StatModifierHandle AddModifierWithHandle(StatModifier modifier);
+        bool RemoveModifier(StatModifierHandle handle);
     }
 
     public sealed class GameplayCueEvent : GameplayEventBase

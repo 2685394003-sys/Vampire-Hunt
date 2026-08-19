@@ -1,8 +1,14 @@
 using System;
-using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
+using VampireHunt.Boss.Contracts;
+using RuntimeBossSnapshot = VampireHunt.Boss.Contracts.BossSnapshot;
 
+/// <summary>
+/// Legacy health/NGO shell. The authoritative BossRuntime owns vitals; this
+/// component only exposes a stable serialized/NetworkVariable projection and
+/// forwards old damage/animation entry points to BossController.
+/// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
 public sealed class BossHealth : NetworkBehaviour, IDamageable
@@ -23,16 +29,19 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
         false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     private int offlineCurrentHealth;
+    private int offlineMaxHealth = 1;
     private int offlinePhase;
     private bool offlineInvulnerable;
     private bool offlineDead;
-    private Coroutine hurtFlashCoroutine;
+    private BossController controller;
+    private bool deathNotified;
+    private int lastPhase;
 
     private bool UsesNetworkState => NetworkAuthority.IsNetworkActive && IsSpawned;
     public int CurrentHealth => UsesNetworkState ? networkCurrentHealth.Value : offlineCurrentHealth;
     public int MaxHealth => UsesNetworkState
         ? Mathf.Max(1, networkMaxHealth.Value)
-        : Mathf.Max(1, stats != null ? stats.maxHealth : 1);
+        : Mathf.Max(1, offlineMaxHealth);
     public int CurrentPhase => UsesNetworkState ? networkPhase.Value : offlinePhase;
     public bool IsInvulnerable => UsesNetworkState ? networkInvulnerable.Value : offlineInvulnerable;
     public bool IsDead => UsesNetworkState ? networkDead.Value : offlineDead;
@@ -45,13 +54,14 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
     private void Awake()
     {
         stats ??= GetComponent<BossConfig>();
-        offlineCurrentHealth = Mathf.Max(1, stats != null ? stats.maxHealth : 1);
+        controller ??= GetComponent<BossController>();
+        offlineMaxHealth = Mathf.Max(1, stats != null ? stats.maxHealth : 1);
+        offlineCurrentHealth = offlineMaxHealth;
     }
 
     private void OnEnable()
     {
-        if (!NetworkAuthority.IsNetworkActive)
-            HealthChanged?.Invoke(CurrentHealth, MaxHealth);
+        if (!NetworkAuthority.IsNetworkActive) HealthChanged?.Invoke(CurrentHealth, MaxHealth);
     }
 
     public override void OnNetworkSpawn()
@@ -59,21 +69,23 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
         networkCurrentHealth.OnValueChanged += OnNetworkHealthChanged;
         networkMaxHealth.OnValueChanged += OnNetworkMaxHealthChanged;
         networkPhase.OnValueChanged += OnNetworkPhaseChanged;
+        networkInvulnerable.OnValueChanged += OnNetworkInvulnerableChanged;
         networkDead.OnValueChanged += OnNetworkDeadChanged;
 
         if (IsServer && !networkInitialized.Value)
         {
             networkMaxHealth.Value = Mathf.Max(1, stats != null ? stats.maxHealth : 1);
             networkCurrentHealth.Value = networkMaxHealth.Value;
-            networkPhase.Value = 0;
+            networkPhase.Value = 1;
             networkInvulnerable.Value = false;
             networkDead.Value = false;
             networkInitialized.Value = true;
         }
 
         HealthChanged?.Invoke(CurrentHealth, MaxHealth);
+        lastPhase = CurrentPhase;
         if (CurrentPhase > 0) PhaseChangeStarted?.Invoke(CurrentPhase);
-        if (IsDead) Died?.Invoke();
+        if (IsDead) RaiseDiedOnce();
     }
 
     public override void OnNetworkDespawn()
@@ -81,47 +93,25 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
         networkCurrentHealth.OnValueChanged -= OnNetworkHealthChanged;
         networkMaxHealth.OnValueChanged -= OnNetworkMaxHealthChanged;
         networkPhase.OnValueChanged -= OnNetworkPhaseChanged;
+        networkInvulnerable.OnValueChanged -= OnNetworkInvulnerableChanged;
         networkDead.OnValueChanged -= OnNetworkDeadChanged;
     }
 
     public bool TakeDamage(int amount) => TakeDamage(amount, Vector3.zero);
 
-    void IDamageable.TakeDamage(int amount)
-    {
-        TakeDamage(amount, Vector3.zero);
-    }
+    void IDamageable.TakeDamage(int amount) => TakeDamage(amount, Vector3.zero);
 
     public bool TakeDamage(int amount, Vector3 damageSource)
     {
-        if (!CanMutate() || amount <= 0 || IsDead || IsInvulnerable)
-            return false;
-
-        int newHealth = Mathf.Max(0, CurrentHealth - amount);
-        SetCurrentHealth(newHealth);
-        PlayHurtFlash();
-
-        if (newHealth <= 0)
-        {
-            Die();
-            return true;
-        }
-
-        TryBeginNextPhase();
-        return true;
+        if (!CanMutate() || amount <= 0 || IsDead || IsInvulnerable) return false;
+        if (controller == null) controller = GetComponent<BossController>();
+        if (controller == null) return false;
+        return controller.ApplyDamageFromHealthShell(amount, damageSource);
     }
 
-    public void CompletePhaseChange()
-    {
-        if (!CanMutate() || IsDead) return;
-        SetInvulnerableValue(false);
-        TryBeginNextPhase();
-    }
+    public void CompletePhaseChange() => controller?.CompletePhaseChangeFromHealthShell();
 
-    public void SetInvulnerable(bool value)
-    {
-        if (!CanMutate() || IsDead) return;
-        SetInvulnerableValue(value);
-    }
+    public void SetInvulnerable(bool value) => controller?.SetInvulnerableFromHealthShell(value);
 
     [ContextMenu("测试：Boss 受到 10 点伤害")]
     private void DebugTakeDamage() => DebugApplyDamage(stats != null ? stats.debugDamageAmount : 10);
@@ -136,125 +126,69 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
             Debug.LogWarning("[Boss 调试] 请先进入 Play 模式再测试受伤。", this);
             return;
         }
-        if (CanMutate()) TakeDamage(Mathf.Max(1, amount), transform.position);
+        TakeDamage(Mathf.Max(1, amount), transform.position);
     }
 
-    private bool CanMutate()
+    /// <summary>Called by BossController after an authoritative runtime tick.</summary>
+    internal void ApplySnapshot(RuntimeBossSnapshot snapshot)
     {
-        if (!NetworkAuthority.IsNetworkActive) return true;
-        return IsSpawned && IsServer;
-    }
+        int previousHealth = CurrentHealth;
+        int previousMaxHealth = MaxHealth;
+        int previousPhase = CurrentPhase;
+        bool previousDead = IsDead;
 
-    private void TryBeginNextPhase()
-    {
-        int targetPhase = GetTargetPhase();
-        if (targetPhase <= CurrentPhase) return;
+        offlineMaxHealth = Mathf.Max(1, snapshot.MaxHealth);
+        offlineCurrentHealth = Mathf.Clamp(snapshot.Health, 0, offlineMaxHealth);
+        offlinePhase = (int)snapshot.Phase;
+        offlineInvulnerable = snapshot.IsInvulnerable;
+        offlineDead = !snapshot.IsAlive ||
+            snapshot.Mode == VampireHunt.Boss.Contracts.EncounterMode.Defeated;
 
-        int newPhase = CurrentPhase + 1;
-        if (UsesNetworkState)
+        bool networkProjection = UsesNetworkState && IsServer;
+        if (networkProjection)
         {
-            networkPhase.Value = newPhase;
-            networkInvulnerable.Value = stats != null && stats.invulnerableDuringPhaseChange;
+            networkMaxHealth.Value = offlineMaxHealth;
+            networkCurrentHealth.Value = offlineCurrentHealth;
+            networkPhase.Value = offlinePhase;
+            networkInvulnerable.Value = offlineInvulnerable;
+            networkDead.Value = offlineDead;
         }
-        else
+
+        if (!networkProjection && (previousHealth != offlineCurrentHealth || previousMaxHealth != offlineMaxHealth))
+            HealthChanged?.Invoke(offlineCurrentHealth, offlineMaxHealth);
+        if (!networkProjection && offlinePhase > previousPhase)
         {
-            offlinePhase = newPhase;
-            offlineInvulnerable = stats != null && stats.invulnerableDuringPhaseChange;
-            PhaseChangeStarted?.Invoke(newPhase);
+            lastPhase = offlinePhase;
+            PhaseChangeStarted?.Invoke(offlinePhase);
         }
+        else lastPhase = offlinePhase;
+        if (!previousDead && offlineDead) RaiseDiedOnce();
+        if (!offlineDead) deathNotified = false;
     }
 
-    private int GetTargetPhase()
+    private bool CanMutate() => !NetworkAuthority.IsNetworkActive || (IsSpawned && IsServer);
+
+    private void RaiseDiedOnce()
     {
-        if (stats == null) return 0;
-        float rate = HealthNormalized;
-        if (rate <= stats.phase3HealthRate) return 3;
-        if (rate <= stats.phase2HealthRate) return 2;
-        if (rate <= stats.phase1HealthRate) return 1;
-        return 0;
+        if (deathNotified) return;
+        deathNotified = true;
+        Died?.Invoke();
     }
 
-    private void Die()
-    {
-        if (UsesNetworkState)
-        {
-            networkDead.Value = true;
-            networkInvulnerable.Value = true;
-        }
-        else
-        {
-            offlineDead = true;
-            offlineInvulnerable = true;
-            Died?.Invoke();
-        }
-    }
-
-    private void SetCurrentHealth(int value)
-    {
-        if (UsesNetworkState)
-            networkCurrentHealth.Value = value;
-        else
-        {
-            offlineCurrentHealth = value;
-            HealthChanged?.Invoke(CurrentHealth, MaxHealth);
-        }
-    }
-
-    private void SetInvulnerableValue(bool value)
-    {
-        if (UsesNetworkState) networkInvulnerable.Value = value;
-        else offlineInvulnerable = value;
-    }
-
-    private void OnNetworkHealthChanged(int previous, int current)
-    {
-        HealthChanged?.Invoke(current, MaxHealth);
-        if (current < previous) PlayHurtFlash();
-    }
-
-    private void OnNetworkMaxHealthChanged(int previous, int current) =>
-        HealthChanged?.Invoke(CurrentHealth, current);
+    private void OnNetworkHealthChanged(int previous, int current) => HealthChanged?.Invoke(current, MaxHealth);
+    private void OnNetworkMaxHealthChanged(int previous, int current) => HealthChanged?.Invoke(CurrentHealth, current);
 
     private void OnNetworkPhaseChanged(int previous, int current)
     {
+        lastPhase = current;
         if (current > previous) PhaseChangeStarted?.Invoke(current);
     }
 
+    private void OnNetworkInvulnerableChanged(bool previous, bool current) { }
+
     private void OnNetworkDeadChanged(bool previous, bool current)
     {
-        if (!previous && current) Died?.Invoke();
-    }
-
-    private void PlayHurtFlash()
-    {
-        if (!isActiveAndEnabled) return;
-        if (hurtFlashCoroutine != null) StopCoroutine(hurtFlashCoroutine);
-        hurtFlashCoroutine = StartCoroutine(HurtFlashRoutine());
-    }
-
-    private IEnumerator HurtFlashRoutine()
-    {
-        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
-        Color[] originalColors = new Color[renderers.Length];
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            Material material = renderers[i].material;
-            originalColors[i] = material.HasProperty("_BaseColor")
-                ? material.GetColor("_BaseColor")
-                : material.color;
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
-            else material.color = Color.white;
-        }
-
-        yield return new WaitForSeconds(0.08f);
-
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (renderers[i] == null) continue;
-            Material material = renderers[i].material;
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", originalColors[i]);
-            else material.color = originalColors[i];
-        }
-        hurtFlashCoroutine = null;
+        if (!previous && current) RaiseDiedOnce();
+        if (!current) deathNotified = false;
     }
 }

@@ -16,7 +16,7 @@ namespace VampireHunt.Player.Application
         private readonly int choicesPerOffer;
         private uint nextOfferVersion;
 
-        public BloodPactOfferService(
+        internal BloodPactOfferService(
             IPlayerRepository repository,
             IBloodPactCatalog catalog,
             IPlayerRandom random,
@@ -88,19 +88,23 @@ namespace VampireHunt.Player.Application
                 return new SelectionResult(BloodPactSelectionCode.NotOffered, selection, player.Progression.Scarlet, 0, offerVersion);
             if (!catalog.TryGet(selection, out BloodPactOption option) || !option.Id.IsValid)
                 return new SelectionResult(BloodPactSelectionCode.InvalidSelection, selection, player.Progression.Scarlet, 0, offerVersion);
-            if (player.Progression.Scarlet < option.Cost)
+            // BloodPactOffer exposes one authoritative price for the whole
+            // offer. Do not silently switch to a catalog option's price here:
+            // that would let the server charge a value different from the UI.
+            int offerCost = offer.Cost;
+            if (player.Progression.Scarlet < offerCost)
                 return new SelectionResult(BloodPactSelectionCode.InsufficientScarlet, selection, player.Progression.Scarlet, 0, offerVersion);
             if (player.BloodPacts.GetStacks(selection) > 0 && !option.Repeatable)
                 return new SelectionResult(BloodPactSelectionCode.AlreadyOwned, selection, player.Progression.Scarlet, player.BloodPacts.GetStacks(selection), offerVersion);
             if (player.BloodPacts.GetStacks(selection) >= option.MaximumStacks)
                 return new SelectionResult(BloodPactSelectionCode.AlreadyOwned, selection, player.Progression.Scarlet, player.BloodPacts.GetStacks(selection), offerVersion);
 
-            if (!player.Progression.SpendScarlet(option.Cost) ||
+            if (!player.Progression.SpendScarlet(offerCost) ||
                 !player.BloodPacts.AddOrStack(selection, option.Repeatable, option.MaximumStacks))
             {
                 // SpendScarlet is checked first, and this refund is only reached
                 // if a concurrent/domain invariant failure prevents the add.
-                player.Progression.AddScarlet(option.Cost);
+                player.Progression.AddScarlet(offerCost);
                 return new SelectionResult(BloodPactSelectionCode.InvalidSelection, selection, player.Progression.Scarlet, 0, offerVersion);
             }
 

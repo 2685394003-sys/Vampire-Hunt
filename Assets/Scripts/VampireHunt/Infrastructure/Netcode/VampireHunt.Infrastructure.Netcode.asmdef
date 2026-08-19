@@ -8,6 +8,8 @@
     "VampireHunt.Boss",
     "VampireHunt.Spawning",
     "VampireHunt.Combat",
+    "VampireHunt.Abilities",
+    "Unity.Collections",
     "Unity.Netcode.Runtime"
   ],
   "includePlatforms": [],
@@ -15,7 +17,7 @@
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
-  "autoReferenced": false,
+  "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
   "noEngineReferences": false

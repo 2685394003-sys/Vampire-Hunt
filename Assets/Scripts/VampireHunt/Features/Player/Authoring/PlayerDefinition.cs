@@ -30,6 +30,9 @@ namespace VampireHunt.Player.Authoring
         [SerializeField] private float critDamage = 2f;
         [SerializeField] private float invincibleTime = 0.8f;
         [SerializeField] private float maxScarlet = 100f;
+        [SerializeField] private float knockbackForce = 5f;
+        [SerializeField] private float knockbackDuration = 0.2f;
+        [SerializeField] private float stunDuration = 0.2f;
 
         public int MaxHealth => Mathf.Max(1, maxHealth);
         public float MaxStamina => Mathf.Max(0f, maxStamina);
@@ -47,6 +50,9 @@ namespace VampireHunt.Player.Authoring
         public float CritDamage => Mathf.Max(1f, critDamage);
         public float InvincibleTime => Mathf.Max(0f, invincibleTime);
         public float MaxScarlet => Mathf.Max(0f, maxScarlet);
+        public float KnockbackForce => Mathf.Max(0f, knockbackForce);
+        public float KnockbackDuration => Mathf.Max(0f, knockbackDuration);
+        public float StunDuration => Mathf.Max(0f, stunDuration);
 
         public PlayerSpec CreateSpec()
         {
@@ -64,6 +70,7 @@ namespace VampireHunt.Player.Authoring
                 [PlayerStat.CritDamage] = CritDamage,
                 [PlayerStat.InvincibleTime] = InvincibleTime,
                 [PlayerStat.MaxScarlet] = MaxScarlet,
+                [PlayerStat.KnockbackForce] = KnockbackForce,
                 [PlayerStat.DashSpeedMultiplier] = DashSpeedMultiplier,
                 [PlayerStat.DashDuration] = DashDuration
             };
@@ -77,7 +84,11 @@ namespace VampireHunt.Player.Authoring
                 DashDuration,
                 DashSpeedMultiplier,
                 AttackInterval,
-                values);
+                values,
+                AttackConeAngle,
+                KnockbackForce,
+                KnockbackDuration,
+                StunDuration);
         }
 
         private void OnValidate()
@@ -98,6 +109,9 @@ namespace VampireHunt.Player.Authoring
             critDamage = Mathf.Max(1f, critDamage);
             invincibleTime = Mathf.Max(0f, invincibleTime);
             maxScarlet = Mathf.Max(0f, maxScarlet);
+            knockbackForce = Mathf.Max(0f, knockbackForce);
+            knockbackDuration = Mathf.Max(0f, knockbackDuration);
+            stunDuration = Mathf.Max(0f, stunDuration);
         }
     }
 

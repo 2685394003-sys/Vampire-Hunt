@@ -1346,6 +1346,79 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
+--- !u!1 &135103092
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 135103093}
+  - component: {fileID: 135103097}
+  - component: {fileID: 135103096}
+  - component: {fileID: 135103095}
+  m_Layer: 0
+  m_Name: '[RuntimeNetcodeAdapters]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &135103093
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 991183473}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &135103095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1484993724}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Infrastructure.Netcode::VampireHunt.Infrastructure.Netcode.GameplayEventRpcAdapter
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &135103096
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1347936796}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Infrastructure.Netcode::VampireHunt.Infrastructure.Netcode.NetworkStateRpcAdapter
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &135103097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8798a1672803274f87e83b38858c442, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Infrastructure.Netcode::VampireHunt.Infrastructure.Netcode.NetworkCommandRpcAdapter
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!4 &140328665 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 462672734963133294, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
@@ -7661,7 +7734,7 @@ Terrain:
   m_GameObject: {fileID: 694307628}
   m_Enabled: 1
   serializedVersion: 6
-  m_TerrainData: {fileID: 15600000, guid: 2d5bf2e762d751c49b7ff7e6cea53c19, type: 2}
+  m_TerrainData: {fileID: 15600000, guid: 47bf97edd967b784c80c1891fcca6bc3, type: 2}
   m_TreeDistance: 5000
   m_TreeBillboardDistance: 80
   m_TreeCrossFadeLength: 5
@@ -11597,6 +11670,8 @@ GameObject:
   - component: {fileID: 991183471}
   - component: {fileID: 991183470}
   - component: {fileID: 991183474}
+  - component: {fileID: 991183476}
+  - component: {fileID: 991183475}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -11622,6 +11697,9 @@ MonoBehaviour:
   port: 7777
   batchModeStartsServer: 1
   showDevelopmentMenu: 1
+  sceneBindings: {fileID: 991183476}
+  configCatalog: {fileID: 11400000, guid: cef2e95f644645b4ebd7f002c3d1a9b5, type: 2}
+  compositionFactoryProvider: {fileID: 991183475}
 --- !u!114 &991183471
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11707,7 +11785,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 135103093}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &991183474
@@ -11725,6 +11804,45 @@ MonoBehaviour:
   config: {fileID: 11400000, guid: 2b909db7e2ac41ea899e39b5b7aed9df, type: 2}
   boss: {fileID: 0}
   spawnParent: {fileID: 0}
+--- !u!114 &991183475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991183469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06c18180ea12445381093ab9eb00c6ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Bootstrap::VampireHunt.Bootstrap.DefaultCompositionFactoryProvider
+  randomSeed: 19790427
+  combatLayerMask:
+    serializedVersion: 2
+    m_Bits: 251
+  maximumMeleeColliders: 128
+--- !u!114 &991183476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991183469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a77dadefa58d4d64bb8387f3aeda69e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Bootstrap::VampireHunt.Bootstrap.SceneBindings
+  gameplayRoot: {fileID: 991183473}
+  mainCamera: {fileID: 330585545}
+  adapterBindings:
+  - {fileID: 4357109550368597300}
+  - {fileID: 674772981560216521}
+  - {fileID: 961027275}
+  - {fileID: 135103097}
+  - {fileID: 135103096}
+  - {fileID: 135103095}
+  - {fileID: 1328963135}
 --- !u!4 &992700473 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 462672734963133294, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
@@ -14971,6 +15089,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f546778899001122334455, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossConfig
+  bossDefinition: {fileID: 11400000, guid: 06d13826847950f4c9cb6ee653f5ec81, type: 2}
   maxHealth: 100
   phase1HealthRate: 0.7
   phase2HealthRate: 0.3
@@ -15529,6 +15648,21 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 24c90aed722abe94fb485c8826444d5b, type: 3}
+--- !u!115 &1347936796
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: NetworkStateRpcAdapter
+  m_Namespace: VampireHunt.Infrastructure.Netcode
+  m_AssemblyName: VampireHunt.Infrastructure.Netcode
 --- !u!1001 &1349603299
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -16708,6 +16842,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 462672734963133294, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
   m_PrefabInstance: {fileID: 2029831894}
   m_PrefabAsset: {fileID: 0}
+--- !u!115 &1484993724
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: GameplayEventRpcAdapter
+  m_Namespace: VampireHunt.Infrastructure.Netcode
+  m_AssemblyName: VampireHunt.Infrastructure.Netcode
 --- !u!1001 &1487686299
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24969,6 +25118,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6793cd89dde2e17408b488e66bbb9226, type: 3}
+--- !u!114 &674772981560216521 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7777113142325540555, guid: 6793cd89dde2e17408b488e66bbb9226, type: 3}
+  m_PrefabInstance: {fileID: 674772981560216520}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77a6fde29f8f4ad4181a658f6b906729, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
 --- !u!1001 &4357109550368597299
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25042,6 +25202,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6eb9930a9d620d04ab29032f635e9608, type: 3}
+--- !u!114 &4357109550368597300 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7289374329472026888, guid: 6eb9930a9d620d04ab29032f635e9608, type: 3}
+  m_PrefabInstance: {fileID: 4357109550368597299}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e970ed0137574264989dc76cdf457570, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerNetworkState
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -37,6 +37,36 @@ namespace VampireHunt.Stats
         Override = 3
     }
 
+    /// <summary>
+    /// Stable identity for one modifier registration on one attribute target.
+    /// SourceId describes who caused a modifier; this handle describes the
+    /// individual registration and therefore must be used when an effect is
+    /// removed. Handles are scoped to the target that created them.
+    /// </summary>
+    public readonly struct StatModifierHandle : IEquatable<StatModifierHandle>, IComparable<StatModifierHandle>
+    {
+        public ulong Value { get; }
+        public bool IsValid => Value != 0UL;
+        public static StatModifierHandle Invalid => default;
+
+        public StatModifierHandle(ulong value)
+        {
+            if (value == 0UL)
+                throw new ArgumentOutOfRangeException(nameof(value), "A modifier handle must be valid.");
+            Value = value;
+        }
+
+        public bool Equals(StatModifierHandle other) => Value == other.Value;
+        public override bool Equals(object obj) => obj is StatModifierHandle other && Equals(other);
+        public override int GetHashCode() => Value.GetHashCode();
+        public int CompareTo(StatModifierHandle other) => Value.CompareTo(other.Value);
+        public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
+        public static bool operator ==(StatModifierHandle left, StatModifierHandle right) => left.Equals(right);
+        public static bool operator !=(StatModifierHandle left, StatModifierHandle right) => !left.Equals(right);
+        public static bool operator <(StatModifierHandle left, StatModifierHandle right) => left.Value < right.Value;
+        public static bool operator >(StatModifierHandle left, StatModifierHandle right) => left.Value > right.Value;
+    }
+
     /// <summary>An immutable contribution to one stat from one logical source.</summary>
     public readonly struct StatModifier : IEquatable<StatModifier>
     {
@@ -134,10 +164,22 @@ namespace VampireHunt.Stats
     public sealed class StatModifierCollection
     {
         private readonly List<StatModifier> modifiers = new List<StatModifier>();
+        private readonly Dictionary<StatModifierHandle, StatModifier> modifiersByHandle =
+            new Dictionary<StatModifierHandle, StatModifier>();
+        private ulong nextHandle = 1UL;
 
         public int Count => modifiers.Count;
 
-        public void Add(StatModifier modifier) => modifiers.Add(modifier);
+        public void Add(StatModifier modifier) => AddWithHandle(modifier);
+
+        /// <summary>Adds a modifier and returns its precise registration handle.</summary>
+        public StatModifierHandle AddWithHandle(StatModifier modifier)
+        {
+            StatModifierHandle handle = AllocateHandle();
+            modifiers.Add(modifier);
+            modifiersByHandle.Add(handle, modifier);
+            return handle;
+        }
 
         public void AddRange(IEnumerable<StatModifier> values)
         {
@@ -145,7 +187,27 @@ namespace VampireHunt.Stats
             foreach (StatModifier modifier in values) Add(modifier);
         }
 
-        public bool Remove(StatModifier modifier) => modifiers.Remove(modifier);
+        public bool Remove(StatModifier modifier)
+        {
+            int index = modifiers.IndexOf(modifier);
+            if (index < 0) return false;
+
+            modifiers.RemoveAt(index);
+            RemoveFirstMatchingHandle(modifier);
+            return true;
+        }
+
+        /// <summary>Removes exactly the registration represented by a handle.</summary>
+        public bool Remove(StatModifierHandle handle)
+        {
+            if (!handle.IsValid || !modifiersByHandle.TryGetValue(handle, out StatModifier modifier))
+                return false;
+
+            modifiersByHandle.Remove(handle);
+            int index = modifiers.IndexOf(modifier);
+            if (index >= 0) modifiers.RemoveAt(index);
+            return true;
+        }
 
         public int RemoveBySource(EntityId sourceId)
         {
@@ -154,7 +216,9 @@ namespace VampireHunt.Stats
             for (int index = modifiers.Count - 1; index >= 0; index--)
             {
                 if (modifiers[index].SourceId != sourceId) continue;
+                StatModifier modifier = modifiers[index];
                 modifiers.RemoveAt(index);
+                RemoveMatchingHandles(modifier);
                 removed++;
             }
             return removed;
@@ -169,6 +233,7 @@ namespace VampireHunt.Stats
                 StatModifier modifier = modifiers[index];
                 if (modifier.Stat != stat || modifier.SourceId != sourceId) continue;
                 modifiers.RemoveAt(index);
+                RemoveMatchingHandles(modifier);
                 removed++;
             }
             return removed;
@@ -177,7 +242,43 @@ namespace VampireHunt.Stats
         public StatModifierSnapshot Snapshot() =>
             new StatModifierSnapshot(modifiers.ToArray());
 
-        public void Clear() => modifiers.Clear();
+        public void Clear()
+        {
+            modifiers.Clear();
+            modifiersByHandle.Clear();
+        }
+
+        private StatModifierHandle AllocateHandle()
+        {
+            if (nextHandle == 0UL)
+                throw new InvalidOperationException("Modifier handle allocation exhausted the ulong range.");
+
+            StatModifierHandle handle = new StatModifierHandle(nextHandle);
+            nextHandle = nextHandle == ulong.MaxValue ? 0UL : nextHandle + 1UL;
+            return handle;
+        }
+
+        private void RemoveFirstMatchingHandle(StatModifier modifier)
+        {
+            StatModifierHandle match = StatModifierHandle.Invalid;
+            foreach (KeyValuePair<StatModifierHandle, StatModifier> pair in modifiersByHandle)
+            {
+                if (pair.Value.Equals(modifier))
+                {
+                    match = pair.Key;
+                    break;
+                }
+            }
+            if (match.IsValid) modifiersByHandle.Remove(match);
+        }
+
+        private void RemoveMatchingHandles(StatModifier modifier)
+        {
+            List<StatModifierHandle> removals = new List<StatModifierHandle>();
+            foreach (KeyValuePair<StatModifierHandle, StatModifier> pair in modifiersByHandle)
+                if (pair.Value.Equals(modifier)) removals.Add(pair.Key);
+            foreach (StatModifierHandle handle in removals) modifiersByHandle.Remove(handle);
+        }
     }
 
     public interface IStatSnapshot

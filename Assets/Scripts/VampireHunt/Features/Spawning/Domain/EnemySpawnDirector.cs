@@ -10,7 +10,7 @@ namespace VampireHunt.Spawning.Domain
     /// sampling, gate checks and pool/network instantiation are deliberately
     /// separate ports so none can silently create a second director.
     /// </summary>
-    public sealed class EnemySpawnDirector
+    public sealed class EnemySpawnDirector : IEnemySpawnDirector
     {
         private readonly EnemySpawnSpec spec;
         private readonly SpawnPressurePolicy pressure;
@@ -19,6 +19,7 @@ namespace VampireHunt.Spawning.Domain
         private readonly ISpawnGate gate;
         private double timeSinceBudget;
         private ulong sequence;
+        private bool awaitingFirstSpawn;
 
         public EnemySpawnDirector(
             EnemySpawnSpec spec,
@@ -47,8 +48,20 @@ namespace VampireHunt.Spawning.Domain
                 return SpawnTickResult.Empty(false);
             }
 
-            timeSinceBudget += context.DeltaTime;
-            int intervals = CalculateIntervals();
+            int intervals;
+            if (awaitingFirstSpawn)
+            {
+                if (context.ElapsedSeconds < spec.FirstSpawnDelay)
+                    return SpawnTickResult.Empty(true);
+                awaitingFirstSpawn = false;
+                timeSinceBudget = 0d;
+                intervals = 1;
+            }
+            else
+            {
+                timeSinceBudget += context.DeltaTime;
+                intervals = CalculateIntervals();
+            }
             if (intervals == 0)
             {
                 return SpawnTickResult.Empty(true);
@@ -93,6 +106,7 @@ namespace VampireHunt.Spawning.Domain
         {
             timeSinceBudget = 0d;
             sequence = 0UL;
+            awaitingFirstSpawn = true;
             LastBudget = new SpawnBudget(0, 0, 0);
         }
 

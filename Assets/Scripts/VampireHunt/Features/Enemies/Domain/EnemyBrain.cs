@@ -132,12 +132,22 @@ namespace VampireHunt.Enemies.Domain
         private Direction SampleRecoveryDirection(in EnemyPerception perception)
         {
             var recovery = _navigation.TryFindRecovery(perception.SelfPosition);
-            if (recovery.X == perception.SelfPosition.X && recovery.Z == perception.SelfPosition.Z)
+            // TryFindRecovery returns the input position when no safe cell can
+            // be found.  Never ask the combat flow field for a direction in
+            // that case: doing so would silently resume chasing while the
+            // entity is still outside the walkable domain (or inside an
+            // obstacle).  The same check also covers an adapter that returns
+            // an out-of-bounds/blocked recovery candidate.
+            if (recovery == perception.SelfPosition || !_navigation.IsWalkable(recovery))
             {
                 return Direction.None;
             }
 
-            return _navigation.SampleDirection(recovery, perception.TargetPosition);
+            // Recovery is its own phase.  The first sample must move from the
+            // entity's current position toward the nearest walkable cell.  A
+            // later Decide call observes IsWalkable(current) and only then
+            // samples the combat target in the normal Chasing branch.
+            return _navigation.SampleDirection(perception.SelfPosition, recovery);
         }
     }
 }

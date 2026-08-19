@@ -1,7 +1,9 @@
 {
   "name": "VampireHunt.Architecture.Tests",
   "rootNamespace": "VampireHunt.Tests.Architecture",
-  "references": [],
+  "references": [
+    "VampireHunt.Bootstrap"
+  ],
   "includePlatforms": [
     "Editor"
   ],

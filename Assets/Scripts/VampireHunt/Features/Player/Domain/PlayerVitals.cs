@@ -35,7 +35,7 @@ namespace VampireHunt.Player.Domain
     }
 
     /// <summary>Server-owned health and invincibility-window rules.</summary>
-    public sealed class PlayerVitals : IDamageReceiver, IHealingReceiver
+    public sealed class PlayerVitals : IDamageReceiver, IAuthoritativeDamageReceiver, IHealingReceiver
     {
         private int currentHealth;
         private double invincibleUntil;
@@ -79,6 +79,15 @@ namespace VampireHunt.Player.Domain
             currentHealth = MaxHealth;
             IsInvincibleWindow = false;
             invincibleUntil = double.NegativeInfinity;
+        }
+
+        public bool ForceDeath()
+        {
+            if (!IsAlive) return false;
+            currentHealth = 0;
+            IsInvincibleWindow = false;
+            invincibleUntil = double.NegativeInfinity;
+            return true;
         }
 
         public void Reset(int? health = null)

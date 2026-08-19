@@ -1,8 +1,24 @@
-﻿using UnityEngine;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using VampireHunt.Boss.Authoring;
+using VampireHunt.Boss.Contracts;
+using VampireHunt.Boss.Domain;
 
+/// <summary>
+/// Legacy scene authoring shell for a Boss encounter.
+///
+/// Serialized fields intentionally remain stable so existing prefabs and
+/// scenes keep their references. Runtime rules are converted once to an
+/// immutable <see cref="BossSpec"/> and then owned by the Boss domain.
+/// This component never stores encounter health, cooldowns, phase state or
+/// attack state.
+/// </summary>
 [DisallowMultipleComponent]
 public sealed class BossConfig : MonoBehaviour
 {
+    [SerializeField] private BossDefinition bossDefinition;
+
     [Header("Boss - 基础生命 / Base Health")]
     [Min(1)] public int maxHealth = 100;
     [Range(0.01f, 0.99f)] public float phase1HealthRate = 0.70f;
@@ -170,30 +186,27 @@ public sealed class BossConfig : MonoBehaviour
     [Min(0f)] public float format6Cooldown = 5.5f;
     [Min(0f)] public float format6Weight = 1f;
 
+    public BossDefinition Definition => bossDefinition;
+
     private void OnValidate()
     {
-        if (!System.Enum.IsDefined(typeof(BossEncounterMode), initialEncounterMode))
-        {
+        if (!Enum.IsDefined(typeof(BossEncounterMode), initialEncounterMode))
             initialEncounterMode = BossEncounterMode.Hunt;
-        }
+
+        maxHealth = Mathf.Max(1, maxHealth);
         phase1HealthRate = Mathf.Clamp(phase1HealthRate, 0.02f, 0.99f);
         phase2HealthRate = Mathf.Clamp(phase2HealthRate, 0.01f, phase1HealthRate - 0.01f);
         phase3HealthRate = Mathf.Clamp(phase3HealthRate, 0.001f, phase2HealthRate - 0.01f);
-        format5TriggerHealthRate = Mathf.Clamp01(format5TriggerHealthRate);
+        format5TriggerHealthRate = Mathf.Clamp(format5TriggerHealthRate, 0.01f, 0.99f);
         minimumEffectHeight = Mathf.Max(minimumEffectHeight, -0.99f);
         telegraphHeight = Mathf.Max(telegraphHeight, minimumEffectHeight);
         huntRetreatStartDistance = Mathf.Max(0.1f, huntRetreatStartDistance);
-        huntRetreatStopDistance = Mathf.Max(
-            huntRetreatStartDistance + 0.1f,
-            huntRetreatStopDistance);
+        huntRetreatStopDistance = Mathf.Max(huntRetreatStartDistance + 0.1f, huntRetreatStopDistance);
         staggerActivationDistance = Mathf.Max(0.1f, staggerActivationDistance);
         staggerWindowDuration = Mathf.Max(0.1f, staggerWindowDuration);
     }
 
-    public float GetEffectHeight()
-    {
-        return Mathf.Max(telegraphHeight, minimumEffectHeight, -0.99f);
-    }
+    public float GetEffectHeight() => Mathf.Max(telegraphHeight, minimumEffectHeight, -0.99f);
 
     public float GetMoveSpeed(int phase)
     {
@@ -204,7 +217,70 @@ public sealed class BossConfig : MonoBehaviour
             3 => phase3MoveMultiplier,
             _ => 1f
         };
+        return Mathf.Max(0f, moveSpeed * multiplier);
+    }
 
-        return moveSpeed * multiplier;
+    /// <summary>Converts serialized authoring into an immutable runtime spec.</summary>
+    public BossSpec BuildSpec()
+    {
+        if (bossDefinition != null)
+            return BossSpecFactory.Create(bossDefinition);
+
+        // Keep thresholds strictly descending even when an asset has not gone
+        // through OnValidate (for example, a headless test-created component).
+        float phaseOne = ClampThreshold(phase1HealthRate, 1f, 0.03f);
+        float phaseTwo = ClampThreshold(phase2HealthRate, phaseOne - 0.01f, 0.02f);
+        float phaseThree = ClampThreshold(phase3HealthRate, phaseTwo - 0.01f, 0.001f);
+        List<BossPhaseSpec> phases = new()
+        {
+            new BossPhaseSpec(BossPhase.PhaseOne, phaseOne),
+            new BossPhaseSpec(BossPhase.PhaseTwo, phaseTwo),
+            new BossPhaseSpec(BossPhase.PhaseThree, phaseThree)
+        };
+
+        List<BossAttackSpec> attacks = new()
+        {
+            new BossAttackSpec(BossAttackId.GuardSweep, format1Cooldown, format1Weight,
+                format1Damage, BossPhase.PhaseOne, format1WarningTime,
+                Mathf.Max(0.05f, format1SweepStepInterval * Mathf.Max(1, format1SweepSteps)),
+                format1SweepLength, format1SweepWidth, format1Knockback, 0, 0f,
+                new PresentationCueId(format1Trigger)),
+            new BossAttackSpec(BossAttackId.RotatingBarrage, format2Cooldown, format2Weight,
+                format2Damage, BossPhase.PhaseOne, format2PreDelay,
+                Mathf.Max(0.05f, format2ProjectileLife), format2Distance(), format2ProjectileRadius,
+                format2Knockback, format2ProjectileCount, format2ProjectileSpeed,
+                new PresentationCueId(format2Trigger)),
+            new BossAttackSpec(BossAttackId.CrossSlash, format3Cooldown, format3Weight,
+                format3Damage, BossPhase.PhaseTwo, format3WarningTime,
+                Mathf.Max(0.05f, format3FillAlpha), format3Radius, format3Width,
+                format3Knockback, 0, 0f, new PresentationCueId(format3Trigger)),
+            new BossAttackSpec(BossAttackId.ChargedSlash, format4Cooldown, format4Weight,
+                format4Damage, BossPhase.PhaseOne, format4WarningTime,
+                Mathf.Max(0.05f, phaseChangeDuration), format4Length, format4Width,
+                format4Knockback, 0, 0f, new PresentationCueId(format4Trigger)),
+            new BossAttackSpec(BossAttackId.RectangleDash, format6Cooldown, format6Weight,
+                format6Damage, BossPhase.PhaseThree, format6WarningTime,
+                Mathf.Max(0.05f, format6ActiveDuration), format6Distance, format6Width,
+                format6Knockback, 0, format6Speed, new PresentationCueId(format6Trigger))
+        };
+
+        return new BossSpec(
+            Mathf.Max(1, maxHealth),
+            new PhaseSpecSet(phases),
+            new BossAttackSpecSet(attacks),
+            Mathf.Max(0, guardMaxHealth),
+            0.5f,
+            Mathf.Max(0.01f, staggerWindowDuration),
+            Mathf.Clamp(format5TriggerHealthRate, 0.01f, 0.99f),
+            enableFormat5Countdown ? Mathf.Max(0f, format5CountdownSeconds) : 0f,
+            Mathf.Max(0.01f, format5CountdownRate));
+    }
+
+    private float format2Distance() => Mathf.Max(format2ProjectileSpeed * format2ProjectileLife, format4Radius);
+
+    private static float ClampThreshold(float value, float upperBound, float minimum)
+    {
+        float upper = Mathf.Clamp(upperBound, minimum, 1f);
+        return Mathf.Clamp(value, minimum, upper);
     }
 }

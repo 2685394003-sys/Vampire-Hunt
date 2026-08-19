@@ -10,7 +10,7 @@ namespace VampireHunt.Player.Application
     {
         private readonly IPlayerRepository repository;
 
-        public PlayerProgressionService(IPlayerRepository repository)
+        internal PlayerProgressionService(IPlayerRepository repository)
         {
             this.repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }

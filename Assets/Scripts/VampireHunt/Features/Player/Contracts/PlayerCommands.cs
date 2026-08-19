@@ -251,6 +251,17 @@ namespace VampireHunt.Player.Contracts
         bool IsAlive { get; }
     }
 
+    /// <summary>
+    /// Narrow read-only state used by the Blood Pact UI. The implementation
+    /// can be a local application runtime or a replicated network projection.
+    /// </summary>
+    public interface IPlayerBloodPactReadModel
+    {
+        int BloodPactScarlet { get; }
+        bool IsBloodPactPlayerAlive { get; }
+        bool TryGetBloodPactOffer(out BloodPactOffer offer);
+    }
+
     public interface IPlayerProgressionCommands
     {
         bool GrantReward(EntityId recipientId, RewardGrant reward);

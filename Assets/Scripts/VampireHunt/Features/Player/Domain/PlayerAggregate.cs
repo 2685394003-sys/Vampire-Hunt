@@ -8,7 +8,7 @@ namespace VampireHunt.Player.Domain
     /// Server-owned player state. Position and facing are deliberately absent;
     /// they belong to the Owner movement replication channel and its validator.
     /// </summary>
-    public sealed class PlayerAggregate
+    internal sealed class PlayerAggregate
     {
         private bool hasAcceptedSequence;
         private uint lastCommandSequence;

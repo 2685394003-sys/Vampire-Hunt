@@ -81,7 +81,7 @@ namespace VampireHunt.Player.Application
             AbilitySystem = null;
         }
 
-        public AttackResult Attack(PlayerAggregate player, AttackCommand command, double now)
+        internal AttackResult Attack(PlayerAggregate player, AttackCommand command, double now)
         {
             if (player == null || !player.IsAlive)
                 return new AttackResult(false, "Player is not alive", 0, null);
@@ -132,10 +132,10 @@ namespace VampireHunt.Player.Application
             }
         }
 
-        public AttackResult Attack(PlayerAggregate player, AttackCommand command) =>
+        internal AttackResult Attack(PlayerAggregate player, AttackCommand command) =>
             Attack(player, command, 0d);
 
-        public AttackResult Attack(PlayerAggregate player, AttackCommand command, IGameClock clock) =>
+        internal AttackResult Attack(PlayerAggregate player, AttackCommand command, IGameClock clock) =>
             Attack(player, command, clock == null ? 0d : clock.Now);
     }
 

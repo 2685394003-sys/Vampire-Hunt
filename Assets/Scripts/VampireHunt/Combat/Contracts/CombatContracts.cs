@@ -276,6 +276,18 @@ namespace VampireHunt.Combat.Contracts
         DamageResult ApplyDamage(in ResolvedDamage damage);
     }
 
+    /// <summary>
+    /// Optional authoritative-time capability for receivers whose rules depend
+    /// on the server clock (for example, an invincibility window). Combat owns
+    /// this generic capability contract and therefore does not reference any
+    /// feature-specific receiver type. Receivers that do not need time keep
+    /// implementing only <see cref="IDamageReceiver"/>.
+    /// </summary>
+    public interface IAuthoritativeDamageReceiver : IDamageReceiver
+    {
+        DamageResult ApplyDamage(in ResolvedDamage damage, double authoritativeNow);
+    }
+
     public interface IHealingReceiver
     {
         int ApplyHealing(int amount);

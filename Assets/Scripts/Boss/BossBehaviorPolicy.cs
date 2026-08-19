@@ -2,9 +2,9 @@ using UnityEngine;
 
 internal enum BossMovementIntent
 {
-    Hold,
-    Approach,
-    Retreat
+    Hold = 0,
+    Approach = 1,
+    Retreat = 2
 }
 
 internal readonly struct BossBehaviorDecision
@@ -14,11 +14,7 @@ internal readonly struct BossBehaviorDecision
     public Vector3 Direction { get; }
     public bool AllowAttack { get; }
 
-    public BossBehaviorDecision(
-        BossMovementIntent movement,
-        BossState state,
-        Vector3 direction,
-        bool allowAttack)
+    public BossBehaviorDecision(BossMovementIntent movement, BossState state, Vector3 direction, bool allowAttack)
     {
         Movement = movement;
         State = state;
@@ -28,96 +24,24 @@ internal readonly struct BossBehaviorDecision
 }
 
 /// <summary>
-/// Stateless inputs and a tiny retained hysteresis flag are kept outside the
-/// MonoBehaviour coordinator. This makes movement policy deterministic and
-/// prevents presentation or attack code from owning encounter rules.
+/// Compatibility shell retained for old serialized/debug callers. Attack
+/// selection and phase transitions now live in BossAttackSelector and
+/// BossPhaseStateMachine; this shim never decides damage, phase or attacks.
 /// </summary>
+[System.Obsolete("BossBehaviorPolicy is a compatibility adapter; use BossRuntime.")]
 internal sealed class BossBehaviorPolicy
 {
-    private readonly BossConfig config;
-    private bool retreatLatched;
-
-    public BossBehaviorPolicy(BossConfig bossConfig)
-    {
-        config = bossConfig;
-    }
+    public BossBehaviorPolicy(BossConfig bossConfig) { }
 
     public BossBehaviorDecision Evaluate(
         BossEncounterMode encounterMode,
         bool isVisible,
         float targetDistance,
         Vector3 directionToTarget,
-        int phase)
-    {
-        if (config == null || directionToTarget.sqrMagnitude < 0.001f)
-        {
-            return Hold();
-        }
-
-        if (encounterMode == BossEncounterMode.Hunt)
-        {
-            return EvaluateHunt(isVisible, targetDistance, directionToTarget);
-        }
-
-        retreatLatched = false;
-        bool mustHold = targetDistance <= config.stoppingDistance ||
-                        (config.stationaryAfterFirstPhase && phase >= 1);
-        return mustHold
-            ? new BossBehaviorDecision(
-                BossMovementIntent.Hold,
-                BossState.BattleIdle,
-                Vector3.zero,
-                true)
-            : new BossBehaviorDecision(
-                BossMovementIntent.Approach,
-                BossState.Chase,
-                directionToTarget.normalized,
-                true);
-    }
-
-    public void Reset()
-    {
-        retreatLatched = false;
-    }
-
-    private BossBehaviorDecision EvaluateHunt(
-        bool isVisible,
-        float targetDistance,
-        Vector3 directionToTarget)
-    {
-        if (!isVisible)
-        {
-            retreatLatched = false;
-            return Hold();
-        }
-
-        if (targetDistance <= config.huntRetreatStartDistance)
-        {
-            retreatLatched = true;
-        }
-        else if (targetDistance >= config.huntRetreatStopDistance)
-        {
-            retreatLatched = false;
-        }
-
-        if (!retreatLatched)
-        {
-            return Hold();
-        }
-
-        return new BossBehaviorDecision(
-            BossMovementIntent.Retreat,
-            BossState.Retreat,
-            -directionToTarget.normalized,
-            false);
-    }
-
-    private static BossBehaviorDecision Hold()
-    {
-        return new BossBehaviorDecision(
-            BossMovementIntent.Hold,
-            BossState.OffscreenIdle,
+        int phase) => new(BossMovementIntent.Hold,
+            encounterMode == BossEncounterMode.Battle ? BossState.BattleIdle : BossState.OffscreenIdle,
             Vector3.zero,
             true);
-    }
+
+    public void Reset() { }
 }

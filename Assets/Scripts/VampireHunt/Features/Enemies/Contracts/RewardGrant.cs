@@ -27,17 +27,24 @@ namespace VampireHunt.Enemies.Contracts
         }
 
         public RewardGrant(int scarlet, int experience, IReadOnlyList<RewardItem> items = null)
+            : this(scarlet, 0, experience, items)
+        {
+        }
+
+        public RewardGrant(int scarlet, int coins, int experience, IReadOnlyList<RewardItem> items = null)
         {
             Scarlet = Math.Max(0, scarlet);
+            Coins = Math.Max(0, coins);
             Experience = Math.Max(0, experience);
             _items = items == null ? Array.Empty<RewardItem>() : Copy(items);
             _itemsView = Array.AsReadOnly(_items);
         }
 
         public int Scarlet { get; }
+        public int Coins { get; }
         public int Experience { get; }
         public IReadOnlyList<RewardItem> Items => _itemsView;
-        public bool IsEmpty => Scarlet == 0 && Experience == 0 && _items.Length == 0;
+        public bool IsEmpty => Scarlet == 0 && Coins == 0 && Experience == 0 && _items.Length == 0;
 
         private static RewardItem[] Copy(IReadOnlyList<RewardItem> source)
         {

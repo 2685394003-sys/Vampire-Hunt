@@ -1,8 +1,10 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using VampireHunt.Player.Contracts;
+using VampireHunt.UI;
+using VampireHunt.UI.Contracts;
 
 [Serializable]
 public sealed class BloodPactCardView
@@ -55,12 +57,13 @@ public sealed class BloodPactCardView
 }
 
 /// <summary>
-/// Presents three random player blood pacts when the local player's Scarlet
-/// reaches the fixed blood-pact cost. Selection is validated by the server via
-/// PlayerNetworkState.RequestBloodPactSelection.
+/// Presents the authoritative BloodPactOffer supplied by the Player runtime.
+/// Choice generation, availability, cost and selection are all owned by the
+/// Player Application; this component only maps ids to authored card views.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class BloodPactSelectionController : MonoBehaviour
+public sealed class BloodPactSelectionController : MonoBehaviour,
+    IBloodPactSelectionView, IBloodPactSelectionPresenterBinding
 {
     private const int ChoiceCount = 3;
 
@@ -68,22 +71,17 @@ public sealed class BloodPactSelectionController : MonoBehaviour
     [SerializeField] private BloodPactCardView[] cards = new BloodPactCardView[ChoiceCount];
     [SerializeField] private Sprite[] cardEmblems = new Sprite[ChoiceCount];
     [SerializeField] private Text[] localizedTexts;
-    [SerializeField, Min(0.05f)] private float playerLookupInterval = 0.25f;
-    [SerializeField, Min(0.5f)] private float networkResponseTimeout = 2f;
+    [SerializeField] private BloodPactConfig database;
 
     private readonly BloodPactDefinition[] currentChoices = new BloodPactDefinition[ChoiceCount];
-    private readonly List<BloodPactDefinition> candidateBuffer = new();
-
-    private BloodPactConfig database;
-    private PlayerNetworkState boundPlayer;
-    private float nextPlayerLookupTime;
-    private float pendingTimeoutAt;
+    private BloodPactSelectionPresenter presenter;
+    private BloodPactOffer currentOffer;
     private float previousTimeScale = 1f;
     private bool isShowing;
     private bool isPendingSelection;
     private bool pausedOfflineGame;
     private bool listenersInstalled;
-    private string pendingPactId;
+    private uint suppressedOfferVersion;
     private CursorLockMode previousCursorLock;
     private bool previousCursorVisible;
 
@@ -99,6 +97,13 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         localizedTexts = texts;
     }
 
+    public void SetCatalog(BloodPactConfig value) => database = value;
+
+    public void Bind(BloodPactSelectionPresenter value)
+    {
+        presenter = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
     private void Awake()
     {
         InstallButtonListeners();
@@ -107,34 +112,13 @@ public sealed class BloodPactSelectionController : MonoBehaviour
 
     private void OnEnable()
     {
-        database = BloodPactConfig.LoadDefault();
         HideImmediate();
         InstallButtonListeners();
-        TryBindLocalPlayer();
     }
 
     private void OnDisable()
     {
-        UnbindPlayer();
         RestorePresentationState();
-    }
-
-    private void Update()
-    {
-        if (isPendingSelection && Time.unscaledTime >= pendingTimeoutAt)
-        {
-            isPendingSelection = false;
-            pendingPactId = null;
-            SetCardsInteractable(true);
-        }
-
-        if (boundPlayer != null || Time.unscaledTime < nextPlayerLookupTime)
-        {
-            return;
-        }
-
-        nextPlayerLookupTime = Time.unscaledTime + playerLookupInterval;
-        TryBindLocalPlayer();
     }
 
     private void InstallButtonListeners()
@@ -157,73 +141,22 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         listenersInstalled = true;
     }
 
-    private void TryBindLocalPlayer()
+    public void ShowOffer(BloodPactOffer offer)
     {
-        PlayerNetworkState player = NetworkPlayerRegistry.GetLocalPlayer();
-        if (player == null || player == boundPlayer)
+        if (!offer.IsValid || offer.OfferVersion == suppressedOfferVersion)
         {
+            Hide();
             return;
         }
 
-        UnbindPlayer();
-        boundPlayer = player;
-        boundPlayer.ScarletChanged += HandleScarletChanged;
-        boundPlayer.BloodPactsChanged += HandleBloodPactsChanged;
-        HandleScarletChanged(boundPlayer.CurrentScarlet, boundPlayer.MaxScarlet);
-    }
-
-    private void UnbindPlayer()
-    {
-        if (boundPlayer != null)
+        currentOffer = offer;
+        if (database == null ||
+            !RollChoices())
         {
-            boundPlayer.ScarletChanged -= HandleScarletChanged;
-            boundPlayer.BloodPactsChanged -= HandleBloodPactsChanged;
-        }
-        boundPlayer = null;
-    }
-
-    private void HandleScarletChanged(float current, float maximum)
-    {
-        if (isPendingSelection && current + 0.0001f < PlayerNetworkState.BloodPactScarletCost)
-        {
-            HideSelection();
-            return;
-        }
-
-        if (isShowing && current + 0.0001f < PlayerNetworkState.BloodPactScarletCost)
-        {
-            HideSelection();
-            return;
-        }
-
-        if (!isShowing && current + 0.0001f >= PlayerNetworkState.BloodPactScarletCost)
-        {
-            ShowSelection();
-        }
-    }
-
-    private void HandleBloodPactsChanged()
-    {
-        if (!isPendingSelection) return;
-
-        HideSelection();
-        if (boundPlayer != null &&
-            boundPlayer.CurrentScarlet + 0.0001f >= PlayerNetworkState.BloodPactScarletCost)
-        {
-            ShowSelection();
-        }
-    }
-
-    private void ShowSelection()
-    {
-        if (database == null)
-        {
-            database = BloodPactConfig.LoadDefault();
-        }
-
-        if (database == null || !RollChoices())
-        {
-            Debug.LogWarning("[Blood Pact UI] Fewer than three implemented player pacts remain.", this);
+            Debug.LogWarning(
+                "[Blood Pact UI] An explicit BloodPactConfig is missing or the offer cannot be mapped.",
+                this);
+            Hide();
             return;
         }
 
@@ -235,12 +168,11 @@ public sealed class BloodPactSelectionController : MonoBehaviour
             cards[index]?.SetContent(currentChoices[index], emblem);
         }
 
+        if (!isShowing) CapturePresentationState();
         isShowing = true;
         isPendingSelection = false;
-        pendingPactId = null;
         SetCardsInteractable(true);
         SetOverlayVisible(true);
-        CapturePresentationState();
 
         if (cards != null && cards.Length > 0 && cards[0]?.Button != null)
         {
@@ -250,29 +182,12 @@ public sealed class BloodPactSelectionController : MonoBehaviour
 
     private bool RollChoices()
     {
-        candidateBuffer.Clear();
-        foreach (BloodPactDefinition pact in database.Pacts)
-        {
-            if (pact != null &&
-                pact.IsPlayerPact &&
-                pact.IsRuntimeImplemented &&
-                (pact.IsRepeatable || boundPlayer == null ||
-                 !boundPlayer.HasBloodPact(pact.PactId)))
-            {
-                candidateBuffer.Add(pact);
-            }
-        }
-
-        if (candidateBuffer.Count < ChoiceCount)
-        {
-            return false;
-        }
-
         for (int choice = 0; choice < ChoiceCount; choice++)
         {
-            int index = UnityEngine.Random.Range(0, candidateBuffer.Count);
-            currentChoices[choice] = candidateBuffer[index];
-            candidateBuffer.RemoveAt(index);
+            if (choice >= currentOffer.Choices.Count ||
+                !database.TryGet(currentOffer.Choices[choice].Value, out BloodPactDefinition pact))
+                return false;
+            currentChoices[choice] = pact;
         }
 
         return true;
@@ -280,7 +195,7 @@ public sealed class BloodPactSelectionController : MonoBehaviour
 
     private void Choose(int index)
     {
-        if (!isShowing || isPendingSelection || boundPlayer == null ||
+        if (!isShowing || isPendingSelection || presenter == null ||
             index < 0 || index >= currentChoices.Length)
         {
             return;
@@ -293,23 +208,24 @@ public sealed class BloodPactSelectionController : MonoBehaviour
         }
 
         isPendingSelection = true;
-        pendingPactId = pact.PactId;
-        pendingTimeoutAt = Time.unscaledTime + networkResponseTimeout;
         SetCardsInteractable(false);
 
-        if (!boundPlayer.RequestBloodPactSelection(pact.PactId))
+        CommandResult result = presenter.Select(new BloodPactId(pact.PactId));
+        if (result.Accepted)
+        {
+            suppressedOfferVersion = currentOffer.OfferVersion;
+        }
+        else
         {
             isPendingSelection = false;
-            pendingPactId = null;
             SetCardsInteractable(true);
         }
     }
 
-    private void HideSelection()
+    public void Hide()
     {
         isShowing = false;
         isPendingSelection = false;
-        pendingPactId = null;
         SetOverlayVisible(false);
         RestorePresentationState();
     }
@@ -318,7 +234,6 @@ public sealed class BloodPactSelectionController : MonoBehaviour
     {
         isShowing = false;
         isPendingSelection = false;
-        pendingPactId = null;
         SetOverlayVisible(false);
     }
 

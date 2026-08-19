@@ -54,7 +54,8 @@ namespace VampireHunt.Boss.Domain
                 spec.Damage,
                 spec.ProjectileSpeed,
                 Math.Max(0.1f, spec.ActiveSeconds),
-                17f);
+                17f,
+                spec.Knockback);
             return new AttackPlan(
                 AttackId,
                 Telegraph(context, spec),

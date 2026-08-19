@@ -108,6 +108,101 @@ namespace VampireHunt.Tests.Abilities
                 "Attribute executions must be owned and removed by the effect that created them.");
         }
 
+        [Test]
+        public void AttributeExecution_ReplaceAndClearDoNotLeaveResidualModifiers()
+        {
+            EntityId source = new(1);
+            EntityId target = new(2);
+            TestAttributes attributes = new();
+            GameplayAbilitySystem system = new(target, CreateExecutor(attributes));
+            GameplayEffectSpec first = AttributeEffect(
+                "replace-attribute",
+                StackingPolicy.Replace,
+                new StatKey(3),
+                1f);
+            GameplayEffectSpec replacement = AttributeEffect(
+                "replace-attribute",
+                StackingPolicy.Replace,
+                new StatKey(4),
+                2f);
+
+            Assert.That(system.Apply(first, source), Is.True);
+            Assert.That(system.Apply(replacement, source), Is.True);
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(1));
+            Assert.That(attributes.Modifiers[0].Stat, Is.EqualTo(new StatKey(4)));
+
+            system.Clear();
+
+            Assert.That(system.ActiveEffectCount, Is.Zero);
+            Assert.That(attributes.Modifiers, Is.Empty);
+        }
+
+        [Test]
+        public void AttributeExecution_RefreshAndStackReplaceTheOwnedRegistration()
+        {
+            EntityId source = new(1);
+            EntityId target = new(2);
+            TestAttributes attributes = new();
+            GameplayAbilitySystem system = new(target, CreateExecutor(attributes));
+            GameplayEffectSpec refresh = AttributeEffect(
+                "refresh-attribute",
+                StackingPolicy.RefreshDuration,
+                new StatKey(3),
+                4f);
+
+            Assert.That(system.Apply(refresh, source), Is.True);
+            Assert.That(system.Apply(refresh, source), Is.True);
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(1));
+
+            GameplayEffectSpec stacked = new(
+                new EffectId("stacked-attribute"),
+                DurationPolicy.Infinite,
+                StackingPolicy.AddStacks,
+                maxStacks: 2,
+                executeOnApplication: true,
+                executions: new[]
+                {
+                    GameplayEffectExecution.Attribute(
+                        new GameplayModifierSpec(new StatKey(5), ModifierOperation.AddFlat, 3f))
+                });
+            Assert.That(system.Apply(stacked, source), Is.True);
+            Assert.That(system.Apply(stacked, source), Is.True);
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(2));
+
+            system.Clear();
+
+            Assert.That(attributes.Modifiers, Is.Empty);
+        }
+
+        [Test]
+        public void PeriodicAttributeExecution_IsOwnedUntilEffectExpires()
+        {
+            EntityId source = new(1);
+            EntityId target = new(2);
+            TestAttributes attributes = new();
+            GameplayAbilitySystem system = new(target, CreateExecutor(attributes));
+            GameplayEffectSpec periodic = new(
+                new EffectId("periodic-attribute"),
+                DurationPolicy.Duration,
+                StackingPolicy.RefreshDuration,
+                durationSeconds: 2f,
+                periodSeconds: 1f,
+                executeOnApplication: false,
+                executions: new[]
+                {
+                    GameplayEffectExecution.Attribute(
+                        new GameplayModifierSpec(new StatKey(6), ModifierOperation.AddFlat, 2f))
+                });
+
+            Assert.That(system.Apply(periodic, source), Is.True);
+            Assert.That(attributes.Modifiers, Is.Empty);
+            system.Tick(1f);
+            Assert.That(attributes.Modifiers, Has.Count.EqualTo(1));
+            system.Tick(1f);
+            Assert.That(system.ActiveEffectCount, Is.Zero);
+            Assert.That(attributes.Modifiers, Is.Empty);
+        }
+
         private static GameplayEffectExecutor CreateExecutor(TestAttributes attributes)
         {
             TestVitals vitals = new(100);
@@ -130,6 +225,25 @@ namespace VampireHunt.Tests.Abilities
                 modifiers: new[]
                 {
                     new GameplayModifierSpec(stat, ModifierOperation.AddFlat, magnitude)
+                });
+        }
+
+        private static GameplayEffectSpec AttributeEffect(
+            string id,
+            StackingPolicy stacking,
+            StatKey stat,
+            float magnitude)
+        {
+            return new GameplayEffectSpec(
+                new EffectId(id),
+                DurationPolicy.Duration,
+                stacking,
+                durationSeconds: 10f,
+                executeOnApplication: true,
+                executions: new[]
+                {
+                    GameplayEffectExecution.Attribute(
+                        new GameplayModifierSpec(stat, ModifierOperation.AddFlat, magnitude))
                 });
         }
 
@@ -163,14 +277,40 @@ namespace VampireHunt.Tests.Abilities
             public IKnockbackReceiver TryGetKnockbackReceiver(EntityId id) => null;
         }
 
-        private sealed class TestAttributes : IAttributeModifierTarget
+        private sealed class TestAttributes : IPreciseAttributeModifierTarget
         {
             public readonly List<StatModifier> Modifiers = new List<StatModifier>();
             public readonly List<EntityId> RemovedSources = new List<EntityId>();
-            public void AddModifier(StatModifier modifier) => Modifiers.Add(modifier);
+            private readonly Dictionary<StatModifierHandle, StatModifier> modifiersByHandle =
+                new Dictionary<StatModifierHandle, StatModifier>();
+            private ulong nextHandle = 1UL;
+
+            public void AddModifier(StatModifier modifier) => AddModifierWithHandle(modifier);
+
+            public StatModifierHandle AddModifierWithHandle(StatModifier modifier)
+            {
+                StatModifierHandle handle = new StatModifierHandle(nextHandle++);
+                Modifiers.Add(modifier);
+                modifiersByHandle.Add(handle, modifier);
+                return handle;
+            }
+
+            public bool RemoveModifier(StatModifierHandle handle)
+            {
+                if (!modifiersByHandle.TryGetValue(handle, out StatModifier modifier)) return false;
+                modifiersByHandle.Remove(handle);
+                bool removed = Modifiers.Remove(modifier);
+                if (removed) RemovedSources.Add(modifier.SourceId);
+                return removed;
+            }
+
             public int RemoveModifiers(EntityId sourceId)
             {
                 int count = Modifiers.RemoveAll(modifier => modifier.SourceId == sourceId);
+                List<StatModifierHandle> handles = new List<StatModifierHandle>();
+                foreach (KeyValuePair<StatModifierHandle, StatModifier> pair in modifiersByHandle)
+                    if (pair.Value.SourceId == sourceId) handles.Add(pair.Key);
+                foreach (StatModifierHandle handle in handles) modifiersByHandle.Remove(handle);
                 RemovedSources.Add(sourceId);
                 return count;
             }

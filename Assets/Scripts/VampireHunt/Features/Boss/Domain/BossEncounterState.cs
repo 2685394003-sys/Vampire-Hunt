@@ -13,6 +13,7 @@ namespace VampireHunt.Boss.Domain
         public StaggerState Stagger { get; private set; }
         public float ContractSeconds { get; private set; }
         public int GuardIntegrity { get; private set; }
+        public int MaxGuardIntegrity => maximumGuardIntegrity;
         public float VulnerableSecondsRemaining { get; private set; }
 
         public BossEncounterState(BossSpec spec)
@@ -74,13 +75,30 @@ namespace VampireHunt.Boss.Domain
             return true;
         }
 
+        /// <summary>
+        /// Restores the encounter guard through the domain state machine. This
+        /// is intentionally a command on the encounter state rather than a
+        /// presenter-side health write; adapters may expose it for legacy
+        /// repair/debug entry points while the authoritative rule remains here.
+        /// </summary>
+        public bool RestoreGuard()
+        {
+            if (Mode == EncounterMode.Defeated || maximumGuardIntegrity <= 0)
+                return false;
+
+            GuardIntegrity = maximumGuardIntegrity;
+            Stagger = StaggerState.Guarded;
+            VulnerableSecondsRemaining = 0f;
+            return true;
+        }
+
         public void Tick(float deltaTime)
         {
             if (deltaTime <= 0f || Stagger != StaggerState.Vulnerable)
                 return;
             VulnerableSecondsRemaining = Math.Max(0f, VulnerableSecondsRemaining - deltaTime);
             if (VulnerableSecondsRemaining <= 0f)
-                RestoreGuard();
+                ResetGuardAfterVulnerableWindow();
         }
 
         public float ConsumeContractTime(float amount)
@@ -106,7 +124,7 @@ namespace VampireHunt.Boss.Domain
             ContractSeconds = initialContractSeconds;
         }
 
-        private void RestoreGuard()
+        private void ResetGuardAfterVulnerableWindow()
         {
             GuardIntegrity = maximumGuardIntegrity;
             Stagger = maximumGuardIntegrity > 0 ? StaggerState.Guarded : StaggerState.Vulnerable;

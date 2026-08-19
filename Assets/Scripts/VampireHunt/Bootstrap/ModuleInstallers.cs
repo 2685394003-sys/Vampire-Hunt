@@ -14,10 +14,20 @@ namespace VampireHunt.Bootstrap
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (IsInstalled) throw new InvalidOperationException("The module installer is already installed.");
+            if (factory == null)
+            {
+                throw new InvalidOperationException(
+                    $"{GetType().Name} requires an explicit module factory for {context.RuntimeMode} runtime.");
+            }
 
-            installation = factory == null
-                ? EmptyModuleInstallation.Instance
-                : factory.Create(context) ?? EmptyModuleInstallation.Instance;
+            IDisposable created = factory.Create(context);
+            if (created == null)
+            {
+                throw new InvalidOperationException(
+                    $"{GetType().Name} factory returned no installation. A module cannot silently install empty.");
+            }
+
+            installation = created;
         }
 
         public void Dispose()

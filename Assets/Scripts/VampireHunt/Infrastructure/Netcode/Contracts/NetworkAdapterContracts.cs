@@ -13,6 +13,16 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
         CommandResult Route(ulong senderId, SelectBloodPactCommand command);
     }
 
+    /// <summary>
+    /// Server-side ownership lookup used before a decoded RPC is handed to
+    /// the command router.  Implementations bind a logical player id to the
+    /// sender from the NGO receive context.
+    /// </summary>
+    public interface INetworkCommandOwnership
+    {
+        bool Owns(ulong senderId, EntityId playerId);
+    }
+
     public interface IMovementPoseEndpoint
     {
         MovementVerdict Validate(EntityId playerId, MovementPose pose);
@@ -32,50 +42,6 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
     public interface INetworkCommandTransport
     {
         void Send(NetworkCommandEnvelope command);
-    }
-
-    public enum NetworkCommandKind
-    {
-        Dash = 0,
-        Attack = 1,
-        SelectBloodPact = 2
-    }
-
-    /// <summary>
-    /// A transport-neutral command envelope. The strongly typed command is
-    /// retained so offline and server tests cannot silently lose fields.
-    /// </summary>
-    public readonly struct NetworkCommandEnvelope
-    {
-        private readonly object payload;
-
-        private NetworkCommandEnvelope(
-            ulong senderId,
-            NetworkCommandKind kind,
-            object payload,
-            uint sequence)
-        {
-            SenderId = senderId;
-            Kind = kind;
-            this.payload = payload;
-            Sequence = sequence;
-        }
-
-        public ulong SenderId { get; }
-        public NetworkCommandKind Kind { get; }
-        public uint Sequence { get; }
-        public DashCommand Dash => (DashCommand)payload;
-        public AttackCommand Attack => (AttackCommand)payload;
-        public SelectBloodPactCommand SelectBloodPact => (SelectBloodPactCommand)payload;
-
-        public static NetworkCommandEnvelope From(ulong senderId, DashCommand command) =>
-            new NetworkCommandEnvelope(senderId, NetworkCommandKind.Dash, command, command.Sequence);
-
-        public static NetworkCommandEnvelope From(ulong senderId, AttackCommand command) =>
-            new NetworkCommandEnvelope(senderId, NetworkCommandKind.Attack, command, command.Sequence);
-
-        public static NetworkCommandEnvelope From(ulong senderId, SelectBloodPactCommand command) =>
-            new NetworkCommandEnvelope(senderId, NetworkCommandKind.SelectBloodPact, command, command.Sequence);
     }
 
     public readonly struct NetworkEntityHandle : IEquatable<NetworkEntityHandle>
@@ -118,18 +84,33 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
         void Send(GameplayEventEnvelope envelope);
     }
 
+    /// <summary>
+    /// Versioned event envelope.  The wire payload is a fixed NGO value; the
+    /// domain event is reconstructed only at the ingress boundary.
+    /// </summary>
     public readonly struct GameplayEventEnvelope
     {
+        private readonly GameplayEventWire wire;
+
         public GameplayEventEnvelope(IGameplayEvent @event)
         {
-            Event = @event ?? throw new ArgumentNullException(nameof(@event));
-            EventId = @event.EventId;
-            OccurredAt = @event.OccurredAt;
+            if (!GameplayEventWire.TryFrom(@event, out wire))
+                throw new ArgumentNullException(nameof(@event), "The gameplay event cannot be encoded.");
         }
 
-        public ulong EventId { get; }
-        public double OccurredAt { get; }
-        public IGameplayEvent Event { get; }
+        public GameplayEventEnvelope(GameplayEventWire wire)
+        {
+            this.wire = wire;
+        }
+
+        public ulong EventId => wire.EventId;
+        public double OccurredAt => wire.OccurredAtMilliseconds / 1000d;
+        public ushort ProtocolVersion => wire.ProtocolVersion;
+        public GameplayEventKind Kind => wire.Kind;
+        public GameplayEventWire Wire => wire;
+        public bool IsVersionSupported => wire.IsVersionSupported;
+
+        public bool TryToDomain(out IGameplayEvent @event) => wire.TryToDomain(out @event);
     }
 
     /// <summary>

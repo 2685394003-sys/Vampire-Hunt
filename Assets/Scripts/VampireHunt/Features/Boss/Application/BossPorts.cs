@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using VampireHunt.Boss.Contracts;
 using VampireHunt.Boss.Domain;
@@ -35,6 +36,59 @@ namespace VampireHunt.Boss.Application
             BossPhase phase,
             double now,
             out BossAttackContext context);
+    }
+
+    /// <summary>
+    /// Scene/composition dependencies required by the Boss application. The
+    /// values are capability ports only; no Unity component or Boss aggregate
+    /// crosses this seam. <see cref="RegisterRuntime"/> lets a scene adapter
+    /// register the authoritative Boss receiver in the shared Combat
+    /// directory after Bootstrap has created the runtime.
+    /// </summary>
+    public readonly struct BossRuntimeDependencies
+    {
+        public EntityId BossId { get; }
+        public ICombatEntityDirectory CombatEntities { get; }
+        public IBossMotor Motor { get; }
+        public IAttackWorldQuery AttackWorldQuery { get; }
+        public IProjectileSpawner ProjectileSpawner { get; }
+        public IBossWorldState WorldState { get; }
+        public Action<IBossRuntimePort> RegisterRuntime { get; }
+
+        public bool IsValid => BossId.IsValid && CombatEntities != null && Motor != null &&
+            AttackWorldQuery != null && ProjectileSpawner != null && WorldState != null;
+
+        public BossRuntimeDependencies(
+            EntityId bossId,
+            ICombatEntityDirectory combatEntities,
+            IBossMotor motor,
+            IAttackWorldQuery attackWorldQuery,
+            IProjectileSpawner projectileSpawner,
+            IBossWorldState worldState,
+            Action<IBossRuntimePort> registerRuntime = null)
+        {
+            if (!bossId.IsValid) throw new ArgumentException("A valid Boss id is required.", nameof(bossId));
+            BossId = bossId;
+            CombatEntities = combatEntities ?? throw new ArgumentNullException(nameof(combatEntities));
+            Motor = motor ?? throw new ArgumentNullException(nameof(motor));
+            AttackWorldQuery = attackWorldQuery ?? throw new ArgumentNullException(nameof(attackWorldQuery));
+            ProjectileSpawner = projectileSpawner ?? throw new ArgumentNullException(nameof(projectileSpawner));
+            WorldState = worldState ?? throw new ArgumentNullException(nameof(worldState));
+            RegisterRuntime = registerRuntime;
+        }
+
+        public void Register(IBossRuntimePort runtime) => RegisterRuntime?.Invoke(runtime);
+    }
+
+    /// <summary>
+    /// Optional Unity/composition seam. Bootstrap asks a scene adapter for
+    /// ports, creates the authoritative runtime, then binds it separately via
+    /// <see cref="IBossRuntimeBinding"/>. The legacy Controller fallback is
+    /// intentionally outside this seam and is only a migration bridge.
+    /// </summary>
+    public interface IBossRuntimeDependencyProvider
+    {
+        bool TryCreateRuntimeDependencies(out BossRuntimeDependencies dependencies);
     }
 
     public interface IBossEncounterConsequences

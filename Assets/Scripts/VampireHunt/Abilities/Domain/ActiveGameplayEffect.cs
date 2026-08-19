@@ -1,19 +1,30 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using VampireHunt.Abilities.Contracts;
 using VampireHunt.Core;
+using VampireHunt.Stats;
 
 namespace VampireHunt.Abilities.Domain
 {
     /// <summary>Mutable runtime state for one effect on one target.</summary>
     public sealed class ActiveGameplayEffect
     {
+        private static long nextHandle;
         private float timeUntilPeriod;
+        private readonly List<StatModifierHandle> ownedModifierHandles =
+            new List<StatModifierHandle>();
+        private readonly List<StatModifierHandle> executionModifierHandles =
+            new List<StatModifierHandle>();
 
         public GameplayEffectSpec Spec { get; }
+        public GameplayEffectHandle Handle { get; }
         public EntityId SourceId { get; }
         public EntityId TargetId { get; }
         public float RemainingTime { get; private set; }
         public int StackCount { get; private set; }
+        public int OwnedModifierCount => ownedModifierHandles.Count;
+        public int OwnedExecutionModifierCount => executionModifierHandles.Count;
         public bool IsExpired => Spec.IsInstant ||
             (Spec.Duration == DurationPolicy.Duration && RemainingTime <= 0f);
         public GameplayEffectContext Context { get; private set; }
@@ -25,6 +36,7 @@ namespace VampireHunt.Abilities.Domain
         {
             Spec = spec ?? throw new ArgumentNullException(nameof(spec));
             if (!sourceId.IsValid) throw new ArgumentException("A valid source id is required.", nameof(sourceId));
+            Handle = AllocateHandle();
             SourceId = sourceId;
             TargetId = targetId;
             StackCount = 1;
@@ -57,6 +69,30 @@ namespace VampireHunt.Abilities.Domain
         }
 
         internal void SetContext(GameplayEffectContext context) => Context = context;
+
+        internal void RegisterModifier(StatModifierHandle handle, bool execution)
+        {
+            if (!handle.IsValid)
+                throw new ArgumentException("A valid modifier handle is required.", nameof(handle));
+            if (ownedModifierHandles.Contains(handle))
+                throw new InvalidOperationException("The same modifier handle cannot be registered twice.");
+
+            ownedModifierHandles.Add(handle);
+            if (execution) executionModifierHandles.Add(handle);
+        }
+
+        internal StatModifierHandle[] CopyOwnedModifierHandles(bool executionOnly)
+        {
+            return executionOnly
+                ? executionModifierHandles.ToArray()
+                : ownedModifierHandles.ToArray();
+        }
+
+        internal void ForgetModifier(StatModifierHandle handle)
+        {
+            ownedModifierHandles.Remove(handle);
+            executionModifierHandles.Remove(handle);
+        }
 
         internal int ConsumePeriods(float deltaTime)
         {
@@ -94,6 +130,14 @@ namespace VampireHunt.Abilities.Domain
         {
             if (deltaTime < 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
                 throw new ArgumentOutOfRangeException(nameof(deltaTime));
+        }
+
+        private static GameplayEffectHandle AllocateHandle()
+        {
+            long value = Interlocked.Increment(ref nextHandle);
+            if (value <= 0L)
+                throw new InvalidOperationException("Gameplay effect handle allocation exhausted the supported range.");
+            return new GameplayEffectHandle((ulong)value);
         }
     }
 }

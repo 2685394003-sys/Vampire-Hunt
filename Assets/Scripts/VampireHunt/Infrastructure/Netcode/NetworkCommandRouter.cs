@@ -49,11 +49,20 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             return envelope.Kind switch
             {
-                NetworkCommandKind.Dash => Route(envelope.SenderId, envelope.Dash),
-                NetworkCommandKind.Attack => Route(envelope.SenderId, envelope.Attack),
-                NetworkCommandKind.SelectBloodPact => Route(envelope.SenderId, envelope.SelectBloodPact),
+                NetworkCommandKind.Dash => envelope.TryGetDash(out DashCommand dash)
+                    ? Route(envelope.SenderId, dash)
+                    : Invalid(envelope.Sequence, "Invalid Dash wire payload"),
+                NetworkCommandKind.Attack => envelope.TryGetAttack(out AttackCommand attack)
+                    ? Route(envelope.SenderId, attack)
+                    : Invalid(envelope.Sequence, "Invalid Attack wire payload"),
+                NetworkCommandKind.SelectBloodPact => envelope.TryGetSelectBloodPact(out SelectBloodPactCommand bloodPact)
+                    ? Route(envelope.SenderId, bloodPact)
+                    : Invalid(envelope.Sequence, "Invalid Blood Pact wire payload"),
                 _ => new CommandResult(CommandResultStatus.Invalid, "Unknown network command", envelope.Sequence)
             };
         }
+
+        private static CommandResult Invalid(uint sequence, string reason) =>
+            new CommandResult(CommandResultStatus.Invalid, reason, sequence);
     }
 }

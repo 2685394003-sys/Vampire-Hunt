@@ -10,7 +10,7 @@ namespace VampireHunt.Enemies.Application
     /// execute a combat intent. It does not perform death rewards; that is a
     /// separate once-only service in the documented simulation order.
     /// </summary>
-    public sealed class EnemySimulationService
+    internal sealed class EnemySimulationService
     {
         private readonly IEnemyRepository repository;
         private readonly IEnemyMotor motor;
