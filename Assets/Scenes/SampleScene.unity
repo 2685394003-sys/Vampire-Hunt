@@ -1358,6 +1358,9 @@ GameObject:
   - component: {fileID: 135103097}
   - component: {fileID: 135103096}
   - component: {fileID: 135103095}
+  - component: {fileID: 135103098}
+  - component: {fileID: 135103100}
+  - component: {fileID: 135103099}
   m_Layer: 0
   m_Name: '[RuntimeNetcodeAdapters]'
   m_TagString: Untagged
@@ -1418,6 +1421,58 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8798a1672803274f87e83b38858c442, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VampireHunt.Infrastructure.Netcode::VampireHunt.Infrastructure.Netcode.NetworkCommandRpcAdapter
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &135103098
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 2368284898
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!114 &135103099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 398372401}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Infrastructure.Netcode::VampireHunt.Infrastructure.Netcode.GameplayEventRpcAdapter
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &135103100
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135103092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1073627007}
+  m_Name: 
+  m_EditorClassIdentifier: VampireHunt.Infrastructure.Netcode::VampireHunt.Infrastructure.Netcode.NetworkStateRpcAdapter
   ShowTopMostFoldoutHeaderGroup: 1
 --- !u!4 &140328665 stripped
 Transform:
@@ -4072,6 +4127,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 462672734963133294, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
   m_PrefabInstance: {fileID: 2093834400}
   m_PrefabAsset: {fileID: 0}
+--- !u!115 &398372401
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: GameplayEventRpcAdapter
+  m_Namespace: VampireHunt.Infrastructure.Netcode
+  m_AssemblyName: VampireHunt.Infrastructure.Netcode
 --- !u!1 &399299320
 GameObject:
   m_ObjectHideFlags: 0
@@ -7734,7 +7804,7 @@ Terrain:
   m_GameObject: {fileID: 694307628}
   m_Enabled: 1
   serializedVersion: 6
-  m_TerrainData: {fileID: 15600000, guid: 47bf97edd967b784c80c1891fcca6bc3, type: 2}
+  m_TerrainData: {fileID: 15600000, guid: 2d5bf2e762d751c49b7ff7e6cea53c19, type: 2}
   m_TreeDistance: 5000
   m_TreeBillboardDistance: 80
   m_TreeCrossFadeLength: 5
@@ -11840,8 +11910,8 @@ MonoBehaviour:
   - {fileID: 674772981560216521}
   - {fileID: 961027275}
   - {fileID: 135103097}
-  - {fileID: 135103096}
-  - {fileID: 135103095}
+  - {fileID: 135103100}
+  - {fileID: 135103099}
   - {fileID: 1328963135}
 --- !u!4 &992700473 stripped
 Transform:
@@ -12649,6 +12719,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7294267060559062629, guid: b9a76d2bddfd1ef4eacd40ee0f6941a8, type: 3}
   m_PrefabInstance: {fileID: 590846092}
   m_PrefabAsset: {fileID: 0}
+--- !u!115 &1073627007
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: NetworkStateRpcAdapter
+  m_Namespace: VampireHunt.Infrastructure.Netcode
+  m_AssemblyName: VampireHunt.Infrastructure.Netcode
 --- !u!1001 &1073674377
 PrefabInstance:
   m_ObjectHideFlags: 0
