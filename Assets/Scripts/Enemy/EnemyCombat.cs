@@ -18,38 +18,47 @@ public sealed class EnemyCombat : MonoBehaviour
     /// </summary>
     public void Attack()
     {
-        if (!NetworkAuthority.IsServerOrOffline()) return;
+        TryAttack();
+    }
+
+    /// <summary>Returns whether an authoritative attack intent was forwarded.</summary>
+    public bool TryAttack()
+    {
+        if (!NetworkAuthority.IsServerOrOffline()) return false;
 
         EnemyHealth health = GetComponentInParent<EnemyHealth>();
-        FlowFieldEnemy enemy = GetComponentInParent<FlowFieldEnemy>();
         if (health == null || health.Runtime == null || health.IsDead || health.IsFrozen)
-            return;
+            return false;
 
-        Transform target = enemy != null ? enemy.CurrentTarget : null;
-        if (target == null) return;
+        EnemySnapshot snapshot = health.Runtime.Snapshot;
+        if (!snapshot.TargetId.IsValid) return false;
 
         Vector3 origin = EnemyAttackPoint != null ? EnemyAttackPoint.position : transform.position;
-        float distance = Vector3.Distance(origin, target.position);
-        EntityId targetId = EnemyLegacyEntityIds.Resolve(target.gameObject);
-        if (!targetId.IsValid) return;
+        Vector3 targetPosition = new(
+            snapshot.TargetPosition.X,
+            snapshot.TargetPosition.Y,
+            snapshot.TargetPosition.Z);
+        float distance = Vector3.Distance(origin, targetPosition);
 
         EnemyCombatContextData context = new EnemyCombatContextData(
             health.Runtime.Id,
-            targetId,
+            snapshot.TargetId,
             ToWorldPosition(origin),
             distance,
             true,
             Time.time,
             health.Runtime.Snapshot.LastAttackAt);
         AttackIntent intent = health.Runtime.CreateAttackIntent(in context);
-        if (!intent.SourceId.IsValid) return;
+        if (!intent.SourceId.IsValid) return false;
 
         foreach (MonoBehaviour component in GetComponentsInParent<MonoBehaviour>(true))
         {
             if (!(component is IEnemyAttackPort port)) continue;
             port.Execute(in intent);
-            break;
+            return true;
         }
+
+        return false;
     }
 
     private void OnDrawGizmosSelected()

@@ -187,6 +187,8 @@ namespace VampireHunt.Player.Contracts
         int RemoveModifiersFromSource(string sourceId);
         bool ResetForNewRun();
         bool IsInvincibleAt(double now);
+        /// <summary>Records the latest owner pose without anti-cheat validation.</summary>
+        void SubmitPose(MovementPose pose);
         void Tick(float deltaTime);
 
         event Action<PlayerSnapshot> SnapshotChanged;

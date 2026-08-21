@@ -139,40 +139,6 @@ public sealed class EnemyHealth : NetworkBehaviour, IGameplayAbilitySystemHost,
             legacyAbilitySystem?.Tick(Time.deltaTime);
     }
 
-    /// <summary>Legacy AnimationEvent/Player entry point.</summary>
-    [Obsolete("Use CombatApplicationService through the Enemy Contracts adapter.")]
-    public void ChangeEnemyHealth(int amount) => ChangeEnemyHealth(amount, null);
-
-    /// <summary>Compatibility overload; only source identity is extracted.</summary>
-    [Obsolete("Use CombatApplicationService through the Enemy Contracts adapter.")]
-    public void ChangeEnemyHealth(int amount, PlayerNetworkState damageDealer) =>
-        ApplyDamage(amount, damageDealer, out _);
-
-    /// <summary>Returns the actual health removed, excluding overkill.</summary>
-    [Obsolete("Use IDamageReceiver through CombatApplicationService.")]
-    public int ApplyDamage(int amount, PlayerNetworkState damageDealer) =>
-        ApplyDamage(amount, damageDealer, out _);
-
-    /// <summary>Legacy bridge used by PlayerAttact while it is migrated.</summary>
-    [Obsolete("Use IDamageReceiver through CombatApplicationService.")]
-    public int ApplyDamage(int amount, PlayerNetworkState damageDealer, out bool killed)
-    {
-        killed = false;
-        if (!NetworkAuthority.IsServerOrOffline(this) || amount <= 0 || IsDead)
-            return 0;
-
-        EnsureRuntime();
-        EntityId sourceId = ResolveSourceId(damageDealer);
-        ResolvedDamage damage = new ResolvedDamage(
-            sourceId,
-            runtime.Id,
-            amount,
-            false,
-            new HitContext(ToWorldPosition(transform.position)));
-        DamageResult result = ApplyAuthoritativeDamage(in damage, sourceId, out killed);
-        return result.AppliedDamage;
-    }
-
     /// <summary>Combat capability consumed by CombatApplicationService.</summary>
     public DamageResult ApplyDamage(in ResolvedDamage damage)
     {
@@ -311,13 +277,12 @@ public sealed class EnemyHealth : NetworkBehaviour, IGameplayAbilitySystemHost,
         EntityId sourceId = source is Component component
             ? EnemyLegacyEntityIds.Resolve(component.gameObject)
             : EnemyLegacyEntityIds.Allocate();
-        int dealt = ApplyDamage(amount, null, out bool killed, sourceId);
+        int dealt = ApplyDamage(amount, out bool killed, sourceId);
         return dealt;
     }
 
     private int ApplyDamage(
         int amount,
-        PlayerNetworkState damageDealer,
         out bool killed,
         EntityId explicitSourceId)
     {
@@ -366,13 +331,13 @@ public sealed class EnemyHealth : NetworkBehaviour, IGameplayAbilitySystemHost,
     private void EnsureRuntime()
     {
         if (runtime != null) return;
-        // Explicit transitional fallback for scenes that have not yet been
-        // bound by Bootstrap. The composition root is the intended path.
-        FlowFieldManager manager = FindFirstObjectByType<FlowFieldManager>();
-        INavigationField navigation = manager != null
-            ? new LegacyFlowFieldNavigation(manager)
-            : new AlwaysWalkableNavigation();
-        runtime = new EnemyRuntimeController(navigation, EnemyLegacyEntityIds.Source);
+        // Explicit transitional fallback for isolated legacy tests/assets. The
+        // composition root is the only production owner of world navigation;
+        // this shell must not discover a FlowFieldManager globally or create a
+        // second world adapter behind Bootstrap's back.
+        runtime = new EnemyRuntimeController(
+            new AlwaysWalkableNavigation(),
+            EnemyLegacyEntityIds.Source);
         runtime.ResetForSpawn(BuildSpec());
     }
 
@@ -405,17 +370,6 @@ public sealed class EnemyHealth : NetworkBehaviour, IGameplayAbilitySystemHost,
             cooldown,
             config != null && config.isRanged ? EnemyAttackType.Ranged : EnemyAttackType.Melee,
             reward);
-    }
-
-    private EntityId ResolveSourceId(PlayerNetworkState damageDealer)
-    {
-        if (damageDealer != null)
-        {
-            EntityId candidate = EnemyLegacyEntityIds.Resolve(damageDealer.gameObject);
-            if (candidate.IsValid) return candidate;
-        }
-
-        return EnemyLegacyEntityIds.Allocate();
     }
 
     private void PublishRuntimePosition() =>

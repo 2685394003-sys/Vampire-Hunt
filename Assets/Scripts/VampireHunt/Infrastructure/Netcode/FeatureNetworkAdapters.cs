@@ -7,17 +7,14 @@ using VampireHunt.Player.Contracts;
 
 namespace VampireHunt.Infrastructure.Netcode
 {
-    /// <summary>Network-facing Player command and owner-pose adapter.</summary>
+    /// <summary>Network-facing Player command adapter.</summary>
     public sealed class PlayerNetworkAdapter : IPlayerCommandGateway
     {
         private readonly NetworkCommandRouter router;
-        private readonly IMovementPoseEndpoint poseEndpoint;
-
-        public PlayerNetworkAdapter(NetworkCommandRouter router, ulong clientId = 0UL, IMovementPoseEndpoint poseEndpoint = null)
+        public PlayerNetworkAdapter(NetworkCommandRouter router, ulong clientId = 0UL)
         {
             this.router = router ?? throw new ArgumentNullException(nameof(router));
             ClientId = clientId;
-            this.poseEndpoint = poseEndpoint;
         }
 
         public ulong ClientId { get; }
@@ -26,12 +23,6 @@ namespace VampireHunt.Infrastructure.Netcode
         public CommandResult SubmitAttack(AttackCommand command) => router.Route(ClientId, command);
         public CommandResult SelectBloodPact(SelectBloodPactCommand command) => router.Route(ClientId, command);
 
-        public MovementVerdict SubmitPose(EntityId playerId, MovementPose pose)
-        {
-            if (poseEndpoint == null)
-                return MovementVerdict.Correct(pose, MovementVerdictCode.InvalidPose);
-            return poseEndpoint.Validate(playerId, pose);
-        }
     }
 
     /// <summary>Network adapter for server enemy ticks; snapshots are handled separately.</summary>

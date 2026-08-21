@@ -22,7 +22,7 @@
 
 | ID | 优先级 | 问题 | 已补测试 | 当前状态 | 修复验收条件 |
 |---|---|---|---|---|---|
-| RF-001 | P1 | Movement Validator 使用客户端 `ReportedAt` 差值生成移动预算，且首次上报可写入陈旧时间 | `MovementValidation_RejectsAnInitialPoseWithAStaleClientTimestamp`；`MovementValidation_RejectsStaleReportsBeforeGrantingDistanceBudget` | DONE | 保存服务器接收时间；校验 `now - MaximumReportAge <= ReportedAt <= now + MaximumFutureSkew`；速度预算不能仅由客户端时钟决定；补 Dash、越界和连续违规测试 |
+| RF-001 | P1 | Movement Validator 使用客户端时间差生成移动预算 | `RuntimeEndpoint_SubmitPoseRecordsVerticalPositionWithoutValidation` | REMOVED | 2026-08-21 产品决策取消移动反作弊；删除 Validator/Corrector，服务器只记录 Owner 姿态且不回拉自由落体 |
 | RF-002 | P1 | `PlayerVitals.IDamageReceiver` 入口固定使用 `now = 0`，首次受击后可能永久无敌 | `CombatApplication_UsesAuthoritativeTimeForPlayerInvincibility` | DONE | Combat 结算把权威服务器时间传入受击规则；无敌期结束后的伤害正常生效；无敌期内不产生零伤害表现事件 |
 | RF-003 | P1 | Gameplay Effect 按 `SourceId` 批量删除修正器，移除一个效果会误删同源兄弟效果 | `RemovingOneEffect_PreservesOtherModifiersFromTheSameSource` | DONE | 每个效果实例拥有稳定句柄；移除时只删除该实例创建的修正器；同来源多效果互不干扰 |
 | RF-004 | P1 | Attribute Execution 创建的修正器不属于 `Spec.Modifiers`，效果结束后可能泄漏 | `AttributeExecution_IsRemovedWhenItsOwningEffectExpires` | DONE | Execution 创建的持续修正器纳入效果所有权和清理流程；到期、Replace、Clear、回池均无残留 |
@@ -68,7 +68,7 @@
 
 1. 为 Command、State DTO 和 GameplayEvent 建立明确的 NGO 可序列化协议与版本策略。
 2. 所有命令在服务器验证 sender/owner；客户端不能伪造其他玩家的 Pose、Dash、Attack 或血契选择。
-3. Host + 1 Client、Dedicated Server + 2 Clients 覆盖移动纠正、一次性伤害、奖励归属、Late Join 和对象池重置。
+3. Host + 1 Client、Dedicated Server + 2 Clients 覆盖 Owner 姿态与重力同步、一次性伤害、奖励归属、Late Join 和对象池重置。
 4. 瞬时事件与状态快照任意先后到达时，Presenter 结果一致且不会重复表现。
 
 ## 4. 测试执行分组

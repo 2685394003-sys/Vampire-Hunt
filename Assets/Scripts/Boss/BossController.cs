@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using VampireHunt.Bootstrap;
 using VampireHunt.Boss.Application;
 using VampireHunt.Boss.Contracts;
 using VampireHunt.Combat.Application;
@@ -26,7 +27,7 @@ using RuntimeEncounterMode = VampireHunt.Boss.Contracts.EncounterMode;
 [RequireComponent(typeof(Rigidbody))]
 [DisallowMultipleComponent]
 public sealed class BossController : MonoBehaviour, IBossController, IGameplayEventSink,
-    IBossRuntimeBinding, IBossRuntimeDependencyProvider
+    IBossRuntimeBinding, IBossRuntimeDependencyProvider, IBossTargetBinding
 {
     // Existing field names are intentionally preserved for prefab/scene data.
     [SerializeField] private BossConfig stats;
@@ -167,6 +168,10 @@ public sealed class BossController : MonoBehaviour, IBossController, IGameplayEv
         SetTargetInternal(null);
         return BossCommandResult.Succeeded;
     }
+
+    public bool TryBindTarget(Transform target) => AssignTarget(target) == BossCommandResult.Succeeded;
+
+    public void ClearBoundTarget() => ClearTarget();
 
     /// <summary>
     /// Binds the application endpoint supplied by Bootstrap. Only the
@@ -383,6 +388,21 @@ public sealed class BossController : MonoBehaviour, IBossController, IGameplayEv
         current = runtime.GuardIntegrity;
         maximum = runtime.MaxGuardIntegrity;
         return maximum > 0;
+    }
+
+    /// <summary>
+    /// Gives serialized projection shells a read-only bootstrap snapshot. The
+    /// shell must never initialize network state from BossConfig on its own.
+    /// </summary>
+    internal bool TryGetRuntimeSnapshot(out RuntimeBossSnapshot snapshot)
+    {
+        if (!runtimeReady || runtime == null)
+        {
+            snapshot = default;
+            return false;
+        }
+        snapshot = runtime.Snapshot;
+        return true;
     }
 
     public void Publish(IGameplayEvent @event)

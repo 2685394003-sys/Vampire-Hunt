@@ -27,6 +27,10 @@ namespace VampireHunt.Bootstrap
         private readonly GameObject prefab;
         private readonly Transform poolRoot;
         private readonly Stack<GameObject> available = new();
+        // NGO may invoke Destroy after a server-side Despawn has already
+        // started returning the same pooled view. Keep an explicit checkout
+        // set so a re-entrant callback cannot retain one instance twice.
+        private readonly HashSet<GameObject> checkedOut = new();
         private readonly Dictionary<EntityId, GameObject> instancesById = new();
         private readonly List<GameObject> instances = new();
         private readonly int maxRetained;
@@ -40,15 +44,22 @@ namespace VampireHunt.Bootstrap
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             this.bindings = bindings ?? throw new ArgumentNullException(nameof(bindings));
-            this.networkManager = networkManager;
+            // The scene may keep a NetworkManager beside the composition
+            // provider even when this composition is Offline.  Do not let
+            // that incidental component opt the offline pool into NGO
+            // lifecycle operations.
+            NetworkManager sceneNetworkManager = networkManager;
+            this.networkManager = context.RuntimeMode == RuntimeMode.Netcode
+                ? networkManager
+                : null;
             prefab = context.ConfigCatalog?.EnemyDefinition?.Prefab;
             maxRetained = Math.Max(1, context.Specs.EnemySpawn.MaxAlive);
 
             GameObject root = new("[RuntimeEnemyPool]");
-            Transform owner = networkManager != null
-                ? networkManager.transform
-                : context.SceneBindings?.GameplayRoot;
-            root.transform.SetParent(owner, false);
+            Transform owner = ResolvePoolOwner(
+                context.SceneBindings?.GameplayRoot,
+                sceneNetworkManager?.transform);
+            if (owner != null) root.transform.SetParent(owner, false);
             poolRoot = root.transform;
 
             if (prefab != null)
@@ -61,9 +72,9 @@ namespace VampireHunt.Bootstrap
                 }
 
                 if (context.RuntimeMode == RuntimeMode.Netcode &&
-                    networkManager != null &&
+                    this.networkManager != null &&
                     prefab.GetComponent<NetworkObject>() != null)
-                    handlerRegistered = networkManager.PrefabHandler.AddHandler(prefab, this);
+                    handlerRegistered = this.networkManager.PrefabHandler.AddHandler(prefab, this);
             }
         }
 
@@ -80,7 +91,7 @@ namespace VampireHunt.Bootstrap
         {
             if (disposed || prefab == null) return EntityId.Invalid;
             if (context.RuntimeMode == RuntimeMode.Netcode &&
-                (networkManager == null || !networkManager.IsServer))
+                (networkManager == null || !networkManager.IsServer || !networkManager.IsListening))
                 return EntityId.Invalid;
 
             Vector3 position = ToVector3(request.Position);
@@ -108,8 +119,23 @@ namespace VampireHunt.Bootstrap
 
             if (context.RuntimeMode == RuntimeMode.Netcode)
             {
-                networkObject.Spawn(true);
-                bindings.RefreshNetworkBindings();
+                if (networkManager == null || !networkManager.IsServer || !networkManager.IsListening)
+                {
+                    Return(instance);
+                    return EntityId.Invalid;
+                }
+                try
+                {
+                    networkObject.Spawn(true);
+                    bindings.RefreshNetworkBindings();
+                }
+                catch
+                {
+                    if (networkObject.IsSpawned && networkManager.IsServer && networkManager.IsListening)
+                        networkObject.Despawn(false);
+                    Return(instance);
+                    return EntityId.Invalid;
+                }
             }
 
             instances.Add(instance);
@@ -128,7 +154,7 @@ namespace VampireHunt.Bootstrap
                 : null;
             if (context.RuntimeMode == RuntimeMode.Netcode &&
                 networkObject != null && networkObject.IsSpawned &&
-                networkManager != null && networkManager.IsServer)
+                networkManager != null && networkManager.IsServer && networkManager.IsListening)
                 networkObject.Despawn(false);
 
             if (instancesById.ContainsKey(entityId)) Return(instance);
@@ -162,12 +188,13 @@ namespace VampireHunt.Bootstrap
                 if (instance == null) continue;
                 NetworkObject networkObject = instance.GetComponent<NetworkObject>();
                 if (networkObject != null && networkObject.IsSpawned &&
-                    networkManager != null && networkManager.IsServer)
+                    networkManager != null && networkManager.IsServer && networkManager.IsListening)
                     networkObject.Despawn(false);
                 UnityEngine.Object.Destroy(instance);
             }
             instances.Clear();
             instancesById.Clear();
+            checkedOut.Clear();
             while (available.Count > 0)
             {
                 GameObject instance = available.Pop();
@@ -181,10 +208,18 @@ namespace VampireHunt.Bootstrap
             for (int i = instances.Count - 1; i >= 0; i--)
             {
                 GameObject instance = instances[i];
-                if (instance == null || !instance.activeInHierarchy)
+                if (instance == null)
                 {
                     instances.RemoveAt(i);
-                    RemoveIdentityMapping(instance);
+                    checkedOut.Remove(instance);
+                    RemoveIdentityMapping(null);
+                }
+                else if (!instance.activeInHierarchy)
+                {
+                    // Treat an unexpectedly inactive object as a normal
+                    // lifetime transition. This releases the composed
+                    // runtime and keeps the object pool's accounting in sync.
+                    Return(instance);
                 }
             }
         }
@@ -205,10 +240,64 @@ namespace VampireHunt.Bootstrap
         private static Vector3 ToVector3(WorldPosition value) =>
             new(value.X, value.Y, value.Z);
 
+        private static Transform ResolvePoolOwner(
+            Transform gameplayRoot,
+            Transform networkManagerRoot)
+        {
+            if (gameplayRoot == null || IsInHierarchy(gameplayRoot, networkManagerRoot))
+                return null;
+            return gameplayRoot;
+        }
+
+        private static bool IsInHierarchy(Transform candidate, Transform ancestor)
+        {
+            if (candidate == null || ancestor == null) return false;
+            Transform current = candidate;
+            while (current != null)
+            {
+                if (current == ancestor) return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private static bool ContainsNetworkObject(GameObject instance) =>
+            instance != null && instance.GetComponentInChildren<NetworkObject>(true) != null;
+
+        private static NetworkObject GetNetworkObject(GameObject instance) =>
+            instance == null ? null : instance.GetComponentInChildren<NetworkObject>(true);
+
+        private static bool CanTake(GameObject instance)
+        {
+            if (instance == null) return false;
+            NetworkObject networkObject = GetNetworkObject(instance);
+            // A pooled NetworkObject is always kept at a scene root.  Unity
+            // Transform.SetParent on a NetworkObject invokes NGO's automatic
+            // parent-sync callback and is invalid while the object is not
+            // spawned (or while its manager is not listening).
+            return networkObject == null ||
+                (!networkObject.IsSpawned && instance.transform.parent == null);
+        }
+
+        private bool CanStore(GameObject instance)
+        {
+            if (instance == null) return false;
+            if (!ContainsNetworkObject(instance)) return true;
+            // Never parent an unspawned NetworkObject under the pool root.
+            // Keep it at the scene root so offline mode and NGO shutdown do
+            // not trigger automatic re-parent validation.
+            return instance.transform.parent == null;
+        }
+
         private GameObject CreateInstance()
         {
             if (prefab == null) return null;
-            GameObject instance = UnityEngine.Object.Instantiate(prefab, poolRoot);
+            // NetworkObject instances must not be instantiated under a plain
+            // Transform.  They are retained as inactive scene-root objects;
+            // only non-network presentation-only prefabs use poolRoot.
+            GameObject instance = UnityEngine.Object.Instantiate(prefab);
+            if (!ContainsNetworkObject(instance))
+                instance.transform.SetParent(poolRoot, false);
             instance.SetActive(false);
             return instance;
         }
@@ -216,13 +305,28 @@ namespace VampireHunt.Bootstrap
         private GameObject Take(Vector3 position, Quaternion rotation, bool notifyLifecycle)
         {
             GameObject instance = null;
-            while (available.Count > 0 && instance == null) instance = available.Pop();
+            while (available.Count > 0 && instance == null)
+            {
+                GameObject candidate = available.Pop();
+                if (!CanTake(candidate))
+                {
+                    if (candidate != null) UnityEngine.Object.Destroy(candidate);
+                    continue;
+                }
+                instance = candidate;
+            }
             instance ??= CreateInstance();
-            if (instance == null) return null;
+            if (!CanTake(instance))
+            {
+                if (instance != null) UnityEngine.Object.Destroy(instance);
+                return null;
+            }
 
-            instance.transform.SetParent(null, false);
+            if (!ContainsNetworkObject(instance))
+                instance.transform.SetParent(null, false);
             instance.transform.SetPositionAndRotation(position, rotation);
             instance.SetActive(true);
+            checkedOut.Add(instance);
             if (notifyLifecycle) NotifyTaken(instance);
             return instance;
         }
@@ -230,11 +334,19 @@ namespace VampireHunt.Bootstrap
         private void Return(GameObject instance)
         {
             if (instance == null) return;
+            if (!checkedOut.Remove(instance)) return;
             RemoveIdentity(instance);
             bindings.ReleaseEnemy(instance);
             NotifyReturned(instance);
             instance.SetActive(false);
-            instance.transform.SetParent(poolRoot, false);
+            if (!CanStore(instance))
+            {
+                UnityEngine.Object.Destroy(instance);
+                return;
+            }
+
+            if (!ContainsNetworkObject(instance))
+                instance.transform.SetParent(poolRoot, false);
             if (!disposed && available.Count < maxRetained)
                 available.Push(instance);
             else

@@ -203,6 +203,56 @@ namespace VampireHunt.Tests.Abilities
             Assert.That(attributes.Modifiers, Is.Empty);
         }
 
+        [Test]
+        public void GameplayEffectSpecCopiesAuthoringSequences()
+        {
+            GameplayModifierSpec modifier = new GameplayModifierSpec(
+                new StatKey(1),
+                ModifierOperation.AddFlat,
+                2f);
+            GameplayEffectExecution execution = GameplayEffectExecution.Damage(4f);
+            List<GameplayModifierSpec> modifiers = new List<GameplayModifierSpec> { modifier };
+            List<GameplayEffectExecution> executions = new List<GameplayEffectExecution> { execution };
+            GameplayEffectSpec spec = new GameplayEffectSpec(
+                new EffectId("immutable"),
+                DurationPolicy.Infinite,
+                StackingPolicy.Replace,
+                modifiers: modifiers,
+                executions: executions);
+
+            modifiers[0] = new GameplayModifierSpec(
+                new StatKey(2),
+                ModifierOperation.AddFlat,
+                99f);
+            executions[0] = GameplayEffectExecution.Healing(99f);
+
+            Assert.That(spec.Modifiers[0], Is.EqualTo(modifier));
+            Assert.That(spec.Executions[0], Is.EqualTo(execution));
+
+            GameplayModifierSpec[] exposed = (GameplayModifierSpec[])spec.Modifiers;
+            exposed[0] = new GameplayModifierSpec(
+                new StatKey(3),
+                ModifierOperation.AddFlat,
+                100f);
+            Assert.That(spec.Modifiers[0], Is.EqualTo(modifier));
+        }
+
+        [Test]
+        public void GameplayTagSetReferenceCountsHierarchicalTags()
+        {
+            GameplayTagSet tags = new GameplayTagSet();
+
+            Assert.That(tags.Add("State.Control.Frozen"), Is.True);
+            Assert.That(tags.Add("State.Control.Stunned"), Is.True);
+            Assert.That(tags.Has("State"), Is.True);
+            Assert.That(tags.Has("State.Control"), Is.True);
+            Assert.That(tags.Remove("State.Control.Frozen"), Is.True);
+            Assert.That(tags.Has("State.Control"), Is.True);
+            Assert.That(tags.Remove("State.Control.Stunned"), Is.True);
+            Assert.That(tags.Has("State"), Is.False);
+            Assert.That(tags.Count, Is.Zero);
+        }
+
         private static GameplayEffectExecutor CreateExecutor(TestAttributes attributes)
         {
             TestVitals vitals = new(100);

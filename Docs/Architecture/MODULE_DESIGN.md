@@ -321,16 +321,16 @@ GameplayCueEvent ..|> IGameplayEvent
 - `PlayerVitals`：生命、存活、受伤/治疗规则，以及受击无敌窗口（无敌期内伤害归零且不产生表现事件）。
 - `PlayerRunStats`：基础属性快照和局内修正器。
 - `PlayerCombatState`：攻击冷却、攻击窗口、目标级结算上下文。
-- `PlayerMobilityState`：体力、Dash 冷却与消耗合法性（服务器校验用；Dash 位移本身由 Owner 客户端执行，见 ARCHITECTURE §8.1）。
+- `PlayerMobilityState`：体力、Dash 冷却与消耗合法性；Dash 位移本身由 Owner 客户端执行（见 ARCHITECTURE §8.1）。
 - `PlayerProgression`：猩红、金币和升级进度。
 - `BloodPactLoadout`：已选择血契和堆叠状态。
 
-Aggregate 不包含 Animator、Transform、NetworkVariable、TMP 或 AudioSource。玩家位置不属于 Aggregate 状态——它由 Owner 权威复制通道维护，服务器侧经 Movement Validator 校验后的位置通过 `ICombatTargetQuery` 提供给权威判定。
+Aggregate 不包含 Animator、Transform、NetworkVariable、TMP 或 AudioSource。玩家位置不属于 Aggregate 状态——它由 Owner 权威复制通道维护，服务器最近收到的姿态通过 `ICombatTargetQuery` 提供给权威判定。
 
 ### 4.2 Application Services
 
 - `PlayerCommandService`：服务器命令总入口，验证所有权、存活状态和命令序列。
-- `MovementValidationService`：按服务器时间校验 Owner 上报位置（速度上限含 Dash 增益、越界、穿墙），失败时强制纠正；它取代了原设计中的服务器权威 `PlayerMovementService`。
+- `IPlayerPoseSink`：记录 Owner 最新姿态供服务器玩法查询；当前合作 PvE 不做移动反作弊或位置纠正。
 - `PlayerCombatService`：验证攻击窗口，通过 `IMeleeHitQuery` 获取目标并调用 Combat。
 - `PlayerDeathService`：一次性处理玩家死亡（倒地/复活规则、掉落、Encounter 通知）。
 - `PlayerProgressionService`：结算猩红、金币、升级和共享资源。
@@ -427,8 +427,9 @@ namespace PlayerApplication {
     class PlayerCommandService {
         +Handle(command) CommandResult
     }
-    class MovementValidationService {
-        +Validate(playerId, reportedPose) MovementVerdict
+    class IPlayerPoseSink {
+        <<interface>>
+        +SetPose(playerId, pose)
     }
     class PlayerCombatService {
         +Attack(player, command) AttackResult
@@ -449,10 +450,6 @@ namespace PlayerApplication {
         +Get(playerId) PlayerAggregate
         +GetAllAlive(buffer)
     }
-    class IMovementCorrector {
-        <<interface>>
-        +ForcePose(playerId, pose)
-    }
     class IMeleeHitQuery {
         <<interface>>
         +CollectUniqueTargets(query, buffer)
@@ -460,19 +457,19 @@ namespace PlayerApplication {
 }
 
 namespace PlayerAdapters {
+    class PlayerController
     class PlayerInputAdapter {
         +SampleInput()
     }
     class OwnerMovementMotor {
-        +Drive(moveInput)
-        +Dash(direction)
+        +Drive(moveInput, fixedDeltaTime)
+        +Dash(direction, fixedDeltaTime)
     }
     class PlayerNetworkAdapter {
         +SubmitDash(command)
         +SubmitAttack(command)
     }
     class LocalPlayerCommandAdapter
-    class MovementCorrectorAdapter
     class MeleePhysicsQueryAdapter
     class PlayerStateReplicator {
         +Capture(snapshot)
@@ -503,8 +500,6 @@ PlayerCommandService --> IPlayerRepository
 PlayerCommandService --> PlayerCombatService
 PlayerCommandService --> PlayerProgressionService
 PlayerCommandService --> BloodPactOfferService
-MovementValidationService --> IPlayerRepository
-MovementValidationService --> IMovementCorrector
 PlayerCombatService --> IMeleeHitQuery
 PlayerCombatService --> CombatApplicationService
 PlayerCombatService --> GameplayAbilitySystem
@@ -513,15 +508,14 @@ PlayerProgressionService --> IPlayerRepository
 PlayerProgressionService ..|> IPlayerProgressionCommands
 BloodPactOfferService --> IRandomSource
 
-PlayerInputAdapter --> OwnerMovementMotor : local move / dash
 PlayerInputAdapter --> IPlayerCommandGateway
+PlayerController --> OwnerMovementMotor : FixedUpdate planar movement
 OwnerMovementMotor --> PlayerNetworkAdapter : pose replication
 PlayerNetworkAdapter ..|> IPlayerCommandGateway
 LocalPlayerCommandAdapter ..|> IPlayerCommandGateway
 PlayerNetworkAdapter --> IPlayerCommandHandler : server side
-PlayerNetworkAdapter --> MovementValidationService : server side
+PlayerNetworkAdapter --> IPlayerPoseSink : server pose record
 LocalPlayerCommandAdapter --> IPlayerCommandHandler
-MovementCorrectorAdapter ..|> IMovementCorrector
 MeleePhysicsQueryAdapter ..|> IMeleeHitQuery
 PlayerStateReplicator --> PlayerAggregate : reads snapshot
 PlayerStateReplicator --> IPlayerStateSnapshotSink
@@ -538,7 +532,7 @@ PlayerAudioPresenter --> IGameplayEventStream
 |---|---|---|
 | `PlayerNetworkState` | NGO 状态/RPC 外壳、DTO 转换 | Vitals、Progression、GAS、暴击、CombatText 调用 |
 | `PlayerController` | 暂时绑定 Prefab 和组件 | Input、Camera、Attack Command 分离；移动改为 OwnerMovementMotor |
-| `Player Movement.cs` | Owner 本地位移的过渡实现 | 服务器校验规则移入 MovementValidationService |
+| `Player Movement.cs` | Owner 本地位移的过渡实现 | 平面运动移入 FixedUpdate OwnerMovementMotor；Y 轴交给 Rigidbody 重力 |
 | `PlayerDash` | Owner 本地 Dash 执行 | 消耗/冷却合法性移入 PlayerMobilityState（服务器） |
 | `PlayerHurtInvincible` | 受击闪烁表现 | 无敌窗口判定移入 PlayerVitals（服务器） |
 | `PlayerAttact` | 兼容旧序列化/动画入口 | 命中查询、伤害、VFX、音频全部迁出 |
@@ -1029,7 +1023,7 @@ BossAttackStrategy 生成 AttackPlan
 
 - Feature Network Adapter 把 RPC/NetworkVariable DTO 转换成 Command、Snapshot 和 GameplayEvent。
 - 客户端命令只存在 Player 一条通道（`IPlayerCommandHandler`）；Enemy 与 Boss 是纯服务器驱动，不接受任何客户端玩法命令。调试/作弊命令如需网络通道，单独走 `IDebugCommandHandler` 并在非开发构建中禁用。
-- 玩家位置/朝向经 Owner 权威复制通道（ClientNetworkTransform 或等价实现）同步，服务器侧交 `MovementValidationService` 校验（ARCHITECTURE §8.1）。
+- 玩家位置/朝向经 Owner 权威复制通道（ClientNetworkTransform 或等价实现）同步；服务器只记录最新姿态供玩法查询，不做移动反作弊（ARCHITECTURE §8.1）。
 - `NetworkEntityRegistry` 只维护 EntityId 到网络实体句柄的映射，不暴露完整 PlayerNetworkState。
 - `GameplayEventReplicator` 复制瞬时事件；`StateReplicator` 复制持久状态。两通道相互独立，客户端必须容忍任意到达顺序（“事件是触发器，快照是真相”，见 ARCHITECTURE §8.2）。
 - `NetworkSpawnAdapter` 和 `NetworkObjectPool` 处理实例化、回收和 NGO PrefabHandler。
@@ -1259,7 +1253,7 @@ Integration Adapter 不得承载伤害、奖励公式或阶段规则；它只做
 - [ ] Dedicated Server 不创建 UI、Animator、VFX、音频和相机对象。
 - [ ] Offline 与网络模式共用相同 Domain/Application。
 - [ ] State Replication 与瞬时 GameplayEvent Replication 分离，Presenter 容忍任意到达顺序。
-- [ ] 客户端权威写入仅限位置/朝向通道，且 MovementValidationService 的校验规则已生效。
+- [ ] 客户端权威写入仅限位置/朝向通道；服务器姿态记录不覆盖 Rigidbody 重力产生的 Y 轴运动。
 - [ ] 刷怪只有一个权威 EnemySpawnDirector。
 - [ ] 对象池复用通过 Aggregate Reset 和 Presenter Reset 分别完成，且每次取出分配新 EntityId。
 - [ ] ScriptableObject 只作为配置来源，运行状态不写回资产。

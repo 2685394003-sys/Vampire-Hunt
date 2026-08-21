@@ -10947,7 +10947,7 @@ GameObject:
   - component: {fileID: 961027276}
   - component: {fileID: 961027275}
   m_Layer: 0
-  m_Name: FlowFieldManager
+  m_Name: FlowFieldWorldAdapter
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10964,7 +10964,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c3aa0451cfa2b9543b921e4cd734e8de, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FlowFieldManager
+  m_EditorClassIdentifier: VampireHunt.Infrastructure.UnityPhysics::VampireHunt.Infrastructure.UnityPhysics.FlowFieldWorldAdapterBehaviour
   cellSize: 1
   gridWidth: 120
   gridHeight: 120
@@ -10972,15 +10972,14 @@ MonoBehaviour:
   mapBoundsSource: {fileID: 0}
   mapBoundsPadding: 8
   maxAutoCellsPerAxis: 256
-  player: {fileID: 243226377}
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 8
+  clearanceRadius: 0.2
+  recoveryRadiusCells: 8
   refreshInterval: 0.2
   periodicallyRescanDynamicObstacles: 0
   dynamicObstacleRescanInterval: 1
-  drawFlowArrows: 1
-  arrowScale: 0.4
 --- !u!4 &961027276
 Transform:
   m_ObjectHideFlags: 0

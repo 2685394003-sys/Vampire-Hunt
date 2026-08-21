@@ -51,6 +51,28 @@ namespace VampireHunt.Tests.Combat
             Assert.That(new KnockbackResolver().Resolve(request, 0f, true).Force, Is.EqualTo(0f));
         }
 
+        [Test]
+        public void HealingPublishesOnlyActualPositiveHealing()
+        {
+            EntityId source = new EntityId(1);
+            EntityId target = new EntityId(2);
+            TestVitals vitals = new TestVitals(5);
+            RecordingSink sink = new RecordingSink();
+            CombatApplicationService service = new CombatApplicationService(
+                new CombatResolver(new FixedRandom(0f)),
+                new TestDirectory(vitals),
+                sink);
+
+            HealingResult healed = service.ApplyHealing(new HealingRequest(source, target, 3));
+            HealingResult zero = service.ApplyHealing(new HealingRequest(source, target, 0));
+
+            Assert.That(healed.RequestedHealing, Is.EqualTo(3));
+            Assert.That(healed.AppliedHealing, Is.EqualTo(3));
+            Assert.That(zero.AppliedHealing, Is.Zero);
+            Assert.That(sink.Events, Has.Count.EqualTo(1));
+            Assert.That(sink.Events[0], Is.TypeOf<HealingConfirmedEvent>());
+        }
+
         private sealed class FixedRandom : IRandomSource
         {
             private readonly float value;

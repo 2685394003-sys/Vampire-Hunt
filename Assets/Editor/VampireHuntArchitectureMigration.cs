@@ -20,22 +20,22 @@ using VampireHunt.Spawning.Authoring;
 using VampireHunt.UI.Contracts;
 using PlayerBloodPactDefinition = VampireHunt.Player.Authoring.BloodPactDefinition;
 
-[InitializeOnLoad]
-public static class VampireHuntArchitectureMigration
+/// <summary>
+/// Explicit editor authoring support for repairing configuration assets and scene bindings.
+/// Runtime migration is permanent in the serialized assets; this utility never runs on load
+/// or after compilation.
+/// </summary>
+public static class VampireHuntArchitectureAuthoring
 {
     public const string ConfigFolder = "Assets/Config/VampireHunt";
     public const string CatalogPath = ConfigFolder + "/RuntimeConfigCatalog.asset";
     private const string EnemyPrefabPath = "Assets/Prefabs/Network/Enemy.prefab";
     private const string LegacyBloodPactPath = "Assets/Resources/GameBalance/BloodPacts.asset";
-    private const string SessionKey = "VampireHunt.ArchitectureMigration.v7";
+    private const string RuntimeAdaptersRootName = "[RuntimeNetcodeAdapters]";
+    private const string GameplayRootName = "[GameplayRoot]";
 
-    static VampireHuntArchitectureMigration()
-    {
-        EditorApplication.delayCall += RunOnceAfterCompilation;
-    }
-
-    [MenuItem("Tools/Vampire Hunt/Architecture/Create Or Repair Runtime Config")]
-    public static void CreateOrRepairRuntimeConfigMenu()
+    [MenuItem("Tools/Vampire Hunt/Authoring/Repair Runtime Config")]
+    public static void RepairRuntimeConfigMenu()
     {
         ConfigCatalog catalog = EnsureRuntimeConfig();
         Selection.activeObject = catalog;
@@ -43,12 +43,12 @@ public static class VampireHuntArchitectureMigration
         Debug.Log($"[VampireHunt] Runtime configuration is valid: {CatalogPath}", catalog);
     }
 
-    [MenuItem("Tools/Vampire Hunt/Architecture/Migrate Runtime Scenes")]
-    public static void MigrateRuntimeScenesMenu()
+    [MenuItem("Tools/Vampire Hunt/Authoring/Repair Serialized Runtime Scenes")]
+    public static void RepairSerializedRuntimeScenesMenu()
     {
         ConfigCatalog catalog = EnsureRuntimeConfig();
         MigrateEnabledBuildScenes(catalog);
-        Debug.Log("[VampireHunt] Runtime scenes were migrated through Unity serialization.");
+        Debug.Log("[VampireHunt] Serialized runtime scene authoring was repaired explicitly.");
     }
 
     public static ConfigCatalog EnsureRuntimeConfig()
@@ -98,31 +98,6 @@ public static class VampireHuntArchitectureMigration
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         return catalog;
-    }
-
-    private static void RunOnceAfterCompilation()
-    {
-        if (SessionState.GetBool(SessionKey, false) ||
-            EditorApplication.isPlayingOrWillChangePlaymode ||
-            EditorApplication.isCompiling || EditorApplication.isUpdating)
-        {
-            if (EditorApplication.isCompiling || EditorApplication.isUpdating)
-                EditorApplication.delayCall += RunOnceAfterCompilation;
-            return;
-        }
-
-        SessionState.SetBool(SessionKey, true);
-        try
-        {
-            ConfigCatalog catalog = EnsureRuntimeConfig();
-            MigrateEnabledBuildScenes(catalog);
-            Debug.Log("[VampireHunt] Architecture assets and build scenes migrated successfully.");
-        }
-        catch (Exception exception)
-        {
-            SessionState.SetBool(SessionKey, false);
-            Debug.LogException(exception);
-        }
     }
 
     private static void MigrateEnabledBuildScenes(ConfigCatalog catalog)
@@ -188,9 +163,22 @@ public static class VampireHuntArchitectureMigration
         NetworkRuntimeLauncher launcher = FirstInScene<NetworkRuntimeLauncher>(behaviours);
         if (launcher == null)
         {
-            GameObject host = new("[RuntimeComposition]");
-            SceneManager.MoveGameObjectToScene(host, scene);
-            launcher = host.AddComponent<NetworkRuntimeLauncher>();
+            NetworkManager existingManager = FirstInScene<NetworkManager>(scene);
+            if (existingManager != null)
+            {
+                // Keep the existing NetworkManager/transport pair as the
+                // composition host when a previous migration only created
+                // the manager.  Adding a second RequireComponent host would
+                // create a second NetworkManager and silently split runtime
+                // ownership.
+                launcher = GetOrAdd<NetworkRuntimeLauncher>(existingManager.gameObject);
+            }
+            else
+            {
+                GameObject host = new("[RuntimeComposition]");
+                SceneManager.MoveGameObjectToScene(host, scene);
+                launcher = host.AddComponent<NetworkRuntimeLauncher>();
+            }
             behaviours = CollectBehaviours(scene);
         }
 
@@ -200,22 +188,22 @@ public static class VampireHuntArchitectureMigration
             GetOrAdd<DefaultCompositionFactoryProvider>(compositionHost);
         Camera camera = FirstInScene<Camera>(scene);
 
-        Transform adaptersRoot = compositionHost.transform.Find("[RuntimeNetcodeAdapters]");
-        if (adaptersRoot == null)
-        {
-            GameObject adapterObject = new("[RuntimeNetcodeAdapters]");
-            adapterObject.transform.SetParent(compositionHost.transform, false);
-            adaptersRoot = adapterObject.transform;
-        }
-        GetOrAdd<NetworkObject>(adaptersRoot.gameObject);
-        GetOrAdd<NetworkCommandRpcAdapter>(adaptersRoot.gameObject);
-        GetOrAdd<NetworkStateRpcAdapter>(adaptersRoot.gameObject);
-        GetOrAdd<GameplayEventRpcAdapter>(adaptersRoot.gameObject);
+        // NGO rejects NetworkObject/NetworkBehaviour components anywhere in
+        // the NetworkManager hierarchy.  Both the adapter host and the
+        // explicit gameplay root therefore live at scene root, even when the
+        // launcher itself is kept on the existing NetworkManager object.
+        Transform gameplayRoot = EnsureSceneRoot(scene, GameplayRootName);
+        Transform adaptersRoot = EnsureRuntimeAdaptersRoot(scene);
+        EnsureSingleComponent<NetworkObject>(adaptersRoot.gameObject);
+        EnsureSingleComponent<NetworkCommandRpcAdapter>(adaptersRoot.gameObject);
+        EnsureSingleComponent<NetworkStateRpcAdapter>(adaptersRoot.gameObject);
+        EnsureSingleComponent<GameplayEventRpcAdapter>(adaptersRoot.gameObject);
+        DetachNetworkBehaviourChildren(FirstInScene<NetworkManager>(scene)?.transform);
 
         behaviours = CollectBehaviours(scene);
         ConfigureBloodPactViews(behaviours);
-        bindings.Bind(compositionHost.transform, camera);
-        bindings.BindAdapters(CollectRuntimeAdapters(behaviours).ToArray());
+        bindings.Bind(gameplayRoot, camera);
+        bindings.BindAdapters(CollectRuntimeAdapters(behaviours, adaptersRoot).ToArray());
 
         SerializedObject serializedLauncher = new(launcher);
         serializedLauncher.FindProperty("sceneBindings").objectReferenceValue = bindings;
@@ -246,7 +234,9 @@ public static class VampireHuntArchitectureMigration
         EditorUtility.SetDirty(bindings);
     }
 
-    private static List<MonoBehaviour> CollectRuntimeAdapters(List<MonoBehaviour> behaviours)
+    private static List<MonoBehaviour> CollectRuntimeAdapters(
+        List<MonoBehaviour> behaviours,
+        Transform runtimeAdaptersRoot = null)
     {
         List<MonoBehaviour> adapters = new();
         HashSet<MonoBehaviour> unique = new();
@@ -254,9 +244,156 @@ public static class VampireHuntArchitectureMigration
         {
             MonoBehaviour value = behaviours[i];
             if (value == null || !IsRuntimeAdapter(value) || !unique.Add(value)) continue;
+            if (runtimeAdaptersRoot != null &&
+                IsNetworkRpcAdapter(value) &&
+                value.transform != runtimeAdaptersRoot)
+                continue;
             adapters.Add(value);
         }
         return adapters;
+    }
+
+    private static bool IsNetworkRpcAdapter(MonoBehaviour value) =>
+        value is NetworkCommandRpcAdapter ||
+        value is NetworkStateRpcAdapter ||
+        value is GameplayEventRpcAdapter;
+
+    private static Transform EnsureSceneRoot(Scene scene, string objectName)
+    {
+        Transform canonical = null;
+        List<Transform> candidates = FindSceneTransforms(scene, objectName);
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (candidates[i].parent == null)
+            {
+                canonical = candidates[i];
+                break;
+            }
+        }
+
+        if (canonical == null && candidates.Count > 0)
+            canonical = candidates[0];
+
+        if (canonical == null)
+        {
+            GameObject root = new(objectName);
+            SceneManager.MoveGameObjectToScene(root, scene);
+            canonical = root.transform;
+        }
+
+        // Preserve world placement when repairing an old nested marker.  The
+        // marker normally has an identity transform, but this also avoids
+        // shifting intentionally placed children on a one-time migration.
+        if (canonical.parent != null)
+            canonical.SetParent(null, true);
+
+        // A repeated migration should not accumulate marker objects.  Move
+        // any children from duplicate gameplay markers before removing their
+        // empty shell; this keeps unrelated scene content recoverable.
+        for (int i = candidates.Count - 1; i >= 0; i--)
+        {
+            Transform duplicate = candidates[i];
+            if (duplicate == null || duplicate == canonical) continue;
+            while (duplicate.childCount > 0)
+                duplicate.GetChild(duplicate.childCount - 1).SetParent(canonical, true);
+            if (duplicate.childCount == 0 && duplicate.GetComponents<Component>().Length <= 1)
+                UnityEngine.Object.DestroyImmediate(duplicate.gameObject);
+        }
+
+        return canonical;
+    }
+
+    private static Transform EnsureRuntimeAdaptersRoot(Scene scene)
+    {
+        List<Transform> candidates = FindSceneTransforms(scene, RuntimeAdaptersRootName);
+        Transform canonical = null;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (candidates[i].parent == null)
+            {
+                canonical = candidates[i];
+                break;
+            }
+        }
+
+        if (canonical == null && candidates.Count > 0)
+            canonical = candidates[0];
+        if (canonical == null)
+        {
+            GameObject adapterObject = new(RuntimeAdaptersRootName);
+            SceneManager.MoveGameObjectToScene(adapterObject, scene);
+            canonical = adapterObject.transform;
+        }
+
+        if (canonical.parent != null)
+            canonical.SetParent(null, true);
+
+        // Remove duplicate RPC/NetworkObject components from old hosts while
+        // leaving any unrelated child content in place.  The canonical host
+        // is then the sole explicit NGO adapter owner in the scene.
+        RemoveRpcAdaptersOutside(canonical);
+        for (int i = candidates.Count - 1; i >= 0; i--)
+        {
+            Transform duplicate = candidates[i];
+            if (duplicate == null || duplicate == canonical) continue;
+            RemoveComponentIfPresent<NetworkObject>(duplicate.gameObject);
+            if (duplicate.childCount == 0 && duplicate.GetComponents<Component>().Length <= 1)
+                UnityEngine.Object.DestroyImmediate(duplicate.gameObject);
+        }
+
+        return canonical;
+    }
+
+    private static List<Transform> FindSceneTransforms(Scene scene, string objectName)
+    {
+        List<Transform> matches = new();
+        foreach (GameObject root in scene.GetRootGameObjects())
+        foreach (Transform transform in root.GetComponentsInChildren<Transform>(true))
+            if (string.Equals(transform.name, objectName, StringComparison.Ordinal))
+                matches.Add(transform);
+        return matches;
+    }
+
+    private static void RemoveRpcAdaptersOutside(Transform canonical)
+    {
+        Scene scene = canonical.gameObject.scene;
+        List<MonoBehaviour> behaviours = CollectBehaviours(scene);
+        for (int i = 0; i < behaviours.Count; i++)
+        {
+            MonoBehaviour value = behaviours[i];
+            if (value == null || !IsNetworkRpcAdapter(value) || value.transform == canonical)
+                continue;
+            UnityEngine.Object.DestroyImmediate(value);
+        }
+    }
+
+    private static void DetachNetworkBehaviourChildren(Transform networkManager)
+    {
+        if (networkManager == null) return;
+        for (int i = networkManager.childCount - 1; i >= 0; i--)
+        {
+            Transform child = networkManager.GetChild(i);
+            if (child.GetComponentsInChildren<NetworkObject>(true).Length == 0 &&
+                child.GetComponentsInChildren<NetworkBehaviour>(true).Length == 0)
+                continue;
+            child.SetParent(null, true);
+        }
+    }
+
+    private static T EnsureSingleComponent<T>(GameObject target) where T : Component
+    {
+        T[] components = target.GetComponents<T>();
+        T canonical = components.Length > 0 ? components[0] : target.AddComponent<T>();
+        for (int i = 1; i < components.Length; i++)
+            UnityEngine.Object.DestroyImmediate(components[i]);
+        return canonical;
+    }
+
+    private static void RemoveComponentIfPresent<T>(GameObject target) where T : Component
+    {
+        T[] components = target.GetComponents<T>();
+        for (int i = 0; i < components.Length; i++)
+            UnityEngine.Object.DestroyImmediate(components[i]);
     }
 
     private static bool IsRuntimeAdapter(MonoBehaviour value) =>

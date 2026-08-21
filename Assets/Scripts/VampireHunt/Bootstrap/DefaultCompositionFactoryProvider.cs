@@ -19,6 +19,7 @@ using VampireHunt.Navigation.Contracts;
 using VampireHunt.Player.Application;
 using VampireHunt.Player.Contracts;
 using VampireHunt.Presentation.Boss;
+using VampireHunt.Presentation.Contracts;
 using VampireHunt.Presentation.Enemies;
 using VampireHunt.Presentation.Player;
 using VampireHunt.Presentation.Runtime;
@@ -178,17 +179,21 @@ namespace VampireHunt.Bootstrap
             Register(context, enemySpawner);
             Register<IEnemyLifetimePort>(context, enemySpawner);
             Register(context, spawnSimulation);
-            installation.Add(updateLoop.Add(
+            IDisposable spawnTick = updateLoop.Add(
                 RuntimeSimulationPhase.EnemySpawning,
-                spawnSimulation.Tick));
+                spawnSimulation.Tick);
             bindings.BindExplicitSceneAdapters();
 
-            installation.Add(enemySpawner);
-            installation.Add(bindings);
-            installation.Add(players);
-            installation.Add(updateLoop);
-            installation.Add(lifecycle);
+            // CompositionInstallation disposes in reverse registration order.
+            // Register foundations first so spawners/bindings release their
+            // entities before registries and lifecycle/event hubs disappear.
             installation.Add(events);
+            installation.Add(lifecycle);
+            installation.Add(updateLoop);
+            installation.Add(players);
+            installation.Add(bindings);
+            installation.Add(enemySpawner);
+            installation.Add(spawnTick);
             installation.OnDispose(() =>
             {
                 if (ReferenceEquals(activeContext, context)) activeContext = null;
@@ -287,10 +292,12 @@ namespace VampireHunt.Bootstrap
                 player.Apply(runtime.Snapshot);
 
             CompositionInstallation installation = new();
+            RuntimePresentationCoordinator presentation = new(context, dispatcher);
             installation.Add(lifecycleRegistration);
             installation.Add(localEvents);
             installation.Add(views);
             installation.Add(dispatcher);
+            installation.Add(presentation);
             return installation;
         }
 
@@ -389,6 +396,7 @@ namespace VampireHunt.Bootstrap
         private readonly NetworkManager networkManager;
         private readonly List<PlayerHudPresenter> hud = new();
         private readonly List<BloodPactUiBinding> bloodPacts = new();
+        private readonly List<INetworkActivityProviderBinding> networkActivityBindings = new();
         private bool disposed;
 
         public RuntimeUiCoordinator(
@@ -423,6 +431,7 @@ namespace VampireHunt.Bootstrap
             disposed = true;
             SceneManager.sceneLoaded -= HandleSceneChanged;
             SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+            ClearNetworkActivityBindings();
             hud.Clear();
             bloodPacts.Clear();
         }
@@ -432,6 +441,7 @@ namespace VampireHunt.Bootstrap
 
         private void RebuildViews()
         {
+            ClearNetworkActivityBindings();
             hud.Clear();
             bloodPacts.Clear();
             HashSet<MonoBehaviour> visited = new();
@@ -474,6 +484,12 @@ namespace VampireHunt.Bootstrap
         private void AddView(MonoBehaviour behaviour, ISet<MonoBehaviour> visited)
         {
             if (behaviour == null || !visited.Add(behaviour)) return;
+            if (behaviour is INetworkActivityProviderBinding networkActivity)
+            {
+                networkActivity.SetNetworkActiveProvider(
+                    () => context.RuntimeMode == RuntimeMode.Netcode);
+                networkActivityBindings.Add(networkActivity);
+            }
             if (behaviour is IPlayerHudView hudView)
                 hud.Add(new PlayerHudPresenter(player, hudView));
             if (behaviour is IBloodPactSelectionView selectionView)
@@ -483,6 +499,13 @@ namespace VampireHunt.Bootstrap
                     binding.Bind(presenter);
                 bloodPacts.Add(new BloodPactUiBinding(presenter));
             }
+        }
+
+        private void ClearNetworkActivityBindings()
+        {
+            for (int i = 0; i < networkActivityBindings.Count; i++)
+                networkActivityBindings[i]?.SetNetworkActiveProvider(null);
+            networkActivityBindings.Clear();
         }
 
         private IPlayerBloodPactReadModel ResolveBloodPactModel()
@@ -523,6 +546,172 @@ namespace VampireHunt.Bootstrap
                     presenter.CurrentOffer.OfferVersion != offer.OfferVersion)
                     presenter.ShowOffer(offer);
             }
+        }
+    }
+
+    /// <summary>
+    /// Owns client-only bindings for presentation adapters. The coordinator
+    /// observes scene lifecycle only to re-read explicit SceneBindings
+    /// markers; it never searches for arbitrary feature components. Every
+    /// stream subscription, audio presenter and camera injection is released
+    /// when its marker unloads or the composition is disposed.
+    /// </summary>
+    internal sealed class RuntimePresentationCoordinator : IDisposable
+    {
+        private readonly GameCompositionContext context;
+        private readonly IGameplayEventStream events;
+        private readonly Camera mainCamera;
+        private readonly Dictionary<MonoBehaviour, IDisposable> activeBindings = new();
+        private bool disposed;
+
+        public RuntimePresentationCoordinator(
+            GameCompositionContext context,
+            IGameplayEventStream events)
+        {
+            this.context = context ?? throw new ArgumentNullException(nameof(context));
+            this.events = events ?? throw new ArgumentNullException(nameof(events));
+            mainCamera = context.SceneBindings?.MainCamera;
+            SceneManager.sceneLoaded += HandleSceneChanged;
+            SceneManager.sceneUnloaded += HandleSceneUnloaded;
+            RebuildBindings();
+        }
+
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true;
+            SceneManager.sceneLoaded -= HandleSceneChanged;
+            SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+            ClearBindings();
+        }
+
+        private void HandleSceneChanged(Scene scene, LoadSceneMode mode) => RebuildBindings();
+        private void HandleSceneUnloaded(Scene scene) => RebuildBindings();
+
+        private void RebuildBindings()
+        {
+            if (disposed) return;
+
+            HashSet<MonoBehaviour> discovered = new();
+            AddBindingSet(context.SceneBindings, discovered, includeGameplayRoot: true);
+
+            for (int sceneIndex = 0; sceneIndex < SceneManager.sceneCount; sceneIndex++)
+            {
+                Scene scene = SceneManager.GetSceneAt(sceneIndex);
+                if (!scene.IsValid() || !scene.isLoaded) continue;
+                foreach (GameObject rootObject in scene.GetRootGameObjects())
+                {
+                    SceneBindings[] markers = rootObject.GetComponentsInChildren<SceneBindings>(true);
+                    for (int markerIndex = 0; markerIndex < markers.Length; markerIndex++)
+                    {
+                        SceneBindings marker = markers[markerIndex];
+                        if (marker != null && marker != context.SceneBindings)
+                            AddBindingSet(marker, discovered, includeGameplayRoot: true);
+                    }
+                }
+            }
+
+            List<MonoBehaviour> stale = null;
+            foreach (KeyValuePair<MonoBehaviour, IDisposable> pair in activeBindings)
+            {
+                if (pair.Key != null && discovered.Contains(pair.Key)) continue;
+                stale ??= new List<MonoBehaviour>();
+                stale.Add(pair.Key);
+            }
+
+            if (stale != null)
+            {
+                for (int i = 0; i < stale.Count; i++)
+                {
+                    MonoBehaviour key = stale[i];
+                    if (!activeBindings.TryGetValue(key, out IDisposable binding)) continue;
+                    binding.Dispose();
+                    activeBindings.Remove(key);
+                }
+            }
+
+            foreach (MonoBehaviour behaviour in discovered)
+            {
+                if (behaviour == null || activeBindings.ContainsKey(behaviour)) continue;
+                IDisposable binding = Attach(behaviour);
+                if (binding != null) activeBindings.Add(behaviour, binding);
+            }
+        }
+
+        private void AddBindingSet(
+            SceneBindings source,
+            ISet<MonoBehaviour> discovered,
+            bool includeGameplayRoot)
+        {
+            if (source == null) return;
+            IReadOnlyList<MonoBehaviour> explicitBindings = source.AdapterBindings;
+            for (int i = 0; i < explicitBindings.Count; i++)
+                AddCandidate(explicitBindings[i], discovered);
+
+            // GameplayRoot is itself an explicit composition reference. Only
+            // components implementing a presentation seam are considered.
+            if (includeGameplayRoot && source.GameplayRoot != null)
+            {
+                MonoBehaviour[] behaviours = source.GameplayRoot.GetComponentsInChildren<MonoBehaviour>(true);
+                for (int i = 0; i < behaviours.Length; i++)
+                    AddCandidate(behaviours[i], discovered);
+            }
+
+            // MainCamera is an explicit reference and may host camera/sprite
+            // adapters without being repeated in AdapterBindings.
+            if (source.MainCamera != null)
+            {
+                MonoBehaviour[] cameraBehaviours = source.MainCamera.GetComponentsInChildren<MonoBehaviour>(true);
+                for (int i = 0; i < cameraBehaviours.Length; i++)
+                    AddCandidate(cameraBehaviours[i], discovered);
+            }
+        }
+
+        private static void AddCandidate(MonoBehaviour behaviour, ISet<MonoBehaviour> discovered)
+        {
+            if (behaviour == null) return;
+            if (behaviour is IRuntimeGameplayEventStreamBinding ||
+                behaviour is IRuntimeCameraBinding ||
+                behaviour is IAudioDriver)
+            {
+                discovered.Add(behaviour);
+            }
+        }
+
+        private IDisposable Attach(MonoBehaviour behaviour)
+        {
+            CompositionInstallation installation = new();
+            bool attached = false;
+
+            if (behaviour is IRuntimeGameplayEventStreamBinding streamBinding)
+            {
+                streamBinding.Bind(events);
+                installation.OnDispose(() => streamBinding.Bind(null));
+                attached = true;
+            }
+
+            if (behaviour is IRuntimeCameraBinding cameraBinding)
+            {
+                cameraBinding.BindCamera(mainCamera);
+                installation.OnDispose(() => cameraBinding.BindCamera(null));
+                attached = true;
+            }
+
+            if (behaviour is IAudioDriver audioDriver)
+            {
+                AudioCuePresenter presenter = new(events, audioDriver);
+                installation.Add(presenter);
+                attached = true;
+            }
+
+            return attached ? installation : null;
+        }
+
+        private void ClearBindings()
+        {
+            foreach (IDisposable binding in activeBindings.Values)
+                binding?.Dispose();
+            activeBindings.Clear();
         }
     }
 }

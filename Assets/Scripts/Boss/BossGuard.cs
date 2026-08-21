@@ -26,6 +26,7 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
     [SerializeField, Min(0.1f)] private float formationDistance = 2f;
     [SerializeField, Min(0f)] private float formationHeight = 0.6f;
     [SerializeField, Min(0.1f)] private float followSpeed = 4.5f;
+    [SerializeField] private Transform formationReference;
 
     public BossGuardSide Side => side;
     public int CurrentHealth { get; private set; }
@@ -38,7 +39,6 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
     public event Action<BossGuard, int, int> HealthChanged;
 
     private BossController controller;
-    private Camera viewCamera;
     private int previousHealth;
 
     private void Awake()
@@ -46,8 +46,8 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
         spriteRenderer ??= GetComponentInChildren<SpriteRenderer>(true);
         hitCollider ??= GetComponent<Collider>();
         bossRoot ??= transform.parent;
+        formationReference ??= bossRoot;
         controller ??= GetComponentInParent<BossController>();
-        viewCamera = Camera.main;
         CurrentHealth = maxHealth;
         previousHealth = CurrentHealth;
         ApplyVisualState();
@@ -62,10 +62,10 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
     private void FixedUpdate()
     {
         if (!NetworkAuthority.IsServerOrOffline() || !independentMovement || bossRoot == null) return;
-        viewCamera ??= Camera.main;
-        Vector3 right = viewCamera != null
-            ? Vector3.ProjectOnPlane(viewCamera.transform.right, Vector3.up).normalized
+        Vector3 right = formationReference != null
+            ? Vector3.ProjectOnPlane(formationReference.right, Vector3.up).normalized
             : Vector3.right;
+        if (right.sqrMagnitude <= 0.000001f) right = Vector3.right;
         float sign = side == BossGuardSide.Left ? -1f : 1f;
         Vector3 target = bossRoot.position + right * (formationDistance * sign) + Vector3.up * formationHeight;
         transform.position = Vector3.MoveTowards(transform.position, target, followSpeed * Time.fixedDeltaTime);
@@ -161,5 +161,6 @@ public sealed class BossGuard : MonoBehaviour, IDamageable
         spriteRenderer ??= GetComponentInChildren<SpriteRenderer>(true);
         hitCollider ??= GetComponent<Collider>();
         bossRoot ??= transform.parent;
+        formationReference ??= bossRoot;
     }
 }

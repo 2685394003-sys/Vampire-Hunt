@@ -311,18 +311,7 @@ namespace VampireHunt.Tests.Architecture
                 try
                 {
                     if (openedByTest)
-                    {
-                        if (string.Equals(
-                                assetPath,
-                                "Assets/Scenes/SampleScene.unity",
-                                StringComparison.OrdinalIgnoreCase))
-                        {
-                            UnityEngine.TestTools.LogAssert.Expect(
-                                LogType.Error,
-                                "Unknown error occurred while loading 'Assets/New Terrain.asset'.");
-                        }
                         scene = EditorSceneManager.OpenScene(assetPath, OpenSceneMode.Additive);
-                    }
                     if (!scene.IsValid() || !scene.isLoaded)
                     {
                         unresolved.Add($"{assetPath}: scene could not be loaded");
@@ -346,6 +335,71 @@ namespace VampireHunt.Tests.Architecture
                 string.Join("; ", unresolved));
         }
 
+        [Test]
+        public void EnabledBuildScenes_NetworkManagerSubtreesContainNoNetworkObjectsOrBehaviours()
+        {
+            List<string> violations = new();
+
+            foreach (EditorBuildSettingsScene buildScene in EditorBuildSettings.scenes)
+            {
+                if (!buildScene.enabled || string.IsNullOrWhiteSpace(buildScene.path))
+                    continue;
+
+                Scene scene = SceneManager.GetSceneByPath(buildScene.path);
+                bool openedByTest = !scene.IsValid() || !scene.isLoaded;
+                try
+                {
+                    if (openedByTest)
+                    {
+                        scene = EditorSceneManager.OpenScene(buildScene.path, OpenSceneMode.Additive);
+                    }
+
+                    Assert.That(
+                        scene.IsValid() && scene.isLoaded,
+                        Is.True,
+                        $"Enabled build scene could not be loaded for NetworkManager topology validation: {buildScene.path}");
+
+                    foreach (GameObject root in scene.GetRootGameObjects())
+                    {
+                        Component[] components = root.GetComponentsInChildren<Component>(true);
+                        for (int i = 0; i < components.Length; i++)
+                        {
+                            Component component = components[i];
+                            if (component == null || !IsNetcodeType(component, "Unity.Netcode.NetworkManager"))
+                                continue;
+
+                            Component[] descendants = component.GetComponentsInChildren<Component>(true);
+                            for (int j = 0; j < descendants.Length; j++)
+                            {
+                                Component descendant = descendants[j];
+                                if (descendant == null)
+                                    continue;
+
+                                if (IsNetcodeType(descendant, "Unity.Netcode.NetworkObject") ||
+                                    IsNetcodeType(descendant, "Unity.Netcode.NetworkBehaviour"))
+                                {
+                                    violations.Add(
+                                        $"{buildScene.path}/{GetHierarchyPath(descendant.transform)} " +
+                                        $"contains {descendant.GetType().FullName} below NetworkManager.");
+                                }
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (openedByTest && scene.IsValid() && scene.isLoaded)
+                        EditorSceneManager.CloseScene(scene, true);
+                }
+            }
+
+            Assert.That(
+                violations,
+                Is.Empty,
+                "NetworkManager roots and all of their descendants must not contain NetworkObject or " +
+                "NetworkBehaviour components: " + string.Join("; ", violations));
+        }
+
         private static void CollectMissingScripts(
             GameObject root,
             string assetPath,
@@ -360,6 +414,17 @@ namespace VampireHunt.Tests.Architecture
                     unresolved.Add(
                         $"{assetPath}/{GetHierarchyPath(hierarchy[i])}: {count} missing script(s)");
             }
+        }
+
+        private static bool IsNetcodeType(Component component, string baseTypeFullName)
+        {
+            for (Type current = component.GetType(); current != null; current = current.BaseType)
+            {
+                if (string.Equals(current.FullName, baseTypeFullName, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
         [Test]

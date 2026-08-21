@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEditor;
 using UnityEngine;
@@ -17,48 +18,6 @@ public static class DefaultEnemy3DBuilder
     private const string VisualName = "Knight";
     private const string PreviousVisualName = "X Bot";
     private const int EnemyLayer = 7;
-
-    [InitializeOnLoadMethod]
-    private static void ScheduleRequestedUpgrade()
-    {
-        EditorApplication.delayCall += TryRunRequestedUpgrade;
-    }
-
-    private static void TryRunRequestedUpgrade()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
-        {
-            EditorApplication.playModeStateChanged -= HandlePlayModeStateChanged;
-            EditorApplication.playModeStateChanged += HandlePlayModeStateChanged;
-            return;
-        }
-
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyPrefabPath);
-        if (prefab == null ||
-            (prefab.transform.Find(VisualName) != null &&
-             prefab.GetComponent<SpriteRenderer>() == null))
-        {
-            return;
-        }
-
-        try
-        {
-            Rebuild();
-        }
-        catch (Exception exception)
-        {
-            Debug.LogException(exception);
-        }
-    }
-
-    private static void HandlePlayModeStateChanged(PlayModeStateChange state)
-    {
-        if (state != PlayModeStateChange.EnteredEditMode)
-            return;
-
-        EditorApplication.playModeStateChanged -= HandlePlayModeStateChanged;
-        EditorApplication.delayCall += TryRunRequestedUpgrade;
-    }
 
     [MenuItem("Tools/Vampire Hunt/Rebuild Default Enemy as 3D Knight")]
     public static void RebuildFromMenu()
@@ -251,6 +210,7 @@ public static class DefaultEnemy3DBuilder
     {
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyPrefabPath);
         if (prefab == null ||
+            prefab.GetComponent<NetworkObject>() == null ||
             prefab.GetComponent<FlowFieldEnemy>() == null ||
             prefab.GetComponent<EnemyHealth>() == null ||
             prefab.GetComponent<EnemyCombat>() == null ||

@@ -4,9 +4,10 @@ using System.Collections.Generic;
 namespace VampireHunt.Navigation.Domain
 {
     /// <summary>
-    /// Dijkstra flow-field solver. Each cell points to the cheapest cardinal
-    /// neighbour on the way to the target, while preserving unreachable
-    /// regions instead of inventing a direction through an obstacle.
+    /// Dijkstra flow-field solver. Each cell points to the cheapest legal
+    /// cardinal or diagonal neighbour on the way to the target, while
+    /// preserving unreachable regions instead of inventing a direction
+    /// through an obstacle.
     /// </summary>
     public sealed class FlowFieldSolver
     {
@@ -28,7 +29,7 @@ namespace VampireHunt.Navigation.Domain
             costs[targetLinear] = 0;
             pending.Enqueue(target, 0);
 
-            List<CellIndex> neighbours = new List<CellIndex>(4);
+            List<FlowTraversal> traversals = new List<FlowTraversal>(8);
             while (pending.Count > 0)
             {
                 CellPriorityQueue.Entry currentEntry = pending.Dequeue();
@@ -38,14 +39,16 @@ namespace VampireHunt.Navigation.Domain
                 if (currentCost != costs[currentLinear]) continue;
 
                 reachable[currentLinear] = true;
-                grid.GetNeighbors(current, neighbours);
-                for (int i = 0; i < neighbours.Count; i++)
+                grid.GetTraversals(current, traversals);
+                for (int i = 0; i < traversals.Count; i++)
                 {
-                    CellIndex neighbour = neighbours[i];
+                    FlowTraversal traversal = traversals[i];
+                    CellIndex neighbour = traversal.Index;
                     FlowCell neighbourCell = grid.GetCell(neighbour);
-                    if (!neighbourCell.IsWalkable) continue;
-
-                    int nextCost = currentCost + Math.Max(1, (int)neighbourCell.Cost);
+                    int movementCost = WeightedMovementCost(
+                        traversal.MovementCost,
+                        neighbourCell.Cost);
+                    int nextCost = SaturatingAdd(currentCost, movementCost);
                     int neighbourLinear = grid.ToLinearIndex(neighbour);
                     if (nextCost >= costs[neighbourLinear]) continue;
 
@@ -54,23 +57,28 @@ namespace VampireHunt.Navigation.Domain
                 }
             }
 
-            // Choose the cheapest reachable neighbour for every cell. Ties
-            // use the same order as FlowGrid.GetNeighbors for deterministic
-            // server/client simulations.
+            // Choose the cheapest reachable traversal for every cell. Ties
+            // use FlowGrid.GetTraversals order for deterministic simulations.
             for (int i = 0; i < grid.Count; i++)
             {
                 CellIndex index = grid.FromLinearIndex(i);
                 if (!reachable[i] || index == target) continue;
 
-                grid.GetNeighbors(index, neighbours);
+                FlowCell currentCell = grid.GetCell(index);
+                grid.GetTraversals(index, traversals);
                 int bestCost = int.MaxValue;
                 Direction bestDirection = Direction.None;
-                for (int n = 0; n < neighbours.Count; n++)
+                for (int n = 0; n < traversals.Count; n++)
                 {
-                    CellIndex neighbour = neighbours[n];
+                    FlowTraversal traversal = traversals[n];
+                    CellIndex neighbour = traversal.Index;
                     int neighbourLinear = grid.ToLinearIndex(neighbour);
-                    if (!reachable[neighbourLinear] || costs[neighbourLinear] >= bestCost) continue;
-                    bestCost = costs[neighbourLinear];
+                    if (!reachable[neighbourLinear]) continue;
+                    int candidateCost = SaturatingAdd(
+                        costs[neighbourLinear],
+                        WeightedMovementCost(traversal.MovementCost, currentCell.Cost));
+                    if (candidateCost >= bestCost) continue;
+                    bestCost = candidateCost;
                     bestDirection = new Direction(neighbour.X - index.X, neighbour.Y - index.Y);
                 }
 
@@ -78,6 +86,19 @@ namespace VampireHunt.Navigation.Domain
             }
 
             return new FlowField(grid, target, directions, reachable, costs);
+        }
+
+        private static int WeightedMovementCost(int movementCost, ushort cellCost)
+        {
+            long weighted = (long)Math.Max(1, movementCost) * Math.Max(1, (int)cellCost);
+            return weighted >= int.MaxValue ? int.MaxValue : (int)weighted;
+        }
+
+        private static int SaturatingAdd(int left, int right)
+        {
+            if (left == int.MaxValue || right == int.MaxValue || left > int.MaxValue - right)
+                return int.MaxValue;
+            return left + right;
         }
 
         private sealed class CellPriorityQueue

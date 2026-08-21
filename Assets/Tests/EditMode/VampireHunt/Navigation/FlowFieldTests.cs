@@ -49,6 +49,59 @@ namespace VampireHunt.Tests.Modules.Navigation
         }
 
         [Test]
+        public void SolverUsesWeightedDiagonalTraversal()
+        {
+            FlowGrid grid = new FlowGrid(2, 2, true);
+
+            FlowField field = new FlowFieldSolver().Solve(grid, new CellIndex(1, 1));
+
+            Assert.That(field.GetDirection(new CellIndex(0, 0)),
+                Is.EqualTo(new Direction(1, 1)));
+            Assert.That(field.CostToTarget(new CellIndex(0, 0)),
+                Is.EqualTo(FlowGrid.DiagonalMovementCost));
+        }
+
+        [Test]
+        public void SolverDoesNotCutDiagonallyThroughBlockedCorner()
+        {
+            List<FlowCell> cells = new List<FlowCell>
+            {
+                FlowCell.Walkable(new CellIndex(0, 0)),
+                FlowCell.Blocked(new CellIndex(1, 0)),
+                FlowCell.Walkable(new CellIndex(0, 1)),
+                FlowCell.Walkable(new CellIndex(1, 1))
+            };
+            FlowGrid grid = new FlowGrid(2, 2, cells);
+
+            FlowField field = new FlowFieldSolver().Solve(grid, new CellIndex(1, 1));
+
+            Assert.That(field.GetDirection(new CellIndex(0, 0)),
+                Is.EqualTo(Direction.Up));
+            Assert.That(field.CostToTarget(new CellIndex(0, 0)),
+                Is.EqualTo(FlowGrid.StraightMovementCost * 2));
+        }
+
+        [Test]
+        public void NavigationFieldSamplesTheTargetSuppliedByTheEnemyRuntime()
+        {
+            FlowFieldNavigationField navigation = new(
+                new FlowGrid(3, 1, true),
+                WorldPosition.Origin,
+                cellSize: 1f);
+            WorldPosition position = new(1.5f, 0f, 0.5f);
+
+            Direction left = navigation.SampleDirection(
+                position,
+                new WorldPosition(0.5f, 0f, 0.5f));
+            Direction right = navigation.SampleDirection(
+                position,
+                new WorldPosition(2.5f, 0f, 0.5f));
+
+            Assert.That(left, Is.EqualTo(Direction.Left));
+            Assert.That(right, Is.EqualTo(Direction.Right));
+        }
+
+        [Test]
         public void EnemyRecovery_SamplesFromCurrentPositionTowardTheRecoveryCell()
         {
             WorldPosition current = WorldPosition.Origin;

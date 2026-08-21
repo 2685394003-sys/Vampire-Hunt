@@ -10,7 +10,10 @@ using VampireHunt.Core;
 using VampireHunt.Enemies.Contracts;
 using VampireHunt.Enemies.Application;
 using VampireHunt.Infrastructure.Integration;
+using VampireHunt.Infrastructure.Input;
+using VampireHunt.Infrastructure.Input.Contracts;
 using VampireHunt.Infrastructure.Netcode;
+using VampireHunt.Infrastructure.Netcode.Contracts;
 using VampireHunt.Infrastructure.UnityPhysics;
 using VampireHunt.Player.Application;
 using VampireHunt.Player.Contracts;
@@ -50,6 +53,8 @@ namespace VampireHunt.Bootstrap
         private readonly Dictionary<MonoBehaviour, PlayerRecord> playerRecords = new();
         private readonly Dictionary<MonoBehaviour, EnemyRecord> enemyRecords = new();
         private readonly Dictionary<MonoBehaviour, BossRecord> bossRecords = new();
+        private readonly List<WorldPosition> playerPositionBuffer = new();
+        private readonly PlayerPoseState playerPoses = new();
         private NetworkManager networkManager;
         private NetworkEntityRegistry networkEntities;
         private bool disposed;
@@ -228,24 +233,29 @@ namespace VampireHunt.Bootstrap
                 return false;
 
             EntityId id = entityIds.Allocate();
+            playerPoses.Seed(id, behaviour.transform, clock.Now);
             IPlayerRuntimePort runtime = PlayerRuntimeEndpointFactory.Create(
                 id,
                 context.Specs.Player,
                 playerDamage,
                 clock: clock,
                 hitQuery: melee,
-                positions: players,
+                positions: playerPoses,
                 bloodPactCatalog: bloodPacts.Count == 0 ? null : bloodPacts,
-                random: bloodPacts.Count == 0 ? null : playerRandom);
+                random: bloodPacts.Count == 0 ? null : playerRandom,
+                poseSink: playerPoses);
             if (!binding.TryBind(runtime))
             {
                 (runtime as IDisposable)?.Dispose();
+                playerPoses.Unbind(id);
                 return false;
             }
 
             players.Register(runtime, behaviour.transform, ownerClientId);
+            if (behaviour is IPlayerPoseOwnershipBinding ownershipBinding)
+                ownershipBinding.ConfigurePoseOwnership(players);
             combatEntities.Register(runtime.PlayerId, runtime);
-            RuntimePlayerCombatTarget target = new(runtime, behaviour.transform);
+            RuntimePlayerCombatTarget target = new(runtime, playerPoses);
             combatTargets.Register(target);
             Collider[] colliders = behaviour.GetComponentsInChildren<Collider>(true);
             for (int i = 0; i < colliders.Length; i++)
@@ -269,8 +279,10 @@ namespace VampireHunt.Bootstrap
                 combatEntities,
                 combatTargets,
                 physicsTargets,
-                networkEntities);
+                networkEntities,
+                playerPoses);
             playerRecords.Add(behaviour, record);
+            RefreshBossTargetBindings();
 
             if (networkObject != null && networkObject.NetworkObjectId != 0UL)
                 networkEntities?.Register(runtime.PlayerId, networkObject.NetworkObjectId);
@@ -310,6 +322,7 @@ namespace VampireHunt.Bootstrap
             bossRecords.Add(
                 behaviour,
                 new BossRecord(runtime, tick, combatEntities, bosses));
+            RefreshBossTargetBindings();
             ForwardBossSnapshot(runtime.Snapshot);
             return true;
         }
@@ -428,10 +441,33 @@ namespace VampireHunt.Bootstrap
             if (networkManager != null && networkManager.IsServer &&
                 context.TryResolve(out NetworkStateRpcAdapter stateRpc) &&
                 context.TryResolve(out EnemyStateReplicator replicator) &&
-                replicator.Capture(snapshot, 0f, clock.Now, out VampireHunt.Infrastructure.Netcode.Contracts.EnemyStateDto dto))
+                replicator.Capture(
+                    snapshot,
+                    DistanceToNearestAlivePlayer(snapshot.Position),
+                    clock.Now,
+                    out VampireHunt.Infrastructure.Netcode.Contracts.EnemyStateDto dto))
             {
                 stateRpc.BroadcastEnemy(dto);
             }
+        }
+
+        private float DistanceToNearestAlivePlayer(WorldPosition enemyPosition)
+        {
+            playerPositionBuffer.Clear();
+            players.CopyAlivePositions(playerPositionBuffer);
+            if (playerPositionBuffer.Count == 0) return float.PositiveInfinity;
+
+            double nearestSquared = double.PositiveInfinity;
+            for (int i = 0; i < playerPositionBuffer.Count; i++)
+            {
+                WorldPosition playerPosition = playerPositionBuffer[i];
+                double x = enemyPosition.X - playerPosition.X;
+                double y = enemyPosition.Y - playerPosition.Y;
+                double z = enemyPosition.Z - playerPosition.Z;
+                nearestSquared = Math.Min(nearestSquared, x * x + y * y + z * z);
+            }
+
+            return (float)Math.Sqrt(nearestSquared);
         }
 
         private void RefreshExplicitGameplayRoot()
@@ -471,6 +507,27 @@ namespace VampireHunt.Bootstrap
                 playerRecords.Remove(key);
                 record.Dispose();
             }
+            RefreshBossTargetBindings();
+        }
+
+        private void RefreshBossTargetBindings()
+        {
+            Transform target = null;
+            foreach (MonoBehaviour player in playerRecords.Keys)
+            {
+                if (player == null || !player.gameObject.activeInHierarchy) continue;
+                target = player.transform;
+                break;
+            }
+
+            foreach (MonoBehaviour boss in bossRecords.Keys)
+            {
+                if (boss is not IBossTargetBinding targetBinding) continue;
+                if (target != null)
+                    targetBinding.TryBindTarget(target);
+                else
+                    targetBinding.ClearBoundTarget();
+            }
         }
 
         private void CleanupDespawnedEnemies()
@@ -505,28 +562,67 @@ namespace VampireHunt.Bootstrap
             if (disposed) throw new ObjectDisposedException(nameof(RuntimeBindingCoordinator));
         }
 
+        /// <summary>
+        /// Latest owner-pose store. Combat and spawn consumers read this store
+        /// instead of reaching into the owner-written Transform directly.
+        /// </summary>
+        private sealed class PlayerPoseState :
+            IPlayerPoseSink,
+            IPlayerPositionQuery
+        {
+            private readonly Dictionary<EntityId, MovementPose> poses = new();
+
+            public void Seed(EntityId playerId, Transform transform, double serverReceivedAt)
+            {
+                if (!playerId.IsValid || transform == null) return;
+                Vector3 position = transform.position;
+                Vector3 facing = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+                if (facing.sqrMagnitude <= 0.000001f) facing = Vector3.forward;
+                poses[playerId] = new MovementPose(
+                    new WorldPosition(position.x, position.y, position.z),
+                    new MoveVector(facing.x, facing.y, facing.z),
+                    serverReceivedAt,
+                    sequence: 0u);
+            }
+
+            public void SetPose(EntityId playerId, MovementPose pose)
+            {
+                if (playerId.IsValid && pose.IsFinite) poses[playerId] = pose;
+            }
+
+            public bool TryGetPosition(EntityId playerId, out WorldPosition position)
+            {
+                if (poses.TryGetValue(playerId, out MovementPose pose))
+                {
+                    position = pose.Position;
+                    return true;
+                }
+                position = WorldPosition.Origin;
+                return false;
+            }
+
+            public void Unbind(EntityId playerId) => poses.Remove(playerId);
+        }
+
         private sealed class RuntimePlayerCombatTarget : ICombatTarget, IMeleeHitTarget
         {
             private readonly IPlayerRuntimePort runtime;
-            private readonly Transform transform;
+            private readonly PlayerPoseState playerPoses;
 
-            public RuntimePlayerCombatTarget(IPlayerRuntimePort runtime, Transform transform)
+            public RuntimePlayerCombatTarget(
+                IPlayerRuntimePort runtime,
+                PlayerPoseState playerPoses)
             {
                 this.runtime = runtime;
-                this.transform = transform;
+                this.playerPoses = playerPoses;
             }
 
             public EntityId Id => runtime.PlayerId;
             public bool IsAlive => runtime.IsAlive;
-            public WorldPosition Position => ToWorldPosition(transform);
+            public WorldPosition Position => playerPoses.TryGetPosition(runtime.PlayerId, out WorldPosition pose)
+                ? pose
+                : WorldPosition.Origin;
             public WorldPosition HitPosition => Position;
-
-            private static WorldPosition ToWorldPosition(Transform value)
-            {
-                if (value == null) return WorldPosition.Origin;
-                Vector3 position = value.position;
-                return new WorldPosition(position.x, position.y, position.z);
-            }
         }
 
         private sealed class RuntimeEnemyCombatTarget : ICombatTarget, IMeleeHitTarget
@@ -566,6 +662,7 @@ namespace VampireHunt.Bootstrap
             private readonly CombatTargetQueryAdapter combatTargets;
             private readonly PhysicsTargetRegistry physicsTargets;
             private readonly NetworkEntityRegistry networkEntities;
+            private readonly PlayerPoseState playerPoses;
 
             public PlayerRecord(
                 MonoBehaviour behaviour,
@@ -578,7 +675,8 @@ namespace VampireHunt.Bootstrap
                 CombatEntityDirectoryAdapter combatEntities,
                 CombatTargetQueryAdapter combatTargets,
                 PhysicsTargetRegistry physicsTargets,
-                NetworkEntityRegistry networkEntities)
+                NetworkEntityRegistry networkEntities,
+                PlayerPoseState playerPoses)
             {
                 this.behaviour = behaviour;
                 NetworkObject = networkObject;
@@ -591,6 +689,7 @@ namespace VampireHunt.Bootstrap
                 this.combatTargets = combatTargets;
                 this.physicsTargets = physicsTargets;
                 this.networkEntities = networkEntities;
+                this.playerPoses = playerPoses;
             }
 
             public NetworkObject NetworkObject { get; }
@@ -605,6 +704,7 @@ namespace VampireHunt.Bootstrap
                 networkEntities?.Unregister(runtime.PlayerId);
                 for (int i = 0; i < colliders.Length; i++)
                     if (colliders[i] != null) physicsTargets.Unregister(colliders[i]);
+                playerPoses.Unbind(runtime.PlayerId);
                 (runtime as IDisposable)?.Dispose();
             }
         }

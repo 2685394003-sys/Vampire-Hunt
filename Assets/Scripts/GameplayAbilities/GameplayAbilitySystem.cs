@@ -1,8 +1,16 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using VampireHunt.Combat.Application;
+using VampireHunt.Combat.Contracts;
+using VampireHunt.Combat.Domain;
+using VampireHunt.Core;
+using EntityId = VampireHunt.Core.EntityId;
 
-/// <summary>Runtime snapshot created when an immutable effect is applied.</summary>
+/// <summary>
+/// Legacy compatibility snapshot for already-serialized ability callers. New
+/// runtime applications use VampireHunt.Abilities.Contracts.GameplayEffectSpec.
+/// </summary>
 public readonly struct GameplayEffectSpec
 {
     public readonly GameplayEffectDefinition Definition;
@@ -23,9 +31,13 @@ public readonly struct GameplayEffectSpec
     }
 }
 
+[Obsolete(
+    "Legacy serialization facade. New runtime code must use VampireHunt.Abilities.Domain.GameplayAbilitySystem.")]
 /// <summary>
-/// Centralized GAS-style runtime. A single owner tick manages all durations and
-/// periods; no effect creates a MonoBehaviour or subscribes directly to combat.
+/// Compatibility facade for the pre-module GAS API. It remains only to read
+/// already-authored definitions and preserve Prefab/AnimationEvent call sites;
+/// combat execution is translated through LegacyGameplayCombatAdapter so this
+/// type is not a second direct health-mutation entry point.
 /// </summary>
 public sealed class GameplayAbilitySystem
 {
@@ -415,7 +427,10 @@ public sealed class GameplayAbilitySystem
             switch (execution.ExecutionType)
             {
                 case GameplayExecutionType.Heal:
-                    owner.HealGameplay(Mathf.Max(0, Mathf.CeilToInt(raw)));
+                    LegacyGameplayCombatAdapter.ApplyHealing(
+                        owner,
+                        spec.Source,
+                        Mathf.Max(0, Mathf.CeilToInt(raw)));
                     break;
                 case GameplayExecutionType.AddScarlet:
                     owner.AddScarletGameplay(Mathf.Max(0f, raw));
@@ -424,9 +439,11 @@ public sealed class GameplayAbilitySystem
                     owner.AddCoinsGameplay(Mathf.Max(0, Mathf.RoundToInt(raw)));
                     break;
                 case GameplayExecutionType.Damage:
-                    owner.DamageGameplay(
+                    LegacyGameplayCombatAdapter.ApplyDamage(
+                        owner,
+                        spec.Source,
                         Mathf.Max(0, Mathf.RoundToInt(raw)),
-                        spec.Source);
+                        spec.Context.Position);
                     break;
             }
         }
@@ -471,4 +488,148 @@ public sealed class GameplayAbilitySystem
 
     private static string BuildAbilityKey(string sourceId, string abilityId) =>
         $"{sourceId}:{abilityId}";
+}
+
+/// <summary>
+/// Transitional adapter for already-serialized GameplayAbilities hosts. It
+/// converts legacy host calls to Combat requests first; the host methods are
+/// only the final mutation bridge until PlayerNetworkState/EnemyHealth finish
+/// their runtime contract migration.
+/// </summary>
+internal static class LegacyGameplayCombatAdapter
+{
+    public static int ApplyDamage(
+        IGameplayAbilitySystemHost target,
+        IGameplayAbilitySystemHost source,
+        int amount,
+        Vector3 position)
+    {
+        if (target == null || amount <= 0) return 0;
+        IGameplayAbilitySystemHost effectiveSource = source ?? target;
+        EntityId sourceId = LegacyHostEntityIds.Resolve(effectiveSource);
+        EntityId targetId = LegacyHostEntityIds.Resolve(target);
+        CombatApplicationService combat = CreateService(target, effectiveSource, targetId);
+        DamageResult result = combat.ApplyDamage(new DamageRequest(
+            sourceId,
+            targetId,
+            amount,
+            DamageFlags.NoCritical,
+            new HitContext(ToWorldPosition(position))));
+        return result.AppliedDamage;
+    }
+
+    public static int ApplyHealing(
+        IGameplayAbilitySystemHost target,
+        IGameplayAbilitySystemHost source,
+        int amount)
+    {
+        if (target == null || amount <= 0) return 0;
+        IGameplayAbilitySystemHost effectiveSource = source ?? target;
+        EntityId sourceId = LegacyHostEntityIds.Resolve(effectiveSource);
+        EntityId targetId = LegacyHostEntityIds.Resolve(target);
+        CombatApplicationService combat = CreateService(target, effectiveSource, targetId);
+        HealingResult result = combat.ApplyHealing(new HealingRequest(sourceId, targetId, amount));
+        return result.AppliedHealing;
+    }
+
+    private static CombatApplicationService CreateService(
+        IGameplayAbilitySystemHost target,
+        IGameplayAbilitySystemHost source,
+        EntityId targetId)
+    {
+        return new CombatApplicationService(
+            new CombatResolver(NoRollRandom.Instance),
+            new LegacyCombatDirectory(target, source, targetId));
+    }
+
+    private static WorldPosition ToWorldPosition(Vector3 position) =>
+        new WorldPosition(position.x, position.y, position.z);
+
+    private sealed class LegacyCombatDirectory : ICombatEntityDirectory
+    {
+        private readonly EntityId targetId;
+        private readonly IDamageReceiver damageReceiver;
+        private readonly IHealingReceiver healingReceiver;
+
+        public LegacyCombatDirectory(
+            IGameplayAbilitySystemHost target,
+            IGameplayAbilitySystemHost source,
+            EntityId targetId)
+        {
+            this.targetId = targetId;
+            damageReceiver = new LegacyDamageReceiver(target, source);
+            healingReceiver = new LegacyHealingReceiver(target);
+        }
+
+        public IDamageReceiver TryGetDamageReceiver(EntityId id) =>
+            id == targetId ? damageReceiver : null;
+
+        public IHealingReceiver TryGetHealingReceiver(EntityId id) =>
+            id == targetId ? healingReceiver : null;
+
+        public VampireHunt.Combat.Contracts.IKnockbackReceiver TryGetKnockbackReceiver(EntityId id) => null;
+    }
+
+    private sealed class LegacyDamageReceiver : IDamageReceiver
+    {
+        private readonly IGameplayAbilitySystemHost target;
+        private readonly IGameplayAbilitySystemHost source;
+
+        public LegacyDamageReceiver(
+            IGameplayAbilitySystemHost target,
+            IGameplayAbilitySystemHost source)
+        {
+            this.target = target;
+            this.source = source;
+        }
+
+        public DamageResult ApplyDamage(in ResolvedDamage damage)
+        {
+            int applied = target.DamageGameplay(damage.FinalDamage, source);
+            applied = Math.Max(0, Math.Min(damage.FinalDamage, applied));
+            bool wasKilled = applied > 0 && target.GameplayHealthRatio <= 0f;
+            return new DamageResult(
+                damage.FinalDamage,
+                applied,
+                damage.WasCritical,
+                wasKilled,
+                damage.Hit.Position);
+        }
+    }
+
+    private sealed class LegacyHealingReceiver : IHealingReceiver
+    {
+        private readonly IGameplayAbilitySystemHost target;
+
+        public LegacyHealingReceiver(IGameplayAbilitySystemHost target) => this.target = target;
+
+        public int ApplyHealing(int amount) => Math.Max(0, target.HealGameplay(amount));
+    }
+
+    private sealed class NoRollRandom : IRandomSource
+    {
+        public static readonly NoRollRandom Instance = new();
+        public float NextFloat() => 1f;
+        public int NextInt(int minInclusive, int maxExclusive) => minInclusive;
+    }
+
+    private static class LegacyHostEntityIds
+    {
+        public static EntityId Resolve(IGameplayAbilitySystemHost host)
+        {
+            string value = host?.GameplayOwnerId;
+            if (string.IsNullOrWhiteSpace(value)) value = "legacy-host";
+
+            unchecked
+            {
+                ulong hash = 14695981039346656037UL;
+                for (int index = 0; index < value.Length; index++)
+                {
+                    hash ^= value[index];
+                    hash *= 1099511628211UL;
+                }
+                return new EntityId(hash == 0UL ? 1UL : hash);
+            }
+        }
+    }
 }

@@ -5,6 +5,7 @@
     "VampireHunt.Bootstrap",
     "VampireHunt.Core",
     "VampireHunt.Combat",
+    "VampireHunt.Enemies",
     "VampireHunt.Player",
     "VampireHunt.Infrastructure.Netcode",
     "VampireHunt.Presentation"

@@ -4,6 +4,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Pool;
 using UnityEngine.UI;
+using VampireHunt.Bootstrap;
+using VampireHunt.Presentation.CombatText;
+using VampireHunt.Presentation.Contracts;
 
 /// <summary>
 /// Client-only damage number presentation. The service owns one overlay canvas,
@@ -11,7 +14,10 @@ using UnityEngine.UI;
 /// It creates itself on first use so gameplay scenes do not need extra setup.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class CombatTextService : MonoBehaviour
+public sealed class CombatTextService : MonoBehaviour,
+    ICombatTextPool,
+    IRuntimeGameplayEventStreamBinding,
+    IRuntimeCameraBinding
 {
     private const string CanvasName = "CombatTextCanvas";
 
@@ -39,13 +45,17 @@ public sealed class CombatTextService : MonoBehaviour
     private ObjectPool<CombatTextView> pool;
     private RectTransform canvasRect;
     private Camera viewCamera;
+    private bool cameraBindingWasExplicit;
     private int createdViewCount;
     private uint spawnSequence;
     private bool initialized;
+    private CombatTextPresenter presenter;
 
     public int ActiveCount => activeViews.Count;
     public int TotalPoolCount => pool?.CountAll ?? 0;
     public int InactivePoolCount => pool?.CountInactive ?? 0;
+    int ICombatTextPool.Capacity => maxActiveCount;
+    int ICombatTextPool.ActiveCount => activeViews.Count;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void ResetStaticState()
@@ -64,8 +74,11 @@ public sealed class CombatTextService : MonoBehaviour
 
     /// <summary>
     /// Displays server-confirmed damage locally. In multiplayer every client
-    /// receives the same call through PlayerNetworkState's presentation RPC.
+    /// receives the same call through the authoritative presentation event
+    /// ingress. This method remains only as a serialized/API compatibility
+    /// bridge while callers migrate to Bind(IGameplayEventStream).
     /// </summary>
+    [Obsolete("Bind CombatTextPresenter to the authoritative gameplay event stream.")]
     public static void ShowDamage(
         int amount,
         bool critical,
@@ -80,6 +93,76 @@ public sealed class CombatTextService : MonoBehaviour
 
         CombatTextService service = EnsureInstance();
         service?.ShowInternal(amount, critical, worldPosition, targetKey, sourceKey);
+    }
+
+    /// <summary>
+    /// Binds the Unity pool to the presentation event stream. The stream is
+    /// the only supported path for new damage/healing text; it contains
+    /// server-confirmed results and is safe to omit on a Dedicated Server.
+    /// </summary>
+    public void Bind(IGameplayEventStream events)
+    {
+        presenter?.Dispose();
+        presenter = null;
+        if (events == null || Application.isBatchMode)
+        {
+            return;
+        }
+
+        InitializeIfNeeded();
+        if (enabled && pool != null)
+        {
+            presenter = new CombatTextPresenter(events, this);
+        }
+    }
+
+    public void SetViewCamera(Camera camera)
+    {
+        viewCamera = camera;
+    }
+
+    public void BindCamera(Camera camera)
+    {
+        cameraBindingWasExplicit = true;
+        SetViewCamera(camera);
+    }
+
+    bool ICombatTextPool.TryRent(out ICombatTextHandle handle)
+    {
+        InitializeIfNeeded();
+        if (!enabled || pool == null || activeViews.Count >= maxActiveCount)
+        {
+            handle = null;
+            return false;
+        }
+
+        CombatTextView view = pool.Get();
+        activeViews.Add(view);
+        handle = view;
+        return true;
+    }
+
+    void ICombatTextPool.Return(ICombatTextHandle handle)
+    {
+        if (!(handle is CombatTextView view) || pool == null)
+        {
+            return;
+        }
+
+        int index = activeViews.IndexOf(view);
+        if (index < 0)
+        {
+            return;
+        }
+
+        activeViews.RemoveAt(index);
+        if (mergeTargets.TryGetValue(view.Key, out CombatTextView current) &&
+            ReferenceEquals(current, view))
+        {
+            mergeTargets.Remove(view.Key);
+        }
+
+        pool.Release(view);
     }
 
     private static CombatTextService EnsureInstance()
@@ -133,12 +216,16 @@ public sealed class CombatTextService : MonoBehaviour
         }
 
         instance = this;
-        DontDestroyOnLoad(gameObject);
+        // Dynamically-created compatibility instances are roots and persist.
+        // An authored UI-scene instance remains owned by that explicit scene.
+        if (transform.parent == null) DontDestroyOnLoad(gameObject);
         InitializeIfNeeded();
     }
 
     private void OnDestroy()
     {
+        presenter?.Dispose();
+        presenter = null;
         if (instance == this)
         {
             instance = null;
@@ -242,9 +329,9 @@ public sealed class CombatTextService : MonoBehaviour
             return;
         }
 
-        if (viewCamera == null || !viewCamera.isActiveAndEnabled)
+        if (!cameraBindingWasExplicit && (viewCamera == null || !viewCamera.isActiveAndEnabled))
         {
-            viewCamera = Camera.main;
+            viewCamera = ResolveLegacyCamera();
         }
 
         float now = Time.unscaledTime;
@@ -291,7 +378,7 @@ public sealed class CombatTextService : MonoBehaviour
         outline.useGraphicAlpha = true;
         outline.effectDistance = new Vector2(1.6f, -1.6f);
 
-        return new CombatTextView(viewObject, rectTransform, label, outline);
+        return new CombatTextView(this, viewObject, rectTransform, label, outline);
     }
 
     private static void OnTakeFromPool(CombatTextView view)
@@ -357,13 +444,57 @@ public sealed class CombatTextService : MonoBehaviour
         pool.Release(view);
     }
 
+    private void BeginFromPresentationCommand(CombatTextView view, CombatTextCommand command)
+    {
+        if (view == null || !activeViews.Contains(view))
+        {
+            return;
+        }
+
+        float now = Time.unscaledTime;
+        MergeKey key = new MergeKey(
+            command.TargetId.Value,
+            command.SourceId.Value,
+            command.IsCritical);
+        int lane = (int)(spawnSequence++ % 3u) - 1;
+        float jitter = UnityEngine.Random.Range(-horizontalJitter, horizontalJitter);
+        view.Begin(
+            key,
+            command.Amount,
+            command.IsCritical,
+            new Vector3(command.Position.X, command.Position.Y, command.Position.Z),
+            now,
+            lane * 22f + jitter,
+            NormalColor,
+            NormalOutlineColor,
+            CriticalColor,
+            CriticalOutlineColor);
+        view.Transform.SetAsLastSibling();
+    }
+
+    /// <summary>
+    /// The old static entry point has no composition context. Keep its camera
+    /// lookup isolated here until Bootstrap supplies SetViewCamera; no domain
+    /// or network code is allowed to use this compatibility path.
+    /// </summary>
+    [Obsolete("Bind SetViewCamera from composition instead.")]
+    private static Camera ResolveLegacyCamera()
+    {
+        return Camera.main;
+    }
+
     private readonly struct MergeKey : IEquatable<MergeKey>
     {
-        public readonly int TargetKey;
+        public readonly ulong TargetKey;
         public readonly ulong SourceKey;
         public readonly bool Critical;
 
         public MergeKey(int targetKey, ulong sourceKey, bool critical)
+            : this(unchecked((ulong)(uint)targetKey), sourceKey, critical)
+        {
+        }
+
+        public MergeKey(ulong targetKey, ulong sourceKey, bool critical)
         {
             TargetKey = targetKey;
             SourceKey = sourceKey;
@@ -380,7 +511,7 @@ public sealed class CombatTextService : MonoBehaviour
         public override int GetHashCode() => HashCode.Combine(TargetKey, SourceKey, Critical);
     }
 
-    private sealed class CombatTextView
+    private sealed class CombatTextView : ICombatTextHandle
     {
         private const float NormalLifetime = 0.68f;
         private const float CriticalLifetime = 0.86f;
@@ -388,6 +519,7 @@ public sealed class CombatTextService : MonoBehaviour
 
         private readonly TextMeshProUGUI label;
         private readonly Outline outline;
+        private readonly CombatTextService owner;
 
         private int amount;
         private Vector3 worldPosition;
@@ -400,17 +532,25 @@ public sealed class CombatTextService : MonoBehaviour
         public MergeKey Key { get; private set; }
         public float WindowStartedAt { get; private set; }
         public bool IsCritical { get; private set; }
+        public bool IsActive => GameObject.activeSelf;
 
         public CombatTextView(
+            CombatTextService owner,
             GameObject gameObject,
             RectTransform transform,
             TextMeshProUGUI text,
             Outline textOutline)
         {
+            this.owner = owner;
             GameObject = gameObject;
             Transform = transform;
             label = text;
             outline = textOutline;
+        }
+
+        public void Show(CombatTextCommand command)
+        {
+            owner.BeginFromPresentationCommand(this, command);
         }
 
         public void Begin(

@@ -14,6 +14,29 @@ namespace VampireHunt.Enemies.Contracts
             WorldPosition position,
             EntityId targetId,
             double lastAttackAt)
+            : this(
+                id,
+                health,
+                maxHealth,
+                isAlive,
+                state,
+                position,
+                targetId,
+                default(WorldPosition),
+                lastAttackAt)
+        {
+        }
+
+        public EnemySnapshot(
+            EntityId id,
+            int health,
+            int maxHealth,
+            bool isAlive,
+            EnemyState state,
+            WorldPosition position,
+            EntityId targetId,
+            WorldPosition targetPosition,
+            double lastAttackAt)
         {
             Id = id;
             Health = health;
@@ -22,6 +45,7 @@ namespace VampireHunt.Enemies.Contracts
             State = state;
             Position = position;
             TargetId = targetId;
+            TargetPosition = targetPosition;
             LastAttackAt = lastAttackAt;
         }
 
@@ -32,6 +56,7 @@ namespace VampireHunt.Enemies.Contracts
         public EnemyState State { get; }
         public WorldPosition Position { get; }
         public EntityId TargetId { get; }
+        public WorldPosition TargetPosition { get; }
         public double LastAttackAt { get; }
     }
 

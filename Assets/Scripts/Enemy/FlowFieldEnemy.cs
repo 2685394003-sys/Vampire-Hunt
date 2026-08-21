@@ -1,3 +1,4 @@
+using System;
 using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Core;
@@ -33,12 +34,11 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
     [Tooltip("Retained for serialized prefab compatibility; animation is presentation only.")]
     [SerializeField, Min(0.01f)] private float attackAnimationDuration = 1.25f;
 
-    private Rigidbody body;
-    private EnemyAnimationController animationController;
-    private EnemyCombat combat;
-    private EnemyHealth enemyHealth;
-    private Transform targetPlayer;
-    private float attackCooldownTimer;
+    [Header("组件引用 / Component References")]
+    [SerializeField] private Rigidbody body;
+    [SerializeField] private EnemyAnimationController animationController;
+    [SerializeField] private EnemyCombat combat;
+    [SerializeField] private EnemyHealth enemyHealth;
     private EnemyState offlineState = EnemyState.Idle;
 
     private readonly NetworkVariable<EnemyState> networkState = new(
@@ -46,7 +46,21 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
-    public Transform CurrentTarget => targetPlayer;
+    /// <summary>
+    /// Legacy view property. Target transforms are no longer discovered by the
+    /// enemy motor; the composed runtime exposes an immutable target id and
+    /// position instead.
+    /// </summary>
+    [Obsolete("Use CurrentTargetId and CurrentTargetPosition from the enemy runtime.")]
+    public Transform CurrentTarget => null;
+    public EntityId CurrentTargetId =>
+        enemyHealth != null && enemyHealth.Runtime != null
+            ? enemyHealth.Runtime.Snapshot.TargetId
+            : default(EntityId);
+    public WorldPosition CurrentTargetPosition =>
+        enemyHealth != null && enemyHealth.Runtime != null
+            ? enemyHealth.Runtime.Snapshot.TargetPosition
+            : default(WorldPosition);
     public EnemyState State => UseNetworkState ? networkState.Value : offlineState;
     private bool UseNetworkState => NetworkAuthority.IsNetworkActive && IsSpawned;
 
@@ -55,10 +69,11 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
         if (GetComponent<NetworkObject>() == null && !NetworkAuthority.IsNetworkActive)
             gameObject.AddComponent<NetworkObject>();
 
-        body = GetComponent<Rigidbody>();
-        animationController = GetComponent<EnemyAnimationController>();
-        combat = GetComponent<EnemyCombat>();
-        enemyHealth = GetComponent<EnemyHealth>();
+        if (body == null) body = GetComponent<Rigidbody>();
+        if (animationController == null)
+            animationController = GetComponent<EnemyAnimationController>();
+        if (combat == null) combat = GetComponent<EnemyCombat>();
+        if (enemyHealth == null) enemyHealth = GetComponent<EnemyHealth>();
         offlineState = EnemyState.Idle;
         animationController?.ApplyState(State, true);
     }
@@ -82,8 +97,6 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
     private void ResetRuntimeState()
     {
         StopAllCoroutines();
-        targetPlayer = null;
-        attackCooldownTimer = 0f;
         offlineState = EnemyState.Idle;
         SetVelocity(Vector3.zero);
         animationController?.ApplyState(EnemyState.Idle, true);
@@ -105,8 +118,7 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
             return;
         }
 
-        ResolveTargetAndState();
-        attackCooldownTimer = Mathf.Max(0f, attackCooldownTimer - Time.deltaTime);
+        ResolveDomainIntent();
     }
 
     public void ChangeState(EnemyState newState)
@@ -129,50 +141,22 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
         ChangeState(EnemyState.Knockback);
     }
 
-    private void ResolveTargetAndState()
+    private void ResolveDomainIntent()
     {
-        if (targetPlayer == null)
-            targetPlayer = ResolveTargetTransform();
-        if (targetPlayer == null)
+        EnemyIntent intent = enemyHealth.Runtime.Decide();
+        if (!intent.HasTarget)
         {
             SetVelocity(Vector3.zero);
             ChangeState(EnemyState.Idle);
             return;
         }
-
-        EntityId targetId = EnemyLegacyEntityIds.Resolve(targetPlayer.gameObject);
-        if (!targetId.IsValid)
-        {
-            SetVelocity(Vector3.zero);
-            ChangeState(EnemyState.Idle);
-            return;
-        }
-
-        Vector3 position = transform.position;
-        Vector3 targetPosition = targetPlayer.position;
-        float distance = Vector3.Distance(position, targetPosition);
-        WorldPosition self = ToWorldPosition(position);
-        WorldPosition target = ToWorldPosition(targetPosition);
-        EnemyPerceptionData perception = new EnemyPerceptionData(
-            enemyHealth.Runtime.Id,
-            self,
-            targetId,
-            target,
-            distance,
-            true,
-            true);
-        EnemyIntent intent = enemyHealth.Runtime.Decide(in perception);
 
         if (intent.ShouldAttack)
         {
             SetVelocity(Vector3.zero);
             ChangeState(EnemyState.isAttacking);
-            if (attackCooldownTimer <= 0f)
-            {
-                combat?.Attack();
+            if (combat != null && combat.TryAttack())
                 enemyHealth.Runtime.RecordAttack(Time.time);
-                attackCooldownTimer = enemyHealth.GetStatValue(EnemyStatType.AttackCooldown);
-            }
             return;
         }
 
@@ -196,19 +180,10 @@ public sealed class FlowFieldEnemy : NetworkBehaviour, INetworkPoolLifecycle
             : EnemyState.Idle);
     }
 
-    private Transform ResolveTargetTransform()
-    {
-        PlayerNetworkState player = NetworkPlayerRegistry.GetClosestAlive(transform.position);
-        if (player != null) return player.transform;
-
-        FlowFieldManager manager = FindFirstObjectByType<FlowFieldManager>();
-        return manager != null ? manager.player : null;
-    }
-
     public void FinishAttack()
     {
         if (!NetworkAuthority.IsServerOrOffline(this)) return;
-        ChangeState(targetPlayer == null ? EnemyState.Idle : EnemyState.isChasing);
+        ChangeState(CurrentTargetId.IsValid ? EnemyState.isChasing : EnemyState.Idle);
     }
 
     private void HandleNetworkStateChanged(EnemyState previous, EnemyState next) =>

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using VampireHunt.Boss.Domain;
 using VampireHunt.Enemies.Contracts;
 using VampireHunt.Player.Contracts;
 using VampireHunt.Player.Domain;
+using VampireHunt.Presentation.Contracts;
 using VampireHunt.Spawning.Contracts;
 
 namespace VampireHunt.Bootstrap
@@ -175,6 +177,37 @@ namespace VampireHunt.Bootstrap
     public interface ICompositionFactoryProvider
     {
         CompositionFactorySet CreateFactories();
+    }
+
+    /// <summary>
+    /// Optional seam implemented by Unity presentation adapters that consume
+    /// the authoritative client event stream. Bootstrap owns the binding and
+    /// lifetime; the adapter remains free of composition lookups.
+    /// </summary>
+    public interface IRuntimeGameplayEventStreamBinding
+    {
+        void Bind(IGameplayEventStream events);
+    }
+
+    /// <summary>
+    /// Optional seam for Unity presentation adapters that need the camera
+    /// explicitly authored on SceneBindings. A null camera releases the
+    /// binding when an additive scene unloads or composition is disposed.
+    /// </summary>
+    public interface IRuntimeCameraBinding
+    {
+        void BindCamera(Camera camera);
+    }
+
+    /// <summary>
+    /// Unity-side seam for explicit Boss target composition. Bootstrap owns
+    /// player selection; the Boss shell only accepts or clears the supplied
+    /// Transform and never discovers Players or Cameras itself.
+    /// </summary>
+    public interface IBossTargetBinding
+    {
+        bool TryBindTarget(Transform target);
+        void ClearBoundTarget();
     }
 
     public sealed class DelegateModuleFactory : IModuleFactory

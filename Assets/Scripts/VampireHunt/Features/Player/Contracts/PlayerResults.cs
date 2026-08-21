@@ -5,18 +5,6 @@ using VampireHunt.Core;
 
 namespace VampireHunt.Player.Contracts
 {
-    public enum MovementVerdictCode
-    {
-        Accepted = 0,
-        Corrected = 1,
-        InvalidPose = 2,
-        TooFast = 3,
-        OutOfBounds = 4,
-        ThroughWall = 5,
-        DashNotAuthorized = 6,
-        MissingPlayer = 7
-    }
-
     public readonly struct MovementPose
     {
         public WorldPosition Position { get; }
@@ -47,35 +35,6 @@ namespace VampireHunt.Player.Contracts
             !float.IsNaN(position.X) && !float.IsInfinity(position.X) &&
             !float.IsNaN(position.Y) && !float.IsInfinity(position.Y) &&
             !float.IsNaN(position.Z) && !float.IsInfinity(position.Z);
-    }
-
-    public readonly struct MovementVerdict
-    {
-        public MovementVerdictCode Code { get; }
-        public MovementVerdictCode Reason => Code;
-        public MovementPose AuthoritativePose { get; }
-        public MovementPose CorrectedPose => AuthoritativePose;
-        public bool Accepted => Code == MovementVerdictCode.Accepted;
-        public bool IsCorrected => Code == MovementVerdictCode.Corrected;
-        public bool RequiresCorrection => IsCorrected || !Accepted;
-        public bool WasCorrected => RequiresCorrection;
-
-        public MovementVerdict(
-            MovementVerdictCode code,
-            MovementPose authoritativePose)
-        {
-            Code = code;
-            AuthoritativePose = authoritativePose;
-        }
-
-        public static MovementVerdict Accept(MovementPose pose) =>
-            new(MovementVerdictCode.Accepted, pose);
-
-        public static MovementVerdict Correct(
-            MovementPose authoritativePose,
-            MovementVerdictCode reason) =>
-            new(reason == MovementVerdictCode.Accepted ? MovementVerdictCode.Corrected : reason,
-                authoritativePose);
     }
 
     public readonly struct BloodPactStack : IEquatable<BloodPactStack>

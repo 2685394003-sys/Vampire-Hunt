@@ -1,24 +1,13 @@
 using System;
-using UnityEngine;
 using VampireHunt.Core;
 using VampireHunt.Player.Contracts;
 using EntityId = VampireHunt.Core.EntityId;
 
 namespace VampireHunt.Infrastructure.Input.Contracts
 {
-    public interface IMovementCorrectionPort
-    {
-        void ForcePose(EntityId playerId, MovementPose pose);
-    }
-
     public interface IPlayerPoseTransport
     {
         void SubmitPose(EntityId playerId, MovementPose pose);
-    }
-
-    public interface IPlayerTransformResolver
-    {
-        bool TryGet(EntityId playerId, out Transform transform);
     }
 
     public interface IAimWorldPositionSource

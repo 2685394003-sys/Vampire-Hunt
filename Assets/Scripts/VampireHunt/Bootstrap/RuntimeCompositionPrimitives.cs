@@ -184,7 +184,7 @@ namespace VampireHunt.Bootstrap
     public enum RuntimeSimulationPhase
     {
         CommandCollection = 1,
-        MovementValidation = 2,
+        PlayerPoseIngestion = 2,
         PlayerCommands = 3,
         EnemySpawning = 4,
         EnemySimulation = 5,

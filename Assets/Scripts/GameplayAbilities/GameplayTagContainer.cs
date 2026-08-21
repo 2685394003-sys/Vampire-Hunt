@@ -1,79 +1,28 @@
 using System;
 using System.Collections.Generic;
+using VampireHunt.Abilities.Domain;
 
 /// <summary>
-/// Reference-counted hierarchical tags. Adding State.Buff.Berserker also grants
-/// State and State.Buff, so tag queries stay O(1) regardless of tree depth.
+/// Serialization/source-compatibility facade for the Abilities domain tag set.
+/// Adding State.Buff.Berserker also grants State and State.Buff, so tag queries
+/// stay O(1) regardless of tree depth.
 /// </summary>
+[Obsolete("Use VampireHunt.Abilities.Domain.GameplayTagSet from the ability runtime.")]
 public sealed class GameplayTagContainer
 {
-    private readonly Dictionary<string, int> counts = new(StringComparer.Ordinal);
+    private readonly GameplayTagSet tags = new();
 
-    public int Count => counts.Count;
+    public int Count => tags.Count;
 
-    public bool Add(string tag)
-    {
-        tag = Normalize(tag);
-        if (tag == null) return false;
+    public bool Add(string tag) => tags.Add(tag);
 
-        AddCount(tag);
-        for (int index = tag.LastIndexOf('.'); index > 0; index = tag.LastIndexOf('.', index - 1))
-            AddCount(tag.Substring(0, index));
-        return true;
-    }
+    public bool Remove(string tag) => tags.Remove(tag);
 
-    public bool Remove(string tag)
-    {
-        tag = Normalize(tag);
-        if (tag == null || !counts.ContainsKey(tag)) return false;
+    public bool Has(string tag) => tags.Has(tag);
 
-        RemoveCount(tag);
-        for (int index = tag.LastIndexOf('.'); index > 0; index = tag.LastIndexOf('.', index - 1))
-            RemoveCount(tag.Substring(0, index));
-        return true;
-    }
+    public bool HasAll(IReadOnlyList<string> requiredTags) => tags.HasAll(requiredTags);
 
-    public bool Has(string tag)
-    {
-        tag = Normalize(tag);
-        return tag != null && counts.ContainsKey(tag);
-    }
+    public bool HasAny(IReadOnlyList<string> anyTags) => tags.HasAny(anyTags);
 
-    public bool HasAll(IReadOnlyList<string> tags)
-    {
-        if (tags == null) return true;
-        for (int index = 0; index < tags.Count; index++)
-            if (!Has(tags[index])) return false;
-        return true;
-    }
-
-    public bool HasAny(IReadOnlyList<string> tags)
-    {
-        if (tags == null) return false;
-        for (int index = 0; index < tags.Count; index++)
-            if (Has(tags[index])) return true;
-        return false;
-    }
-
-    public void Clear() => counts.Clear();
-
-    private void AddCount(string tag)
-    {
-        counts.TryGetValue(tag, out int count);
-        counts[tag] = count + 1;
-    }
-
-    private void RemoveCount(string tag)
-    {
-        if (!counts.TryGetValue(tag, out int count)) return;
-        if (count <= 1) counts.Remove(tag);
-        else counts[tag] = count - 1;
-    }
-
-    private static string Normalize(string tag)
-    {
-        if (string.IsNullOrWhiteSpace(tag)) return null;
-        tag = tag.Trim().Trim('.');
-        return tag.Length > 0 ? tag : null;
-    }
+    public void Clear() => tags.Clear();
 }

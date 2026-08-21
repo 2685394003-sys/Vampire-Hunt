@@ -27,6 +27,7 @@ namespace VampireHunt.Player.Application
         private readonly PlayerCombatService combat;
         private readonly IPlayerDamageResolver damageResolver;
         private readonly IMovementClock clock;
+        private readonly IPlayerPoseSink poseSink;
         private readonly PlayerRuntimeValues values;
         private PlayerSnapshot snapshot;
         private bool disposed;
@@ -42,7 +43,8 @@ namespace VampireHunt.Player.Application
             IMeleeHitQuery hitQuery = null,
             IPlayerPositionQuery positions = null,
             IBloodPactCatalog bloodPactCatalog = null,
-            IPlayerRandom random = null)
+            IPlayerRandom random = null,
+            IPlayerPoseSink poseSink = null)
         {
             if (!playerId.IsValid) throw new ArgumentException("A valid player id is required.", nameof(playerId));
             this.values = values;
@@ -56,6 +58,7 @@ namespace VampireHunt.Player.Application
             this.clock = clock == null ? null : new GameClockAdapter(clock);
             aggregate = spec.CreateAggregate(playerId);
             repository = new SinglePlayerRepository(aggregate);
+            this.poseSink = poseSink;
             progression = new PlayerProgressionService(repository);
             this.offers = ResolveBloodPactService(offers, repository, bloodPactCatalog, random);
             commands = new PlayerCommandService(
@@ -349,6 +352,12 @@ namespace VampireHunt.Player.Application
             return aggregate.Vitals.IsInvincibleAt(now);
         }
 
+        public void SubmitPose(MovementPose pose)
+        {
+            ThrowIfDisposed();
+            if (pose.IsFinite) poseSink?.SetPose(PlayerId, pose);
+        }
+
         public void Tick(float deltaTime)
         {
             ThrowIfDisposed();
@@ -495,7 +504,8 @@ namespace VampireHunt.Player.Application
             IMeleeHitQuery hitQuery = null,
             IPlayerPositionQuery positions = null,
             IBloodPactCatalog bloodPactCatalog = null,
-            IPlayerRandom random = null)
+            IPlayerRandom random = null,
+            IPlayerPoseSink poseSink = null)
         {
             return Create(
                 playerId,
@@ -508,7 +518,8 @@ namespace VampireHunt.Player.Application
                 hitQuery,
                 positions,
                 bloodPactCatalog,
-                random);
+                random,
+                poseSink);
         }
 
         internal static IPlayerRuntimePort Create(
@@ -522,7 +533,8 @@ namespace VampireHunt.Player.Application
             IMeleeHitQuery hitQuery = null,
             IPlayerPositionQuery positions = null,
             IBloodPactCatalog bloodPactCatalog = null,
-            IPlayerRandom random = null)
+            IPlayerRandom random = null,
+            IPlayerPoseSink poseSink = null)
         {
             return new PlayerRuntimeEndpoint(
                 playerId,
@@ -535,7 +547,8 @@ namespace VampireHunt.Player.Application
                 hitQuery,
                 positions,
                 bloodPactCatalog,
-                random);
+                random,
+                poseSink);
         }
     }
 

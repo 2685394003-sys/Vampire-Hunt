@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Server-side events that can activate abilities or refresh effects.</summary>
+/// <summary>
+/// Legacy serialized trigger values. New runtime events are owned by the
+/// Abilities/Combat contracts and this enum is retained for asset compatibility.
+/// </summary>
 public enum GameplayEventType
 {
     None = 0,
@@ -82,8 +85,8 @@ public enum GameplayCueEventType : byte
 }
 
 /// <summary>
-/// Immutable payload routed through an ability system. Gameplay changes are
-/// produced on the server; replicated presentation is handled by gameplay cues.
+/// Legacy serialized event payload. It is translated at the compatibility seam;
+/// new application code must publish a module GameplayEvent instead.
 /// </summary>
 public readonly struct GameplayEventData
 {
@@ -126,9 +129,9 @@ public readonly struct GameplayCueEvent
 }
 
 /// <summary>
-/// Bridge between the engine-agnostic effect runner and an owning gameplay
-/// entity. PlayerNetworkState is the first implementation; enemies can adopt
-/// the same boundary without changing the effect runner.
+/// Legacy host bridge retained for existing Prefab/AnimationEvent callers.
+/// New gameplay code must depend on narrow module contracts; this broad surface
+/// is not a new rule authority and should not receive additional methods.
 /// </summary>
 public interface IGameplayAbilitySystemHost
 {
@@ -262,8 +265,9 @@ public sealed class GameplayExecutionDefinition
 }
 
 /// <summary>
-/// Immutable, design-authored gameplay effect. Runtime state lives exclusively
-/// in GameplayEffectSpec/ActiveGameplayEffect, never in this definition.
+/// Serialization-only design-authored effect. The authoritative runtime spec is
+/// `VampireHunt.Abilities.Contracts.GameplayEffectSpec`; this legacy definition
+/// must be converted before execution.
 /// </summary>
 [Serializable]
 public sealed class GameplayEffectDefinition
@@ -361,8 +365,8 @@ public sealed class GameplayEffectDefinition
 }
 
 /// <summary>
-/// A granted ability listens for one gameplay event and applies one or more
-/// effects. Game-specific multi-stage behaviours can later wrap the same API.
+/// Serialization-only legacy ability row. Composition converts its data to the
+/// Abilities module; do not put execution or health rules in this type.
 /// </summary>
 [Serializable]
 public sealed class GameplayAbilityDefinition

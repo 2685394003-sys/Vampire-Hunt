@@ -82,212 +82,6 @@ namespace VampireHunt.Tests.Player
         }
 
         [Test]
-        public void MovementValidation_RejectsAnInitialPoseWithAStaleClientTimestamp()
-        {
-            InMemoryRepository repository = new(CreatePlayer());
-            InMemoryMovementState movement = new();
-            RecordingMovementCorrector corrector = new();
-            MovementValidationService validator = new(
-                repository,
-                movement,
-                corrector,
-                new OpenMovementWorld(),
-                new FixedMovementClock(100d),
-                new MovementValidationOptions(5f, maximumReportAge: 0.25d, maximumFutureSkew: 0.1d));
-
-            MovementVerdict verdict = validator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 90d, 1u));
-
-            Assert.That(verdict.Accepted, Is.False,
-                "An old client timestamp must not seed the authoritative movement history.");
-            Assert.That(verdict.Code, Is.EqualTo(MovementVerdictCode.InvalidPose));
-        }
-
-        [Test]
-        public void MovementValidation_RejectsStaleReportsBeforeGrantingDistanceBudget()
-        {
-            InMemoryRepository repository = new(CreatePlayer());
-            MovementPose previous = new(
-                WorldPosition.Origin,
-                new MoveVector(1f, 0f),
-                reportedAt: 90d,
-                sequence: 1u);
-            InMemoryMovementState movement = new(previous);
-            RecordingMovementCorrector corrector = new();
-            MovementValidationService validator = new(
-                repository,
-                movement,
-                corrector,
-                new OpenMovementWorld(),
-                new FixedMovementClock(100d),
-                new MovementValidationOptions(5f, maximumReportAge: 0.25d, maximumFutureSkew: 0.1d));
-
-            MovementVerdict verdict = validator.Validate(
-                PlayerId,
-                new MovementPose(
-                    new WorldPosition(1f, 0f, 0f),
-                    new MoveVector(1f, 0f),
-                    reportedAt: 90.25d,
-                    sequence: 2u));
-
-            Assert.That(verdict.Accepted, Is.False,
-                "A stale client delta must not create movement budget when no server time has elapsed.");
-            Assert.That(verdict.Code, Is.EqualTo(MovementVerdictCode.InvalidPose));
-            Assert.That(corrector.Corrections, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void MovementValidation_UsesServerReceiveTime_AndAcceptsInclusiveTimestampBounds()
-        {
-            InMemoryRepository repository = new(CreatePlayer());
-            InMemoryMovementState movement = new();
-            MutableMovementClock clock = new() { Now = 100d };
-            MovementValidationService validator = new(
-                repository,
-                movement,
-                new RecordingMovementCorrector(),
-                new OpenMovementWorld(),
-                clock,
-                new MovementValidationOptions(5f, maximumReportAge: 0.25d, maximumFutureSkew: 0.1d));
-
-            MovementVerdict lowerBoundary = validator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 99.75d, 1u));
-
-            clock.Now = 100.1d;
-            MovementVerdict upperBoundary = validator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100.2d, 2u));
-
-            Assert.That(lowerBoundary.Accepted, Is.True);
-            Assert.That(upperBoundary.Accepted, Is.True,
-                "ReportedAt bounds are inclusive, while the movement budget is based on server receive time.");
-        }
-
-        [Test]
-        public void MovementValidation_AuthorizesDashAndUsesDashBudget()
-        {
-            PlayerAggregate player = CreatePlayer();
-            InMemoryRepository repository = new(player);
-            InMemoryMovementState movement = new();
-            MutableMovementClock clock = new() { Now = 100d };
-            MovementValidationService validator = new(
-                repository,
-                movement,
-                new RecordingMovementCorrector(),
-                new OpenMovementWorld(),
-                clock,
-                new MovementValidationOptions(5f, dashSpeedMultiplier: 2f));
-
-            Assert.That(validator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
-
-            clock.Now = 100.1d;
-            MovementVerdict dash = validator.Validate(
-                PlayerId,
-                new MovementPose(new WorldPosition(0.9f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u, true));
-
-            Assert.That(dash.Accepted, Is.True);
-            Assert.That(player.MobilityState.Stamina, Is.EqualTo(85f).Within(0.0001f));
-            Assert.That(player.MobilityState.IsDashing(clock.Now), Is.True);
-        }
-
-        [Test]
-        public void MovementValidation_RejectsOutOfBoundsAndThroughWallWithoutCommittingEitherPose()
-        {
-            PlayerAggregate boundsPlayer = CreatePlayer();
-            InMemoryMovementState boundsMovement = new();
-            MutableMovementClock boundsClock = new() { Now = 100d };
-            MovementValidationService boundsValidator = new(
-                new InMemoryRepository(boundsPlayer),
-                boundsMovement,
-                new RecordingMovementCorrector(),
-                new BoundsBlockingMovementWorld(false, true),
-                boundsClock,
-                new MovementValidationOptions(5f));
-            Assert.That(boundsValidator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
-
-            boundsClock.Now = 100.1d;
-            MovementVerdict outOfBounds = boundsValidator.Validate(
-                PlayerId,
-                new MovementPose(new WorldPosition(1f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u));
-
-            PlayerAggregate wallPlayer = CreatePlayer();
-            InMemoryMovementState wallMovement = new();
-            MutableMovementClock wallClock = new() { Now = 100d };
-            MovementValidationService wallValidator = new(
-                new InMemoryRepository(wallPlayer),
-                wallMovement,
-                new RecordingMovementCorrector(),
-                new BoundsBlockingMovementWorld(true, false),
-                wallClock,
-                new MovementValidationOptions(5f));
-            Assert.That(wallValidator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
-
-            wallClock.Now = 100.1d;
-            MovementVerdict throughWall = wallValidator.Validate(
-                PlayerId,
-                new MovementPose(new WorldPosition(0.1f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u));
-
-            Assert.That(outOfBounds.Code, Is.EqualTo(MovementVerdictCode.OutOfBounds));
-            Assert.That(throughWall.Code, Is.EqualTo(MovementVerdictCode.ThroughWall));
-            Assert.That(boundsMovement.TryGetLastAcceptedPose(PlayerId, out MovementPose boundsPose), Is.True);
-            Assert.That(boundsPose.Position, Is.EqualTo(WorldPosition.Origin));
-            Assert.That(wallMovement.TryGetLastAcceptedPose(PlayerId, out MovementPose wallPose), Is.True);
-            Assert.That(wallPose.Position, Is.EqualTo(WorldPosition.Origin));
-        }
-
-        [Test]
-        public void MovementValidation_ContinuousViolationsDoNotAdvanceHistoryOrUseClientDelta()
-        {
-            InMemoryRepository repository = new(CreatePlayer());
-            InMemoryMovementState movement = new();
-            RecordingMovementCorrector corrector = new();
-            MutableMovementClock clock = new() { Now = 100d };
-            MovementValidationService validator = new(
-                repository,
-                movement,
-                corrector,
-                new OpenMovementWorld(),
-                clock,
-                new MovementValidationOptions(5f));
-
-            Assert.That(validator.Validate(
-                PlayerId,
-                new MovementPose(WorldPosition.Origin, new MoveVector(1f, 0f), 100d, 1u)).Accepted, Is.True);
-
-            clock.Now = 100.1d;
-            MovementVerdict firstViolation = validator.Validate(
-                PlayerId,
-                new MovementPose(new WorldPosition(2f, 0f, 0f), new MoveVector(1f, 0f), 100.1d, 2u));
-            clock.Now = 100.2d;
-            MovementVerdict secondViolation = validator.Validate(
-                PlayerId,
-                new MovementPose(new WorldPosition(2f, 0f, 0f), new MoveVector(1f, 0f), 100.2d, 3u));
-
-            Assert.That(firstViolation.Code, Is.EqualTo(MovementVerdictCode.TooFast));
-            Assert.That(secondViolation.Code, Is.EqualTo(MovementVerdictCode.TooFast));
-            Assert.That(corrector.Corrections, Is.EqualTo(2));
-            Assert.That(movement.TryGetLastAcceptedPose(PlayerId, out MovementPose previous), Is.True);
-            Assert.That(previous.Sequence, Is.EqualTo(1u));
-
-            // At 100.4 the server has granted exactly two metres from the
-            // accepted receive at 100.0. A client-time-delta implementation
-            // would still use the rejected packet's 0.1s and remain red.
-            clock.Now = 100.4d;
-            MovementVerdict recovered = validator.Validate(
-                PlayerId,
-                new MovementPose(new WorldPosition(2f, 0f, 0f), new MoveVector(1f, 0f), 100.4d, 4u));
-            Assert.That(recovered.Accepted, Is.True);
-        }
-
-        [Test]
         public void Aggregate_RejectsStaleAndWrappedCommandSequences()
         {
             PlayerAggregate player = CreatePlayer();
@@ -425,6 +219,27 @@ namespace VampireHunt.Tests.Player
                 "The command path must reach the hit query and damage resolver exactly once.");
         }
 
+        [Test]
+        public void RuntimeEndpoint_SubmitPoseRecordsVerticalPositionWithoutValidation()
+        {
+            RecordingPoseSink poses = new();
+            IPlayerRuntimePort runtime = PlayerRuntimeEndpointFactory.Create(
+                PlayerId,
+                CreateSpec(),
+                poseSink: poses);
+            MovementPose fallingPose = new(
+                new WorldPosition(250f, -30f, -400f),
+                new MoveVector(1f, 0f),
+                reportedAt: -999d,
+                sequence: 77u);
+
+            runtime.SubmitPose(fallingPose);
+
+            Assert.That(poses.LastPlayerId, Is.EqualTo(PlayerId));
+            Assert.That(poses.LastPose.Position, Is.EqualTo(fallingPose.Position),
+                "Owner poses, including gravity-driven Y movement, must be stored without speed or bounds correction.");
+        }
+
         private static PlayerSpec CreateSpec()
         {
             Dictionary<PlayerStat, float> values = new()
@@ -512,69 +327,16 @@ namespace VampireHunt.Tests.Player
             public IKnockbackReceiver TryGetKnockbackReceiver(EntityId id) => null;
         }
 
-        private sealed class FixedMovementClock : IMovementClock
+        private sealed class RecordingPoseSink : IPlayerPoseSink
         {
-            public FixedMovementClock(double now) => Now = now;
-            public double Now { get; }
-        }
+            public EntityId LastPlayerId { get; private set; }
+            public MovementPose LastPose { get; private set; }
 
-        private sealed class MutableMovementClock : IMovementClock
-        {
-            public double Now { get; set; }
-        }
-
-        private sealed class InMemoryMovementState : IMovementState
-        {
-            private bool hasPose;
-            private MovementPose pose;
-
-            public InMemoryMovementState() { }
-
-            public InMemoryMovementState(MovementPose pose)
+            public void SetPose(EntityId playerId, MovementPose pose)
             {
-                this.pose = pose;
-                hasPose = true;
+                LastPlayerId = playerId;
+                LastPose = pose;
             }
-
-            public bool TryGetLastAcceptedPose(EntityId playerId, out MovementPose result)
-            {
-                result = pose;
-                return hasPose && playerId == PlayerId;
-            }
-
-            public void CommitAcceptedPose(EntityId playerId, MovementPose accepted)
-            {
-                if (playerId != PlayerId) return;
-                pose = accepted;
-                hasPose = true;
-            }
-        }
-
-        private sealed class RecordingMovementCorrector : IMovementCorrector
-        {
-            public int Corrections { get; private set; }
-            public void ForcePose(EntityId playerId, MovementPose pose) => Corrections++;
-        }
-
-        private sealed class OpenMovementWorld : IMovementWorldQuery
-        {
-            public bool IsInsideBounds(WorldPosition position) => true;
-            public bool IsPathClear(WorldPosition from, WorldPosition to) => true;
-        }
-
-        private sealed class BoundsBlockingMovementWorld : IMovementWorldQuery
-        {
-            private readonly bool insideBounds;
-            private readonly bool pathClear;
-
-            public BoundsBlockingMovementWorld(bool insideBounds, bool pathClear)
-            {
-                this.insideBounds = insideBounds;
-                this.pathClear = pathClear;
-            }
-
-            public bool IsInsideBounds(WorldPosition position) => insideBounds || position == WorldPosition.Origin;
-            public bool IsPathClear(WorldPosition from, WorldPosition to) => pathClear;
         }
 
         private sealed class FakeTarget : IMeleeHitTarget

@@ -22,6 +22,8 @@ namespace VampireHunt.Enemies.Contracts
         void ResetForDespawn();
         DamageResult ApplyDamage(in ResolvedDamage damage);
         int ApplyHealing(int amount);
+        EnemyPerceptionData Perceive(float radius);
+        EnemyIntent Decide();
         EnemyIntent Decide(in EnemyPerceptionData perception);
         AttackIntent CreateAttackIntent(in EnemyCombatContextData context);
         EnemyDeathResultData SettleDeath(EntityId killerId);
@@ -58,6 +60,18 @@ namespace VampireHunt.Enemies.Contracts
         public float Distance { get; }
         public bool HasLineOfTravel { get; }
         public bool TargetIsAlive { get; }
+
+        public static EnemyPerceptionData NoTarget(
+            EntityId selfId,
+            WorldPosition selfPosition) =>
+            new EnemyPerceptionData(
+                selfId,
+                selfPosition,
+                default(EntityId),
+                default(WorldPosition),
+                0f,
+                false,
+                false);
     }
 
     /// <summary>

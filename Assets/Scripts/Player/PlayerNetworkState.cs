@@ -5,6 +5,9 @@ using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Combat.Contracts;
 using VampireHunt.Core;
+using VampireHunt.Infrastructure.Input.Contracts;
+using VampireHunt.Infrastructure.Netcode.Contracts;
+using VampireHunt.Infrastructure.Netcode.Player;
 using VampireHunt.Player.Contracts;
 using EntityId = VampireHunt.Core.EntityId;
 
@@ -15,18 +18,15 @@ using EntityId = VampireHunt.Core.EntityId;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NetworkObject))]
-public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
-    IGameplayAbilitySystemHost, IPlayerRuntimeBinding, IPlayerBloodPactReadModel
+public sealed class PlayerNetworkState : PlayerPoseNetworkAdapter, IPlayerRunStats,
+    IGameplayAbilitySystemHost, IPlayerRuntimeBinding, IPlayerBloodPactReadModel,
+    IPlayerPoseTransport, IPlayerPoseOwnershipBinding
 {
     private static readonly EntityIdAllocator CompatibilityIds = new(5000000UL);
-    // Kept for source compatibility. Blood Pact cost is no longer read by the
-    // UI or spent here; the authoritative offer supplies its own Cost.
-    [Obsolete("Blood Pact cost is owned by BloodPactOfferService; read BloodPactOffer.Cost.")]
-    public const float BloodPactScarletCost = 100f;
-
     [SerializeField] private PlayerStatsConfig baseStats;
     [SerializeField] private bool hideVisualsWhenDead = true;
     [SerializeField] private ulong logicalPlayerId;
+    [NonSerialized] private bool logicalPlayerIdWasGenerated;
 
     // Network variables are a replication cache only. They are never used as
     // an alternative domain store when a runtime port is bound.
@@ -52,6 +52,7 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
     private readonly NetworkVariable<int> networkCoins = ServerVariable(0);
     private readonly NetworkVariable<bool> networkAlive = ServerVariable(true);
     private readonly NetworkVariable<bool> networkInitialized = ServerVariable(false);
+    private readonly NetworkVariable<ulong> networkLogicalPlayerId = ServerVariable(0UL);
     private readonly NetworkVariable<uint> networkBloodPactOfferVersion = ServerVariable(0u);
     private readonly NetworkVariable<int> networkBloodPactOfferCost = ServerVariable(0);
     private readonly NetworkVariable<FixedString64Bytes> networkBloodPactOfferChoice0 =
@@ -84,6 +85,30 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
     public EntityId LogicalPlayerId => ResolveLogicalPlayerId();
     public IPlayerRuntimePort RuntimePort => runtime;
     public PlayerSnapshot Snapshot => ReadSnapshot();
+
+    /// <summary>
+    /// Returns the server-assigned identity without allocating a compatibility
+    /// id on a network client before Bootstrap has replicated the binding.
+    /// </summary>
+    public bool TryGetAuthoritativeLogicalPlayerId(out EntityId playerId)
+    {
+        if (runtime != null && runtime.PlayerId.IsValid)
+        {
+            playerId = runtime.PlayerId;
+            return true;
+        }
+
+        if (NetworkAuthority.IsNetworkActive)
+        {
+            if (IsSpawned && EntityId.TryCreate(networkLogicalPlayerId.Value, out playerId))
+                return true;
+            playerId = EntityId.Invalid;
+            return false;
+        }
+
+        playerId = LogicalPlayerId;
+        return playerId.IsValid;
+    }
 
     public int MaxHealth => ReadSnapshot().MaxHealth;
     public int CurrentHealth => ReadSnapshot().CurrentHealth;
@@ -178,14 +203,38 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
     /// <summary>Binds the application endpoint supplied by the composition root.</summary>
     public bool TryBind(IPlayerRuntimePort next)
     {
-        if (next == null || (logicalPlayerId != 0UL && next.PlayerId != LogicalPlayerId)) return false;
+        // A prefab with no serialized logical id receives a temporary
+        // compatibility id when Awake builds its fallback snapshot. Bootstrap
+        // must still be able to replace that temporary value with the server's
+        // allocated runtime id; an explicitly serialized id remains a hard
+        // compatibility check.
+        if (next == null ||
+            (logicalPlayerId != 0UL && !logicalPlayerIdWasGenerated && next.PlayerId != LogicalPlayerId))
+            return false;
         if (runtime != null) runtime.SnapshotChanged -= HandleRuntimeSnapshotChanged;
         runtime = next;
+        BindPoseRuntime(next);
+        logicalPlayerId = next.PlayerId.Value;
+        logicalPlayerIdWasGenerated = false;
+        if (UseNetworkValues && IsServer) networkLogicalPlayerId.Value = logicalPlayerId;
         runtime.SnapshotChanged += HandleRuntimeSnapshotChanged;
         currentOffer = default;
         CaptureRuntimeSnapshot();
         PublishAll();
         return true;
+    }
+
+    /// <summary>Injects the server-side sender/owner directory.</summary>
+    public void ConfigurePoseOwnership(INetworkCommandOwnership ownership) => BindPoseOwnership(ownership);
+
+    /// <summary>
+    /// OwnerMovementMotor transport. Offline validation enters the same
+    /// endpoint directly; network clients send only the versioned wire pose.
+    /// </summary>
+    public void SubmitPose(EntityId playerId, MovementPose pose)
+    {
+        if (NetworkAuthority.IsNetworkActive && playerId != LogicalPlayerId) return;
+        SubmitOwnerPose(playerId, pose);
     }
 
     public bool TryGetBloodPactOffer(out BloodPactOffer offer)
@@ -271,12 +320,15 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
 
     public CommandResult RequestAttackIntent(Vector3 aimAt)
     {
-        if (runtime == null || !IsAlive || !NetworkAuthority.IsOwnerOrOffline(this))
+        if (!IsAlive || !NetworkAuthority.IsOwnerOrOffline(this))
             return new CommandResult(CommandResultStatus.Rejected, "Player runtime is unavailable");
         WorldPosition aim = ToWorldPosition(aimAt);
         uint sequence = NextCommandSequence();
         if (!NetworkAuthority.IsNetworkActive)
+        {
+            if (runtime == null) return new CommandResult(CommandResultStatus.Rejected, "Player runtime is unavailable");
             return runtime.SubmitAttack(new AttackCommand(LogicalPlayerId, aim, sequence));
+        }
         if (!IsSpawned || !IsOwner) return new CommandResult(CommandResultStatus.Unauthorized);
         SubmitAttackRpc(aimAt, sequence);
         return CommandResult.Accept(sequence);
@@ -284,12 +336,15 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
 
     public CommandResult RequestDashIntent(Vector3 direction)
     {
-        if (runtime == null || !IsAlive || !NetworkAuthority.IsOwnerOrOffline(this))
+        if (!IsAlive || !NetworkAuthority.IsOwnerOrOffline(this))
             return new CommandResult(CommandResultStatus.Rejected, "Player runtime is unavailable");
         MoveVector move = new(direction.x, 0f, direction.z);
         uint sequence = NextCommandSequence();
         if (!NetworkAuthority.IsNetworkActive)
+        {
+            if (runtime == null) return new CommandResult(CommandResultStatus.Rejected, "Player runtime is unavailable");
             return runtime.SubmitDash(new DashCommand(LogicalPlayerId, move, sequence));
+        }
         if (!IsSpawned || !IsOwner) return new CommandResult(CommandResultStatus.Unauthorized);
         SubmitDashRpc(direction, sequence);
         return CommandResult.Accept(sequence);
@@ -456,28 +511,6 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
 
     [Obsolete("Gameplay cues are emitted by Player Application and consumed by Presenters.")]
     public void EmitGameplayCue(in GameplayCueEvent cueEvent) => GameplayCueRequested?.Invoke(cueEvent);
-
-    [Obsolete("Attack damage is resolved by PlayerCombatService; use IPlayerCommandGateway.")]
-    public int RollAttackDamage(out bool wasCritical)
-    {
-        wasCritical = false;
-        return 0;
-    }
-
-    [Obsolete("Confirmed attack events are produced by CombatApplicationService.")]
-    public void ReportAttackHit(IGameplayAbilitySystemHost target, float damageDealt, bool wasCritical, Vector3 position, int combatTextTargetKey = 0)
-    {
-    }
-
-    [Obsolete("Confirmed effect damage is produced by CombatApplicationService.")]
-    public void ReportGameplayEffectDamage(int damageDealt, Vector3 position, int combatTextTargetKey = 0)
-    {
-    }
-
-    [Obsolete("Enemy death is emitted by EnemyDeathService.")]
-    public void ReportEnemyKilled(Vector3 position)
-    {
-    }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void SubmitAttackRpc(Vector3 aimAt, uint sequence)
@@ -697,9 +730,12 @@ public sealed class PlayerNetworkState : NetworkBehaviour, IPlayerRunStats,
     private EntityId ResolveLogicalPlayerId()
     {
         if (runtime != null && runtime.PlayerId.IsValid) return runtime.PlayerId;
+        if (UseNetworkValues && EntityId.TryCreate(networkLogicalPlayerId.Value, out EntityId replicatedId))
+            return replicatedId;
         if (logicalPlayerId != 0UL) return new EntityId(logicalPlayerId);
         ulong fallback = IsSpawned ? NetworkObjectId : CompatibilityIds.Allocate().Value;
         logicalPlayerId = fallback == 0UL ? CompatibilityIds.Allocate().Value : fallback;
+        logicalPlayerIdWasGenerated = true;
         return new EntityId(logicalPlayerId);
     }
 

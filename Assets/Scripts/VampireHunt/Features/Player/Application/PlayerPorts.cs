@@ -18,58 +18,18 @@ namespace VampireHunt.Player.Application
         bool IsOwner(EntityId playerId, ulong senderId);
     }
 
-    public interface IMovementCorrector
+    /// <summary>
+    /// Stores the latest owner-reported pose for combat and other server-side
+    /// consumers. It performs no speed, bounds or path validation.
+    /// </summary>
+    public interface IPlayerPoseSink
     {
-        void ForcePose(EntityId playerId, MovementPose pose);
-    }
-
-    public interface IMovementState
-    {
-        bool TryGetLastAcceptedPose(EntityId playerId, out MovementPose pose);
-        void CommitAcceptedPose(EntityId playerId, MovementPose pose);
-    }
-
-    public interface IMovementWorldQuery
-    {
-        bool IsInsideBounds(WorldPosition position);
-        bool IsPathClear(WorldPosition from, WorldPosition to);
+        void SetPose(EntityId playerId, MovementPose pose);
     }
 
     public interface IMovementClock
     {
         double Now { get; }
-    }
-
-    public readonly struct MovementValidationOptions
-    {
-        public float MaximumSpeed { get; }
-        public float DashSpeedMultiplier { get; }
-        public double MaximumReportAge { get; }
-        public double MaximumFutureSkew { get; }
-
-        public MovementValidationOptions(
-            float maximumSpeed,
-            float dashSpeedMultiplier = 1f,
-            double maximumReportAge = 0.25d,
-            double maximumFutureSkew = 0.1d)
-        {
-            MaximumSpeed = IsFinite(maximumSpeed) && maximumSpeed >= 0f ? maximumSpeed : 0f;
-            DashSpeedMultiplier = IsFinite(dashSpeedMultiplier) && dashSpeedMultiplier >= 1f
-                ? dashSpeedMultiplier
-                : 1f;
-            MaximumReportAge = IsFinite(maximumReportAge) && maximumReportAge >= 0d
-                ? maximumReportAge
-                : 0d;
-            MaximumFutureSkew = IsFinite(maximumFutureSkew) && maximumFutureSkew >= 0d
-                ? maximumFutureSkew
-                : 0d;
-        }
-
-        private static bool IsFinite(float value) =>
-            !float.IsNaN(value) && !float.IsInfinity(value);
-
-        private static bool IsFinite(double value) =>
-            !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     public interface IMeleeHitTarget

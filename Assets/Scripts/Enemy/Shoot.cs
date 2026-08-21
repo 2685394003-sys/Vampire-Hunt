@@ -13,6 +13,8 @@ public sealed class Shoot : MonoBehaviour, INetworkPoolLifecycle
     private Rigidbody2D body;
     private EnemyStatsConfig sourceStats;
     private EntityId sourceId;
+    private WorldPosition targetPosition;
+    private bool hasTargetPosition;
 
     public void Configure(Transform target, EnemyStatsConfig stats)
     {
@@ -22,6 +24,19 @@ public sealed class Shoot : MonoBehaviour, INetworkPoolLifecycle
     public void Configure(Transform target, EnemyStatsConfig stats, EntityId source)
     {
         targetPlayer = target;
+        targetPosition = target != null
+            ? new WorldPosition(target.position.x, target.position.y, target.position.z)
+            : default(WorldPosition);
+        hasTargetPosition = target != null;
+        sourceStats = stats;
+        sourceId = source;
+    }
+
+    public void Configure(WorldPosition target, EnemyStatsConfig stats, EntityId source)
+    {
+        targetPlayer = null;
+        targetPosition = target;
+        hasTargetPosition = true;
         sourceStats = stats;
         sourceId = source;
     }
@@ -30,6 +45,8 @@ public sealed class Shoot : MonoBehaviour, INetworkPoolLifecycle
     {
         CancelInvoke();
         targetPlayer = null;
+        targetPosition = default(WorldPosition);
+        hasTargetPosition = false;
         sourceStats = null;
         sourceId = default(EntityId);
         if (body == null) body = GetComponent<Rigidbody2D>();
@@ -47,9 +64,11 @@ public sealed class Shoot : MonoBehaviour, INetworkPoolLifecycle
             return;
         }
 
-        if (targetPlayer != null && body != null)
+        if (hasTargetPosition && body != null)
         {
-            Vector2 direction = (targetPlayer.position - transform.position).normalized;
+            Vector2 direction = new Vector2(
+                targetPosition.X - transform.position.x,
+                targetPosition.Z - transform.position.z).normalized;
             body.linearVelocity = direction * ResolveProjectileSpeed();
         }
 

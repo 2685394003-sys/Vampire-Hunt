@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using VampireHunt.Combat.Contracts;
 using VampireHunt.Core;
@@ -110,6 +111,21 @@ namespace VampireHunt.Tests.Modules.Enemies
             Assert.That(runtime.Snapshot.IsAlive, Is.True);
         }
 
+        [Test]
+        public void Decide_UsesAFiniteRadiusForClosestTargetQuery()
+        {
+            RecordingTargetQuery targets = new RecordingTargetQuery();
+            EnemyRuntimeController runtime = new EnemyRuntimeController(
+                new AlwaysWalkableNavigation(),
+                new EntityIdAllocator(40),
+                targets);
+            runtime.ResetForSpawn(new EnemySpec(
+                "basic", 4, 1f, 1, 1f, 0f, EnemyAttackType.Melee, new RewardGrant(0)));
+
+            Assert.DoesNotThrow(() => runtime.Decide());
+            Assert.That(targets.LastRadius, Is.EqualTo(float.MaxValue));
+        }
+
         private sealed class RecordingReward : IRewardService
         {
             public int Count { get; private set; }
@@ -120,6 +136,23 @@ namespace VampireHunt.Tests.Modules.Enemies
         {
             public int Count { get; private set; }
             public void Publish(IGameplayEvent @event) => Count++;
+        }
+
+        private sealed class RecordingTargetQuery : ICombatTargetQuery
+        {
+            public float LastRadius { get; private set; }
+
+            public ICombatTarget FindClosest(in TargetQuery query)
+            {
+                LastRadius = query.Radius;
+                return null;
+            }
+
+            public int CollectInArea(in TargetQuery query, IList<ICombatTarget> buffer)
+            {
+                LastRadius = query.Radius;
+                return 0;
+            }
         }
 
         private sealed class AlwaysWalkableNavigation : INavigationField

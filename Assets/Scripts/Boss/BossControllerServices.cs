@@ -410,39 +410,19 @@ internal sealed class BossPresentationGateway
     }
 }
 
-/// <summary>Scene/physics target discovery adapter. It does not depend on Player types.</summary>
+/// <summary>
+/// Explicit target binding adapter. Target discovery is intentionally absent:
+/// Bootstrap/encounter composition must assign the target, so scene searches
+/// cannot become a second authority for Boss decisions.
+/// </summary>
 internal static class BossTargetResolver
 {
     public static Transform Resolve(Transform current, BossConfig config)
     {
-        if (IsUsable(current))
-        {
-            BossCombatTarget.EnsurePlayerAdapter(current, false);
-            return current;
-        }
-
-        GameObject candidate = FindTaggedPlayer();
-        if (candidate == null && config != null && config.playerLayer.value != 0)
-        {
-            foreach (Collider collider in UnityEngine.Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude))
-            {
-                if (collider != null && (config.playerLayer.value & (1 << collider.gameObject.layer)) != 0)
-                {
-                    candidate = collider.transform.root.gameObject;
-                    break;
-                }
-            }
-        }
-        Transform result = candidate != null ? candidate.transform : null;
-        if (result != null) BossCombatTarget.EnsurePlayerAdapter(result, true);
-        return result;
+        if (!IsUsable(current)) return null;
+        BossCombatTarget.EnsurePlayerAdapter(current, false);
+        return current;
     }
 
     public static bool IsUsable(Transform target) => target != null && target.gameObject.activeInHierarchy;
-
-    private static GameObject FindTaggedPlayer()
-    {
-        try { return GameObject.FindGameObjectWithTag("Player"); }
-        catch (UnityException) { return null; }
-    }
 }

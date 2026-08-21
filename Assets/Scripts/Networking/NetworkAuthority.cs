@@ -62,7 +62,12 @@ public static class NetworkSpawnUtility
 
         if (!NetworkAuthority.IsNetworkActive)
         {
-            if (offlineParent != null)
+            // NGO observes Transform.SetParent even while offline.  A
+            // NetworkObject with AutoObjectParentSync enabled rejects any
+            // parent change before it is spawned or while its manager is not
+            // listening, so keep pooled network instances at the scene root.
+            if (offlineParent != null &&
+                instance.GetComponentInChildren<NetworkObject>(true) == null)
             {
                 instance.transform.SetParent(offlineParent, true);
             }
@@ -117,17 +122,16 @@ internal static class NetworkObjectPoolRegistry
     private sealed class PrefabPool : INetworkPrefabInstanceHandler
     {
         private readonly GameObject prefab;
-        private readonly Transform root;
         private readonly Stack<NetworkObject> available = new();
         private readonly HashSet<EntityId> activeEntityIds = new();
+        private NetworkManager registeredManager;
         private int maxRetained;
 
         public int ActiveCount => activeEntityIds.Count;
 
-        public PrefabPool(GameObject prefab, Transform root, int prewarmCount, int maxRetained)
+        public PrefabPool(GameObject prefab, int prewarmCount, int maxRetained)
         {
             this.prefab = prefab;
-            this.root = root;
             this.maxRetained = Mathf.Max(1, maxRetained);
             int count = Mathf.Clamp(prewarmCount, 0, this.maxRetained);
             for (int i = 0; i < count; i++)
@@ -142,16 +146,41 @@ internal static class NetworkObjectPoolRegistry
             maxRetained = Mathf.Max(maxRetained, requestedMaxRetained);
         }
 
+        public bool TryRegister(NetworkManager manager)
+        {
+            if (manager == null || registeredManager == manager) return true;
+            if (!manager.PrefabHandler.AddHandler(prefab, this)) return false;
+            registeredManager = manager;
+            return true;
+        }
+
         public NetworkObject Take(Vector3 position, Quaternion rotation)
         {
             NetworkObject instance = null;
             while (available.Count > 0 && instance == null)
-                instance = available.Pop();
+            {
+                NetworkObject candidate = available.Pop();
+                if (candidate == null) continue;
+                // A pooled object must be an unspawned scene-root instance.
+                // Calling Transform.SetParent on a spawned object or on an
+                // unspawned object under a non-NetworkObject parent invokes
+                // NGO's automatic parent-sync validation.
+                if (candidate.IsSpawned || candidate.transform.parent != null)
+                {
+                    Object.Destroy(candidate.gameObject);
+                    continue;
+                }
+                instance = candidate;
+            }
             instance ??= CreateInstance();
             if (instance == null) return null;
 
             Transform instanceTransform = instance.transform;
-            instanceTransform.SetParent(null, false);
+            if (instance.IsSpawned || instanceTransform.parent != null)
+            {
+                Object.Destroy(instance.gameObject);
+                return null;
+            }
             instanceTransform.SetPositionAndRotation(position, rotation);
             NotifyTaken(instance.gameObject);
             instance.gameObject.SetActive(true);
@@ -177,7 +206,15 @@ internal static class NetworkObjectPoolRegistry
             poolsByEntityId.Remove(instance.gameObject.GetEntityId());
             NotifyReturned(instance.gameObject);
             instance.gameObject.SetActive(false);
-            instance.transform.SetParent(root, false);
+            // NetworkObject instances intentionally remain at the scene root
+            // while pooled.  Reparenting them under root would trigger NGO's
+            // "manager is not listening" or "can only be re-parented after
+            // being spawned" errors during Offline and shutdown paths.
+            if (instance.IsSpawned || instance.transform.parent != null)
+            {
+                Object.Destroy(instance.gameObject);
+                return true;
+            }
             if (available.Count < maxRetained)
                 available.Push(instance);
             else
@@ -187,7 +224,11 @@ internal static class NetworkObjectPoolRegistry
 
         private NetworkObject CreateInstance()
         {
-            GameObject instance = Object.Instantiate(prefab, root);
+            // Keep NetworkObject instances at the scene root.  Parenting an
+            // unspawned instance under the pool marker causes NGO's automatic
+            // parent-sync callback to reject it when Offline or before the
+            // NetworkManager starts listening.
+            GameObject instance = Object.Instantiate(prefab);
             NetworkObject networkObject = instance.GetComponent<NetworkObject>();
             if (networkObject == null)
             {
@@ -218,19 +259,15 @@ internal static class NetworkObjectPoolRegistry
         if (poolsByPrefab.TryGetValue(prefab, out PrefabPool existing))
         {
             existing.IncreaseCapacity(Mathf.Max(1, maxRetained));
+            if (!existing.TryRegister(NetworkManager.Singleton))
+                Debug.LogWarning($"[Network Pool] A handler is already registered for '{prefab.name}'.", prefab);
             return;
         }
 
         NetworkManager manager = NetworkManager.Singleton;
-        if (manager == null)
-        {
-            Debug.LogWarning("[Network Pool] NetworkManager is not ready; pool setup was skipped.", prefab);
-            return;
-        }
-
-        EnsureRoot(manager.transform);
-        PrefabPool pool = new(prefab, poolRoot, prewarmCount, maxRetained);
-        if (!manager.PrefabHandler.AddHandler(prefab, pool))
+        EnsureRoot();
+        PrefabPool pool = new(prefab, prewarmCount, maxRetained);
+        if (!pool.TryRegister(manager))
         {
             Debug.LogWarning($"[Network Pool] A handler is already registered for '{prefab.name}'.", prefab);
             return;
@@ -263,11 +300,10 @@ internal static class NetworkObjectPoolRegistry
             : 0;
     }
 
-    private static void EnsureRoot(Transform managerTransform)
+    private static void EnsureRoot()
     {
         if (poolRoot != null) return;
         GameObject root = new("[NetworkObjectPool]");
-        root.transform.SetParent(managerTransform, false);
         poolRoot = root.transform;
     }
 

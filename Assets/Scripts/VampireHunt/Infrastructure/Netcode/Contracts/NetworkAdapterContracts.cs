@@ -23,9 +23,14 @@ namespace VampireHunt.Infrastructure.Netcode.Contracts
         bool Owns(ulong senderId, EntityId playerId);
     }
 
-    public interface IMovementPoseEndpoint
+    /// <summary>
+    /// Small composition-root hook for a Player network shell.  Bootstrap
+    /// supplies sender ownership without referencing the legacy global
+    /// PlayerNetworkState type.
+    /// </summary>
+    public interface IPlayerPoseOwnershipBinding
     {
-        MovementVerdict Validate(EntityId playerId, MovementPose pose);
+        void ConfigurePoseOwnership(INetworkCommandOwnership ownership);
     }
 
     public interface IEnemySimulationEndpoint

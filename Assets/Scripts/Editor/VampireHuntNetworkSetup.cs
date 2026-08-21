@@ -53,7 +53,6 @@ public static class VampireHuntNetworkSetup
         RegisterConfiguredSpawnPrefabs(prefabList);
 
         NetworkManager manager = CreateOrConfigureNetworkManager(playerPrefab, prefabList);
-        AssignEnemyPrefabToSpawners(enemyPrefab);
 
         // The player is now spawned by NetworkManager. Keeping the original
         // disabled makes the migration reversible and avoids a duplicate actor.
@@ -119,6 +118,24 @@ public static class VampireHuntNetworkSetup
 
     private static GameObject SaveActorPrefab(GameObject source, string path, bool isPlayer)
     {
+        // Player.prefab and Enemy.prefab are canonical persisted assets. Once
+        // they exist, this legacy authoring command must not replace their
+        // NetworkObject file IDs or serialized component references with a
+        // scene clone. Runtime composition owns the wiring now.
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (existing != null)
+        {
+            if (existing.GetComponent<NetworkObject>() == null)
+            {
+                Debug.LogError(
+                    $"[Network Setup] Canonical prefab '{path}' has no NetworkObject; " +
+                    "refusing to overwrite it from the scene.",
+                    existing);
+            }
+
+            return existing;
+        }
+
         GameObject clone = Object.Instantiate(source);
         clone.name = source.name;
         clone.SetActive(true);
@@ -190,7 +207,6 @@ public static class VampireHuntNetworkSetup
 
         UnityTransport transport = GetOrAdd<UnityTransport>(manager.gameObject);
         GetOrAdd<NetworkRuntimeLauncher>(manager.gameObject);
-        GetOrAdd<PlayerProximityMonsterSpawner>(manager.gameObject);
         manager.NetworkConfig.NetworkTransport = transport;
         manager.NetworkConfig.PlayerPrefab = playerPrefab;
         manager.NetworkConfig.EnableSceneManagement = true;
@@ -202,36 +218,6 @@ public static class VampireHuntNetworkSetup
         if (!manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Contains(prefabList))
             manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Add(prefabList);
         return manager;
-    }
-
-    private static void AssignEnemyPrefabToSpawners(GameObject enemyPrefab)
-    {
-        if (enemyPrefab == null) return;
-        foreach (MonsterSpawnPoint spawner in Object.FindObjectsByType<MonsterSpawnPoint>(
-                     FindObjectsInactive.Include,
-                     FindObjectsSortMode.None))
-        {
-            if (spawner.enemyPrefab == null)
-            {
-                spawner.enemyPrefab = enemyPrefab;
-                EditorUtility.SetDirty(spawner);
-            }
-        }
-
-        foreach (PlayerProximityMonsterSpawner spawner in Object.FindObjectsByType<PlayerProximityMonsterSpawner>(
-                     FindObjectsInactive.Include,
-                     FindObjectsSortMode.None))
-        {
-            if (spawner.Config == null)
-            {
-                MonsterSpawnConfig spawnConfig = MonsterSpawnConfig.LoadDefault();
-                if (spawnConfig != null)
-                {
-                    spawner.SetConfig(spawnConfig);
-                    EditorUtility.SetDirty(spawner);
-                }
-            }
-        }
     }
 
     private static T GetOrAdd<T>(GameObject target) where T : Component

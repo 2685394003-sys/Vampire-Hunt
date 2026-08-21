@@ -1,9 +1,7 @@
 using System;
 using Unity.Netcode;
-using VampireHunt.Boss.Contracts;
 using VampireHunt.Core;
 using VampireHunt.Core.Contracts;
-using VampireHunt.Enemies.Contracts;
 using VampireHunt.Infrastructure.Netcode.Contracts;
 using VampireHunt.Player.Contracts;
 
@@ -139,115 +137,4 @@ namespace VampireHunt.Infrastructure.Netcode
             new CommandResult(CommandResultStatus.Invalid, reason, sequence);
     }
 
-    /// <summary>
-    /// Server-to-client state transport for the three immutable state DTOs.
-    /// Each wire value is version/discriminator checked before the existing
-    /// per-feature replicator applies sequence ordering and reset semantics.
-    /// </summary>
-    public sealed class NetworkStateRpcAdapter : NetworkBehaviour
-    {
-        private PlayerStateReplicator playerReplicator;
-        private EnemyStateReplicator enemyReplicator;
-        private BossStateReplicator bossReplicator;
-        private IPlayerStateSnapshotSink playerSink;
-        private IEnemyStateSnapshotSink enemySink;
-        private IBossStateSnapshotSink bossSink;
-
-        public void Configure(
-            PlayerStateReplicator playerStateReplicator,
-            IPlayerStateSnapshotSink playerSnapshotSink,
-            EnemyStateReplicator enemyStateReplicator,
-            IEnemyStateSnapshotSink enemySnapshotSink,
-            BossStateReplicator bossStateReplicator,
-            IBossStateSnapshotSink bossSnapshotSink)
-        {
-            playerReplicator = playerStateReplicator;
-            playerSink = playerSnapshotSink;
-            enemyReplicator = enemyStateReplicator;
-            enemySink = enemySnapshotSink;
-            bossReplicator = bossStateReplicator;
-            bossSink = bossSnapshotSink;
-        }
-
-        public bool BroadcastPlayer(PlayerStateDto dto)
-        {
-            if (!IsServer || !PlayerStateWire.TryFrom(dto, out PlayerStateWire wire)) return false;
-            PublishPlayerRpc(wire);
-            return true;
-        }
-
-        public bool BroadcastEnemy(EnemyStateDto dto)
-        {
-            if (!IsServer || !EnemyStateWire.TryFrom(dto, out EnemyStateWire wire)) return false;
-            PublishEnemyRpc(wire);
-            return true;
-        }
-
-        public bool BroadcastBoss(BossStateDto dto)
-        {
-            if (!IsServer || !BossStateWire.TryFrom(dto, out BossStateWire wire)) return false;
-            PublishBossRpc(wire);
-            return true;
-        }
-
-        [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Unreliable)]
-        private void PublishPlayerRpc(PlayerStateWire wire)
-        {
-            if (!wire.TryToDto(out PlayerStateDto dto) || playerReplicator == null || playerSink == null) return;
-            playerReplicator.ApplyNetworkState(dto, playerSink);
-        }
-
-        [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Unreliable)]
-        private void PublishEnemyRpc(EnemyStateWire wire)
-        {
-            if (!wire.TryToDto(out EnemyStateDto dto) || enemyReplicator == null || enemySink == null) return;
-            enemyReplicator.ApplyNetworkState(dto, enemySink);
-        }
-
-        [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Unreliable)]
-        private void PublishBossRpc(BossStateWire wire)
-        {
-            if (!wire.TryToDto(out BossStateDto dto) || bossReplicator == null || bossSink == null) return;
-            bossReplicator.ApplyNetworkState(dto, bossSink);
-        }
-    }
-
-    /// <summary>Reliable server event transport with explicit fail-closed decode.</summary>
-    public sealed class GameplayEventRpcAdapter : NetworkBehaviour, IGameplayEventTransport
-    {
-        private GameplayEventReplicator replicator;
-        private IGameplayEventIngress ingress;
-
-        public void Configure(GameplayEventReplicator eventReplicator, IGameplayEventIngress eventIngress)
-        {
-            replicator = eventReplicator ?? throw new ArgumentNullException(nameof(eventReplicator));
-            ingress = eventIngress ?? throw new ArgumentNullException(nameof(eventIngress));
-        }
-
-        public bool Broadcast(GameplayEventEnvelope envelope)
-        {
-            if (!IsServer || !envelope.IsVersionSupported || !envelope.Wire.IsFeatureEvent) return false;
-            PublishEventRpc(envelope.Wire);
-            return true;
-        }
-
-        public void Send(GameplayEventEnvelope envelope)
-        {
-            Broadcast(envelope);
-        }
-
-        private void LateUpdate()
-        {
-            if (IsServer && replicator != null)
-                replicator.Flush(this);
-        }
-
-        [Rpc(SendTo.ClientsAndHost, Delivery = RpcDelivery.Reliable)]
-        private void PublishEventRpc(GameplayEventWire wire)
-        {
-            if (!wire.IsFeatureEvent || replicator == null || ingress == null) return;
-            if (!wire.TryToDomain(out IGameplayEvent @event)) return;
-            replicator.Receive(new GameplayEventEnvelope(wire), ingress);
-        }
-    }
 }

@@ -196,12 +196,21 @@ public sealed class NetworkRuntimeLauncher : MonoBehaviour
         {
             if (!compositionRoot.IsComposed)
                 throw new InvalidOperationException("The runtime composition root exists but is not composed.");
-            if (composedRuntimeMode != runtimeMode || composedAsDedicatedServer != dedicatedServer)
+            if (composedRuntimeMode == runtimeMode && composedAsDedicatedServer == dedicatedServer)
+                return;
+
+            // The development menu starts in Offline mode so the scene can be
+            // inspected without opening a socket. Before NGO begins listening
+            // it is safe to dispose that graph and compose the requested
+            // Host/Client/Server adapters. Once listening, changing authority
+            // mode still requires an explicit shutdown.
+            if (manager != null && manager.IsListening)
             {
                 throw new InvalidOperationException(
-                    "The runtime composition is already bound to a different launcher mode; reload the scene before changing mode.");
+                    "The runtime composition is already listening in a different launcher mode; shut it down before changing mode.");
             }
-            return;
+
+            DisposeComposition();
         }
 
         if (sceneBindings == null)

@@ -19,6 +19,7 @@ namespace VampireHunt.Abilities.Domain
 
         public EntityId TargetId => targetId;
         public int ActiveEffectCount => activeEffects.Count;
+        public GameplayTagSet Tags { get; } = new GameplayTagSet();
 
         public GameplayAbilitySystem(
             EntityId targetId,
@@ -184,6 +185,7 @@ namespace VampireHunt.Abilities.Domain
                     RemoveInternal(key, active);
             }
             removalScratch.Clear();
+            Tags.Clear();
         }
 
         private void RemoveInternal(string key, ActiveGameplayEffect active)

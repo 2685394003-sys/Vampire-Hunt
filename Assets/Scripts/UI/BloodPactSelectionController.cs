@@ -63,7 +63,8 @@ public sealed class BloodPactCardView
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class BloodPactSelectionController : MonoBehaviour,
-    IBloodPactSelectionView, IBloodPactSelectionPresenterBinding
+    IBloodPactSelectionView, IBloodPactSelectionPresenterBinding,
+    INetworkActivityProviderBinding
 {
     private const int ChoiceCount = 3;
 
@@ -84,6 +85,7 @@ public sealed class BloodPactSelectionController : MonoBehaviour,
     private uint suppressedOfferVersion;
     private CursorLockMode previousCursorLock;
     private bool previousCursorVisible;
+    private Func<bool> networkActiveProvider;
 
     public void Configure(
         CanvasGroup canvasGroup,
@@ -102,6 +104,16 @@ public sealed class BloodPactSelectionController : MonoBehaviour,
     public void Bind(BloodPactSelectionPresenter value)
     {
         presenter = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
+    /// Supplies the composition-owned network mode query used only for local
+    /// pause behavior. The view never reaches into NetworkManager or domain
+    /// state on its own.
+    /// </summary>
+    public void SetNetworkActiveProvider(Func<bool> provider)
+    {
+        networkActiveProvider = provider;
     }
 
     private void Awake()
@@ -261,7 +273,8 @@ public sealed class BloodPactSelectionController : MonoBehaviour,
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        if (!NetworkAuthority.IsNetworkActive)
+        bool networkActive = networkActiveProvider != null && networkActiveProvider();
+        if (!networkActive)
         {
             previousTimeScale = Time.timeScale;
             Time.timeScale = 0f;

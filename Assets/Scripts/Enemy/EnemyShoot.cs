@@ -14,13 +14,11 @@ public class EnemyShoot : MonoBehaviour, INetworkPoolLifecycle
 {
     public Transform firePoint;
     public GameObject bulletPrefab;
-    private EnemyMovement enemyMove;
     private EnemyHealth enemyHealth;
     private bool shotPending;
 
     private void Start()
     {
-        enemyMove = GetComponent<EnemyMovement>();
         enemyHealth = GetComponentInParent<EnemyHealth>();
     }
 
@@ -62,17 +60,17 @@ public class EnemyShoot : MonoBehaviour, INetworkPoolLifecycle
     private void ForwardOrSpawn(EnemyStatsConfig stats)
     {
         EnemyHealth health = enemyHealth != null ? enemyHealth : GetComponentInParent<EnemyHealth>();
-        Transform target = enemyMove != null ? enemyMove.GetPlayerTarget() : null;
-        if (health != null && health.Runtime != null && target != null)
+        if (health != null && health.Runtime != null)
         {
-            EntityId targetId = EnemyLegacyEntityIds.Resolve(target.gameObject);
+            EnemySnapshot snapshot = health.Runtime.Snapshot;
+            EntityId targetId = snapshot.TargetId;
             if (targetId.IsValid)
             {
                 EnemyCombatContextData context = new EnemyCombatContextData(
                     health.Runtime.Id,
                     targetId,
-                    ToWorldPosition(transform.position),
-                    Vector3.Distance(transform.position, target.position),
+                    snapshot.TargetPosition,
+                    Vector3.Distance(transform.position, ToVector3(snapshot.TargetPosition)),
                     true,
                     Time.time,
                     health.Runtime.Snapshot.LastAttackAt);
@@ -83,7 +81,15 @@ public class EnemyShoot : MonoBehaviour, INetworkPoolLifecycle
 
         // Transitional presentation fallback: this still only creates the
         // projectile view. Shoot converts any eventual hit through its port.
-        SpawnLegacyProjectile(target, stats, health != null ? health.Runtime?.Id ?? default(EntityId) : default(EntityId));
+        WorldPosition targetPosition = health != null && health.Runtime != null
+            ? health.Runtime.Snapshot.TargetPosition
+            : ToWorldPosition(transform.position);
+        SpawnLegacyProjectile(
+            targetPosition,
+            stats,
+            health != null && health.Runtime != null
+                ? health.Runtime.Id
+                : default(EntityId));
     }
 
     private bool TryForwardProjectile(in AttackIntent intent)
@@ -96,7 +102,10 @@ public class EnemyShoot : MonoBehaviour, INetworkPoolLifecycle
         return false;
     }
 
-    private void SpawnLegacyProjectile(Transform target, EnemyStatsConfig stats, EntityId sourceId)
+    private void SpawnLegacyProjectile(
+        WorldPosition targetPosition,
+        EnemyStatsConfig stats,
+        EntityId sourceId)
     {
         if (firePoint == null || bulletPrefab == null) return;
 
@@ -107,9 +116,12 @@ public class EnemyShoot : MonoBehaviour, INetworkPoolLifecycle
         if (bulletObject == null) return;
 
         Shoot bullet = bulletObject.GetComponent<Shoot>();
-        bullet?.Configure(target, stats, sourceId);
+        bullet?.Configure(targetPosition, stats, sourceId);
     }
 
     private static WorldPosition ToWorldPosition(Vector3 position) =>
         new WorldPosition(position.x, position.y, position.z);
+
+    private static Vector3 ToVector3(WorldPosition position) =>
+        new(position.X, position.Y, position.Z);
 }

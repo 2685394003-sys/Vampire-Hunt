@@ -13,8 +13,7 @@
 1. **逻辑与表现严格分离**：战斗、属性、AI、奖励、刷怪和局内成长不能依赖 UI、动画、VFX、音频、相机或其他表现实现。
 2. **服务器权威**：多人模式下只有服务器能够确认并修改游戏状态，客户端只提交意图并播放权威结果。唯一例外是玩家位置/朝向，采用 Owner 客户端权威 + 服务器校验（见 §8.1）。
 3. **高内聚、低耦合**：功能模块对自身规则负责，跨模块只通过稳定契约交互。
-4. **可渐进迁移**：保留现有 Prefab、NetworkObject 和序列化引用，通过适配器逐步替换原型代码，不进行一次性重写。
-5. **可验证**：依赖方向、序列化安全、网络语义和逻辑/表现边界必须能够通过自动测试检查。
+4. **可验证**：依赖方向、序列化安全、网络语义和逻辑/表现边界必须能够通过自动测试检查。
 
 本规范中的关键词含义如下：
 
@@ -288,11 +287,11 @@ namespace VampireHunt.Presentation.CombatText;
 
 目录表示代码所有权，namespace/asmdef 表示真实依赖边界。不能只移动文件而保留跨模块引用。
 
-**asmdef 基线是迁移的第一步**。当前 `Assets/Scripts` 全部位于 Assembly-CSharp，不存在任何自研 asmdef，§5 的依赖表尚无执行载体。因此正式迁移的第一个 PR 必须是：
+**asmdef 基线是迁移的第一步**。当前模块代码由 §5 定义的自研 asmdef 约束；`Assets/Scripts` 下每个 `.cs` 必须被最近的 asmdef 覆盖，不允许回落或显式引用预定义 `Assembly-CSharp`。
 
-1. 建立上表全部自研 asmdef 骨架（可以先只含占位代码）。
-2. 建立 `Assets/Tests/Architecture` 测试程序集并让 §15 的守卫 1–4 跑通。
-3. 现有原型代码暂留 Assembly-CSharp，随职责迁移逐步移入对应 asmdef；只有新 asmdef 内的代码受依赖表强制约束。
+尚未完成职责拆分的旧 MonoBehaviour/ScriptableObject 统一隔离在最外层 `VampireHunt.Legacy` 适配器程序集。该程序集可以依赖模块 Contracts/Application 与 Bootstrap，但任何 Domain、Application 或其他运行时程序集均不得反向依赖它。随着兼容壳满足 §13 删除门槛，应将其删除或迁入对应的 Infrastructure/Presentation/Authoring 程序集，最终移除该过渡程序集。
+
+`Assets/Tests/Architecture` 必须持续验证 asmdef 全覆盖、项目依赖图无环、Editor 程序集平台限制，以及不存在 `Assembly-CSharp` 引用。
 
 从 Assembly-CSharp 拆出 asmdef 时，对 Wwise（`AK.Wwise.Unity.*`）、Feel/NiceVibrations、MoreMountains.Tools 等第三方程序集的引用必须在消费方 asmdef 中显式声明，且只允许出现在 Infrastructure、Presentation、UI、Bootstrap 程序集中。
 
@@ -355,19 +354,18 @@ namespace VampireHunt.Presentation.CombatText;
 ```text
 本地输入
 → Input Adapter
-→ Owner Movement Motor（本地立即驱动物理/位移）
+→ Owner Movement Motor（FixedUpdate 驱动平面 Rigidbody，保留重力 Y 速度）
 → ClientNetworkTransform 复制位置到服务器与其他客户端
-→ Server Movement Validator 校验（速度上限、越界、穿墙、Dash 冷却）
-→ 校验失败 → 服务器纠正位置（Teleport/回拉）并记录违规
+→ 服务器记录 Owner 最新姿态供玩法查询（不做移动反作弊或位置纠正）
 ```
 
 规则：
 
 - Owner 客户端权威**仅限**位置与朝向。生命、伤害、暴击、奖励、技能、血契、刷怪、Boss 阶段仍然完全服务器权威。
-- 服务器必须持有 `IMovementValidator`：按服务器时间检查位移速度上限（含 Dash 增益）、可行走区域和关键门控区域；超限时以服务器位置为准强制纠正。
-- 所有以位置为输入的**权威判定**（近战命中范围、AOE 归属、刷怪距离）使用服务器上最近一次通过校验的位置，不使用客户端瞬时上报值。
+- 当前合作 PvE 不实现移动反作弊：服务器不检查 Owner 姿态的速度、时间戳、越界或穿墙，也不发送位置纠正。
+- 所有以位置为输入的**权威判定**（近战命中范围、AOE 归属、刷怪距离）使用服务器最近收到的 Owner 姿态。
 - Dash 作为移动的一部分由 Owner 立即执行，但 Dash 的资源消耗/冷却合法性由服务器校验；无敌帧（受击免疫窗口）是战斗规则，由服务器 `PlayerVitals` 判定。
-- Dedicated Server 模式下该模型不变：Owner 仍驱动自身位移，服务器仍是校验者与其余状态的唯一写入方。
+- Dedicated Server 模式下该模型不变：Owner 仍驱动自身位移，服务器记录姿态，并继续作为其余玩法状态的唯一写入方。
 - 若未来竞技性需求要求更强反作弊，升级为预测+和解模型必须走 §17 ADR 流程。
 
 ### 8.1.1 服务器模拟循环
@@ -376,7 +374,7 @@ namespace VampireHunt.Presentation.CombatText;
 
 ```text
 1. 采集本 tick 到达的 Command（按到达顺序，同一玩家按 Sequence 去重/排序）
-2. 移动校验（Movement Validator 处理 Owner 上报位置）
+2. 记录 Owner 最新姿态，更新服务器侧位置查询
 3. Player Command 执行（攻击、血契选择等）
 4. EnemySpawnDirector.Tick（预算、采样、生成请求）
 5. EnemySimulationService.Tick（感知 → Brain → Intent → Motor/Combat）
@@ -648,7 +646,7 @@ ScriptableObject 用于可编辑的定义和调参，例如：
 - 每个唯一目标独立暴击与命中去重。
 - DamageResult 的实际伤害、过量伤害和死亡判定。
 - Gameplay Effect 的叠层、持续时间、周期伤害和移除。
-- Movement Validator 的速度上限（含 Dash）、越界纠正和违规记录。
+- Owner FixedUpdate 平面运动保留 Rigidbody 的重力 Y 速度，服务器姿态记录不回拉自由落体。
 - 受击无敌窗口内伤害归零且不产生 DamageConfirmedEvent 表现噪声。
 - Boss 阶段阈值和攻击选择策略。
 - FlowFieldSolver 可达性、障碍恢复和边界。
@@ -659,7 +657,7 @@ ScriptableObject 用于可编辑的定义和调参，例如：
 
 - Host + 1 Client。
 - Dedicated Server + 2 Clients。
-- Owner 权威移动复制、服务器校验纠正（超速/越界回拉）和一次性伤害结算。
+- Owner 权威移动复制、重力下落同步和一次性伤害结算。
 - 每目标暴击、奖励归属、共享猩红和血契选择。
 - 所有客户端收到服务器确认的伤害表现事件。
 - 事件先于/晚于状态快照到达时 Presenter 的行为一致。

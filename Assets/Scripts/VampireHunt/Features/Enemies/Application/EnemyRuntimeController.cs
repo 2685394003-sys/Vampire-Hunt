@@ -96,6 +96,37 @@ namespace VampireHunt.Enemies.Application
             return aggregate == null ? 0 : aggregate.Vitals.ApplyHealing(amount);
         }
 
+        public EnemyPerceptionData Perceive(float radius)
+        {
+            if (aggregate == null || !aggregate.IsAlive || radius < 0f)
+            {
+                return EnemyPerceptionData.NoTarget(
+                    Id,
+                    aggregate == null ? default(WorldPosition) : aggregate.Position);
+            }
+
+            EnemyPerception perception = aggregate.Brain.Perceive(
+                aggregate.Id,
+                aggregate.Position,
+                radius);
+            return new EnemyPerceptionData(
+                perception.SelfId,
+                perception.SelfPosition,
+                perception.TargetId,
+                perception.TargetPosition,
+                perception.Distance,
+                perception.HasLineOfTravel,
+                perception.TargetIsAlive);
+        }
+
+        public EnemyIntent Decide()
+        {
+            // TargetQuery deliberately rejects Infinity. float.MaxValue is
+            // the finite equivalent of an unbounded closest-target query and
+            // keeps the view adapter free of a duplicate perception radius.
+            return Decide(Perceive(float.MaxValue));
+        }
+
         public EnemyIntent Decide(in EnemyPerceptionData perception)
         {
             if (aggregate == null || !aggregate.IsAlive)
@@ -112,7 +143,7 @@ namespace VampireHunt.Enemies.Application
                 perception.HasLineOfTravel,
                 perception.TargetIsAlive);
             EnemyIntent intent = aggregate.Brain.Decide(in domainPerception);
-            aggregate.SetTarget(intent.TargetId);
+            aggregate.SetTarget(intent.TargetId, perception.TargetPosition);
             aggregate.SetState(intent.State);
             return intent;
         }

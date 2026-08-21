@@ -102,15 +102,18 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             EnemyReplicationTier tier = policy.GetTier(distanceToNearestPlayer);
             bool hasPrevious = captured.TryGetValue(snapshot.Id, out CapturedEnemy previous);
-            bool changed = !hasPrevious || !previous.Matches(snapshot);
+            // Health/state/target changes are authoritative semantic changes
+            // and must be delivered immediately. Position-only changes are
+            // coalesced into the distance-tier cadence below so a far enemy
+            // cannot consume a full-rate bandwidth slot just by moving.
+            bool semanticChanged = !hasPrevious || !previous.MatchesState(snapshot);
             bool periodic = hasPrevious && ShouldSendPeriodic(tier, previous, now);
             // A tier change selects the cadence for subsequent captures; it
             // does not bypass that cadence by itself.  Position/state changes
             // therefore continue to obey the distance bandwidth policy.
-            bool dirty = !hasPrevious || changed || periodic;
+            bool dirty = !hasPrevious || semanticChanged || periodic;
 
             uint sequence = hasPrevious ? previous.Sequence : 0U;
-            if (changed) sequence = Next(sequence);
 
             // `now` is the authoritative server replication frame/time.  A
             // Capture that is sampled but not emitted must not advance the
@@ -121,6 +124,13 @@ namespace VampireHunt.Infrastructure.Netcode
             bool hasSent = hasPrevious && previous.HasSent;
             if (dirty)
             {
+                // Sequence identifies a delivered snapshot, not only a
+                // semantic value change. Periodic frames are deliberately
+                // emitted for far/mid enemies so clients can advance
+                // interpolation and keep the view alive; reusing the
+                // previous sequence would make the receiver reject those
+                // frames as duplicates.
+                sequence = Next(sequence);
                 lastSentAt = NormalizeServerTime(now, hasPrevious ? previous.LastSentAt : 0d);
                 hasSent = true;
             }
@@ -237,11 +247,11 @@ namespace VampireHunt.Infrastructure.Netcode
             public EnemyReplicationTier Tier { get; }
             public double LastSentAt { get; }
             public bool HasSent { get; }
-            public bool Matches(EnemySnapshot other)
+            public bool MatchesState(EnemySnapshot other)
             {
                 return snapshot.Id == other.Id && snapshot.Health == other.Health &&
                     snapshot.MaxHealth == other.MaxHealth && snapshot.IsAlive == other.IsAlive &&
-                    snapshot.State == other.State && snapshot.Position == other.Position &&
+                    snapshot.State == other.State &&
                     snapshot.TargetId == other.TargetId && snapshot.LastAttackAt.Equals(other.LastAttackAt);
             }
         }

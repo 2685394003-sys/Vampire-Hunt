@@ -18,6 +18,7 @@ namespace VampireHunt.Enemies.Domain
     {
         private bool _deathHandled;
         private EntityId _targetId;
+        private WorldPosition _targetPosition;
         private WorldPosition _position;
         private double _lastAttackAt;
         private bool _hasSpawned;
@@ -62,6 +63,7 @@ namespace VampireHunt.Enemies.Domain
         public GameplayAbilitySystem Abilities { get; private set; }
         public WorldPosition Position => _position;
         public EntityId TargetId => _targetId;
+        public WorldPosition TargetPosition => _targetPosition;
         public double LastAttackAt => _lastAttackAt;
         public EnemyState State { get; private set; }
         public bool IsAlive => Vitals.IsAlive;
@@ -100,6 +102,7 @@ namespace VampireHunt.Enemies.Domain
             CombatPolicy = new EnemyCombatPolicy(spec.AttackRange, spec.AttackCooldown, spec.AttackDamage, spec.AttackType);
             RewardPolicy.Reset(spec.Reward);
             _targetId = default(EntityId);
+            _targetPosition = default(WorldPosition);
             _position = default(WorldPosition);
             _lastAttackAt = double.NegativeInfinity;
             _deathHandled = false;
@@ -109,7 +112,13 @@ namespace VampireHunt.Enemies.Domain
 
         public void SetPosition(WorldPosition position) => _position = position;
 
-        public void SetTarget(EntityId targetId) => _targetId = targetId;
+        public void SetTarget(EntityId targetId) => SetTarget(targetId, default(WorldPosition));
+
+        public void SetTarget(EntityId targetId, WorldPosition targetPosition)
+        {
+            _targetId = targetId;
+            _targetPosition = targetPosition;
+        }
 
         public void SetState(EnemyState state)
         {
@@ -138,7 +147,16 @@ namespace VampireHunt.Enemies.Domain
         }
 
         public EnemySnapshot CreateSnapshot() =>
-            new EnemySnapshot(Id, Vitals.CurrentHealth, Vitals.MaxHealth, Vitals.IsAlive, State, Position, TargetId, LastAttackAt);
+            new EnemySnapshot(
+                Id,
+                Vitals.CurrentHealth,
+                Vitals.MaxHealth,
+                Vitals.IsAlive,
+                State,
+                Position,
+                TargetId,
+                TargetPosition,
+                LastAttackAt);
 
         // Kept as an explicit port so ResetForSpawn never needs to discover a
         // navigation adapter from Unity. It is set by the constructor and

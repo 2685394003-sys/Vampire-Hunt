@@ -18,11 +18,6 @@ namespace VampireHunt.Infrastructure.UnityPhysics.Contracts
         bool Unregister(EntityId id);
     }
 
-    public interface IMovementCorrectionPort
-    {
-        void ForcePose(EntityId playerId, MovementPose pose);
-    }
-
     public interface IMeleeQueryPort
     {
         void CollectUniqueTargets(MeleeQueryDto query, ICollection<IMeleeTargetPort> buffer);

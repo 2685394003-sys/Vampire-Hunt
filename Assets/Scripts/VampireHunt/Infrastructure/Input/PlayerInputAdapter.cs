@@ -14,10 +14,15 @@ namespace VampireHunt.Infrastructure.Input
         private readonly InputActionReference moveAction;
         private readonly InputActionReference dashAction;
         private readonly InputActionReference attackAction;
+        private readonly InputAction moveInput;
+        private readonly InputAction dashInput;
+        private readonly InputAction attackInput;
         private readonly OwnerMovementMotor movementMotor;
         private readonly IPlayerCommandGateway commandGateway;
         private readonly EntityId playerId;
         private readonly IAimWorldPositionSource aimSource;
+        private readonly Func<MoveVector, MoveVector> moveResolver;
+        private readonly Action attackAccepted;
         private uint commandSequence;
 
         public PlayerInputAdapter(
@@ -27,7 +32,9 @@ namespace VampireHunt.Infrastructure.Input
             InputActionReference moveAction = null,
             InputActionReference dashAction = null,
             InputActionReference attackAction = null,
-            IAimWorldPositionSource aimSource = null)
+            IAimWorldPositionSource aimSource = null,
+            Func<MoveVector, MoveVector> moveResolver = null,
+            Action attackAccepted = null)
         {
             if (!playerId.IsValid) throw new ArgumentException("A valid player id is required.", nameof(playerId));
             this.playerId = playerId;
@@ -36,25 +43,69 @@ namespace VampireHunt.Infrastructure.Input
             this.moveAction = moveAction;
             this.dashAction = dashAction;
             this.attackAction = attackAction;
+            this.moveInput = null;
+            this.dashInput = null;
+            this.attackInput = null;
             this.aimSource = aimSource;
+            this.moveResolver = moveResolver;
+            this.attackAccepted = attackAccepted;
+        }
+
+        /// <summary>
+        /// Compatibility overload for prefabs that still serialize InputAction
+        /// fields directly on a MonoBehaviour. The input system adapter remains
+        /// the only class that samples those actions for gameplay commands.
+        /// </summary>
+        public PlayerInputAdapter(
+            EntityId playerId,
+            OwnerMovementMotor movementMotor,
+            IPlayerCommandGateway commandGateway,
+            InputAction moveAction,
+            InputAction dashAction = null,
+            InputAction attackAction = null,
+            IAimWorldPositionSource aimSource = null,
+            Func<MoveVector, MoveVector> moveResolver = null,
+            Action attackAccepted = null)
+        {
+            if (!playerId.IsValid) throw new ArgumentException("A valid player id is required.", nameof(playerId));
+            this.playerId = playerId;
+            this.movementMotor = movementMotor;
+            this.commandGateway = commandGateway ?? throw new ArgumentNullException(nameof(commandGateway));
+            this.moveAction = null;
+            this.dashAction = null;
+            this.attackAction = null;
+            this.moveInput = moveAction;
+            this.dashInput = dashAction;
+            this.attackInput = attackAction;
+            this.aimSource = aimSource;
+            this.moveResolver = moveResolver;
+            this.attackAccepted = attackAccepted;
         }
 
         public MoveVector SampleInput()
         {
-            Vector2 input = moveAction?.action == null ? Vector2.zero : moveAction.action.ReadValue<Vector2>();
+            InputAction action = moveInput ?? moveAction?.action;
+            Vector2 input = action == null ? Vector2.zero : action.ReadValue<Vector2>();
             return new MoveVector(input.x, input.y);
         }
 
         public void Tick()
         {
             MoveVector input = SampleInput();
-            movementMotor?.Drive(input);
-            if (WasPressed(dashAction)) movementMotor?.Dash(input);
-            if (WasPressed(attackAction))
+            MoveVector motorInput = moveResolver?.Invoke(input) ?? input;
+            if (WasPressed(dashInput ?? dashAction?.action))
+            {
+                commandGateway.SubmitDash(new DashCommand(
+                    playerId,
+                    motorInput,
+                    NextSequence()));
+            }
+            if (WasPressed(attackInput ?? attackAction?.action))
             {
                 WorldPosition aim = aimSource?.CurrentAim(playerId) ??
                     (movementMotor == null ? WorldPosition.Origin : movementMotor.Position);
-                commandGateway.SubmitAttack(new AttackCommand(playerId, aim, NextSequence()));
+                CommandResult result = commandGateway.SubmitAttack(new AttackCommand(playerId, aim, NextSequence()));
+                if (result.Accepted) attackAccepted?.Invoke();
             }
         }
 
@@ -76,7 +127,7 @@ namespace VampireHunt.Infrastructure.Input
 
         private uint NextSequence() => commandSequence == uint.MaxValue ? 1U : ++commandSequence;
 
-        private static bool WasPressed(InputActionReference reference) =>
-            reference?.action != null && reference.action.WasPressedThisFrame();
+        private static bool WasPressed(InputAction action) =>
+            action != null && action.WasPressedThisFrame();
     }
 }

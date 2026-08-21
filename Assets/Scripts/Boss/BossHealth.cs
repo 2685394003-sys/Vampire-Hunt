@@ -72,15 +72,12 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
         networkInvulnerable.OnValueChanged += OnNetworkInvulnerableChanged;
         networkDead.OnValueChanged += OnNetworkDeadChanged;
 
-        if (IsServer && !networkInitialized.Value)
-        {
-            networkMaxHealth.Value = Mathf.Max(1, stats != null ? stats.maxHealth : 1);
-            networkCurrentHealth.Value = networkMaxHealth.Value;
-            networkPhase.Value = 1;
-            networkInvulnerable.Value = false;
-            networkDead.Value = false;
-            networkInitialized.Value = true;
-        }
+        // BossRuntime is the only state authority. When Bootstrap has already
+        // bound it, project the current snapshot immediately; otherwise the
+        // controller will apply the snapshot after composition in Start.
+        if (controller == null) controller = GetComponent<BossController>();
+        if (controller != null && controller.TryGetRuntimeSnapshot(out RuntimeBossSnapshot snapshot))
+            ApplySnapshot(snapshot);
 
         HealthChanged?.Invoke(CurrentHealth, MaxHealth);
         lastPhase = CurrentPhase;
@@ -152,6 +149,7 @@ public sealed class BossHealth : NetworkBehaviour, IDamageable
             networkPhase.Value = offlinePhase;
             networkInvulnerable.Value = offlineInvulnerable;
             networkDead.Value = offlineDead;
+            networkInitialized.Value = true;
         }
 
         if (!networkProjection && (previousHealth != offlineCurrentHealth || previousMaxHealth != offlineMaxHealth))

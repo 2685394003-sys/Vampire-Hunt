@@ -1,3 +1,4 @@
+using System;
 using VampireHunt.Player.Contracts;
 
 namespace VampireHunt.UI.Contracts
@@ -17,5 +18,14 @@ namespace VampireHunt.UI.Contracts
     public interface IBloodPactSelectionPresenterBinding
     {
         void Bind(VampireHunt.UI.BloodPactSelectionPresenter presenter);
+    }
+
+    /// <summary>
+    /// Optional view seam for composition-owned runtime mode. UI uses this
+    /// only to decide whether opening a modal may pause the local simulation.
+    /// </summary>
+    public interface INetworkActivityProviderBinding
+    {
+        void SetNetworkActiveProvider(Func<bool> provider);
     }
 }

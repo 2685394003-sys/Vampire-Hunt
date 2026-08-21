@@ -4,7 +4,12 @@ using Unity.Netcode;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
+using VampireHunt.Core;
+using VampireHunt.Infrastructure.Input;
+using VampireHunt.Infrastructure.Input.Contracts;
 using VampireHunt.Player.Contracts;
+using EntityId = VampireHunt.Core.EntityId;
 
 /// <summary>
 /// Legacy Player Prefab input/movement adapter. Attack and Dash are submitted as
@@ -23,31 +28,23 @@ public sealed class PlayerController : NetworkBehaviour
 
     [Header("组件引用 / Component References")]
     public Animator anim;
-    public PlayerAttact playerAttack;
+    [FormerlySerializedAs("playerAttack")]
+    [SerializeField] private PlayerAttackPresenter _attackPresenter;
+    [SerializeField] private PlayerNetworkState playerState;
+    [SerializeField] private Rigidbody body;
 
-    [Header("服务器移动 / Owner Movement Adapter")]
-    [SerializeField, Min(1f)] private float inputSendRate = 20f;
-    [SerializeField, Min(0.1f)] private float inputTimeout = 0.5f;
+    [Header("所有者移动 / Owner Movement")]
     [SerializeField, Min(0f)] private float turnSpeed = 720f;
 
     [Header("动画过渡 / Animation Blending")]
     [SerializeField, Min(0f)] private float moveDampTime = 0.2f;
     [SerializeField, Min(0f)] private float attackWindupDuration = 0.18f;
 
-    [Header("根运动 / Root Motion")]
-    [SerializeField, Min(0.01f)] private float authoredWalkSpeed = 1.43f;
-    [SerializeField, Min(0.01f)] private float authoredRunSpeed = 3.95f;
-    [SerializeField, Range(0f, 5f)] private float walkBlendThreshold = 2f;
-    [SerializeField, Range(0f, 5f)] private float runBlendThreshold = 5f;
-    [SerializeField, Min(0f)] private float attackRootMotionScale = 1f;
-
     [Header("状态 / State")]
     public bool isKnockedBack;
     public Vector3 knockbackVelocity;
     public Vector3 facingDirection = Vector3.forward;
 
-    private PlayerNetworkState playerState;
-    private Rigidbody body;
     private Camera viewCamera;
     private Vector3 localMoveWorld;
     private Vector3 localAimWorld = Vector3.forward;
@@ -56,15 +53,20 @@ public sealed class PlayerController : NetworkBehaviour
     private float ownerDashRemaining;
     private float animatorMoveValue;
     private Coroutine knockbackCoroutine;
+    private PlayerInputAdapter inputAdapter;
+    private OwnerMovementMotor movementMotor;
     private bool inputEnabled;
 
     private void Awake()
     {
-        playerState = PlayerNetworkState.EnsureForMigration(gameObject);
-        body = GetComponent<Rigidbody>();
+        if (playerState == null)
+            playerState = PlayerNetworkState.EnsureForMigration(gameObject);
+        if (body == null)
+            body = GetComponent<Rigidbody>();
         viewCamera = Camera.main;
-        if (playerAttack == null) playerAttack = GetComponent<PlayerAttact>();
+        if (_attackPresenter == null) _attackPresenter = GetComponent<PlayerAttackPresenter>();
         if (anim != null) animatorMoveValue = anim.GetFloat(MoveParameter);
+        if (!NetworkAuthority.IsNetworkActive) ConfigurePhysicsAuthority(true);
     }
 
     private void OnEnable() => RefreshLocalInputState();
@@ -72,6 +74,8 @@ public sealed class PlayerController : NetworkBehaviour
     private void OnDisable()
     {
         DisableLocalInput();
+        inputAdapter = null;
+        movementMotor = null;
         if (knockbackCoroutine != null) StopCoroutine(knockbackCoroutine);
         knockbackCoroutine = null;
         isKnockedBack = false;
@@ -79,11 +83,17 @@ public sealed class PlayerController : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        ConfigurePhysicsAuthority(IsOwner);
         RefreshLocalInputState();
         if (IsOwner) BindLocalPresentation();
     }
 
-    public override void OnNetworkDespawn() => DisableLocalInput();
+    public override void OnNetworkDespawn()
+    {
+        DisableLocalInput();
+        inputAdapter = null;
+        movementMotor = null;
+    }
 
     private void Update()
     {
@@ -91,7 +101,10 @@ public sealed class PlayerController : NetworkBehaviour
         if (!NetworkAuthority.IsOwnerOrOffline(this) || playerState == null || !playerState.IsAlive)
             return;
 
-        localMoveWorld = ConvertInputToWorld(moveAction.ReadValue<Vector2>());
+        EnsureInputAdapter();
+        inputAdapter?.Tick();
+        MoveVector sampledInput = inputAdapter?.SampleInput() ?? default;
+        localMoveWorld = ConvertInputToWorld(new Vector2(sampledInput.X, sampledInput.Z));
         localAimWorld = GetPointerAimDirection();
         if (localMoveWorld.sqrMagnitude > 0.0001f) lastMoveDirection = localMoveWorld.normalized;
     }
@@ -104,35 +117,38 @@ public sealed class PlayerController : NetworkBehaviour
         if (isKnockedBack)
         {
             MoveOwner(knockbackVelocity, Time.fixedDeltaTime);
+            movementMotor?.ReportPose(new MoveVector(knockbackVelocity.x, 0f, knockbackVelocity.z));
             UpdateFacingAndMoveTarget(Vector3.zero, Time.fixedDeltaTime);
             return;
         }
 
-        Vector3 desiredVelocity;
         if (ownerDashRemaining > 0f)
         {
             ownerDashRemaining = Mathf.Max(0f, ownerDashRemaining - Time.fixedDeltaTime);
-            desiredVelocity = ownerDashDirection * playerState.MoveSpeed * playerState.DashSpeedMultiplier;
-        }
-        else
-        {
-            desiredVelocity = localMoveWorld * playerState.MoveSpeed;
+            movementMotor?.Dash(
+                new MoveVector(ownerDashDirection.x, ownerDashDirection.y, ownerDashDirection.z),
+                Time.fixedDeltaTime);
+            UpdateFacingAndMoveTarget(ownerDashDirection * playerState.MoveSpeed * playerState.DashSpeedMultiplier, Time.fixedDeltaTime);
+            return;
         }
 
-        MoveOwner(desiredVelocity, Time.fixedDeltaTime);
-        UpdateFacingAndMoveTarget(desiredVelocity, Time.fixedDeltaTime);
+        MoveVector movement = new(localMoveWorld.x, localMoveWorld.z);
+        if (movementMotor != null)
+            movementMotor.Drive(movement, Time.fixedDeltaTime);
+        else
+            MoveOwner(localMoveWorld * playerState.MoveSpeed, Time.fixedDeltaTime);
+        UpdateFacingAndMoveTarget(localMoveWorld * playerState.MoveSpeed, Time.fixedDeltaTime);
     }
 
     public void RequestAttack()
     {
         if (!NetworkAuthority.IsOwnerOrOffline(this) || playerState == null || !playerState.IsAlive) return;
-        CommandResult result = playerState.RequestAttackIntent(transform.position + localAimWorld);
-        if (result.Accepted) playerAttack?.PlayAttackPresentation();
+        EnsureInputAdapter();
+        CommandResult result = inputAdapter != null
+            ? inputAdapter.SubmitAttack(ToWorldPosition(transform.position + localAimWorld))
+            : playerState.RequestAttackIntent(transform.position + localAimWorld);
+        if (result.Accepted) _attackPresenter?.PlayAttackPresentation();
     }
-
-    /// <summary>AnimationEvent compatibility entry; still submits intent only.</summary>
-    [Obsolete("Animation events cannot apply damage; use PlayerController.RequestAttack.")]
-    public void SubmitAttackIntentFromAnimation() => RequestAttack();
 
     /// <summary>
     /// Owner movement adapter hook called by PlayerDash after server/application
@@ -142,26 +158,13 @@ public sealed class PlayerController : NetworkBehaviour
     {
         if (playerState == null || !NetworkAuthority.IsOwnerOrOffline(this) || !playerState.IsAlive)
             return false;
+        EnsureInputAdapter();
         Vector3 planar = Vector3.ProjectOnPlane(worldDirection, Vector3.up);
         if (planar.sqrMagnitude <= 0.0001f) planar = lastMoveDirection;
         if (planar.sqrMagnitude <= 0.0001f) planar = transform.forward;
         ownerDashDirection = planar.normalized;
         ownerDashRemaining = Mathf.Max(0f, playerState.DashDuration);
         return ownerDashRemaining > 0f;
-    }
-
-    [Obsolete("Dash validation moved to PlayerMobilityState/PlayerCommandService.")]
-    public bool ServerTryStartDash(Vector3 worldDirection, float duration)
-    {
-        return StartOwnerDash(worldDirection);
-    }
-
-    [Obsolete("Use PlayerNetworkState.RequestDashIntent from the input adapter.")]
-    public void RequestDash(Vector3 worldDirection, float duration)
-    {
-        if (playerState == null) return;
-        CommandResult result = playerState.RequestDashIntent(worldDirection);
-        if (result.Accepted) StartOwnerDash(worldDirection);
     }
 
     /// <summary>Presentation/motor execution only; knockback is decided by Combat.</summary>
@@ -217,9 +220,16 @@ public sealed class PlayerController : NetworkBehaviour
 
     private void MoveOwner(Vector3 velocity, float deltaTime)
     {
-        Vector3 next = transform.position + velocity * deltaTime;
-        if (body != null && !body.isKinematic) body.MovePosition(next);
-        else transform.position = next;
+        Vector3 planar = Vector3.ProjectOnPlane(velocity, Vector3.up);
+        if (body != null && !body.isKinematic)
+        {
+            Vector3 current = body.linearVelocity;
+            body.linearVelocity = new Vector3(planar.x, current.y, planar.z);
+        }
+        else
+        {
+            transform.position += planar * deltaTime;
+        }
     }
 
     /// <summary>Root-motion adapter; authoritative gameplay still comes from Commands.</summary>
@@ -227,17 +237,8 @@ public sealed class PlayerController : NetworkBehaviour
     {
         if (!NetworkAuthority.IsOwnerOrOffline(this) || playerState == null || !playerState.IsAlive ||
             isKnockedBack || ownerDashRemaining > 0f) return;
-        if (deltaPosition.sqrMagnitude <= 0.0000001f) return;
-        float speed = anim != null ? Mathf.Clamp(anim.GetFloat(MoveParameter), 0f, runBlendThreshold) : 0f;
-        if (speed <= 0.001f) return;
-        Vector3 direction = localMoveWorld.sqrMagnitude > 0.0001f ? localMoveWorld.normalized : lastMoveDirection;
-        float authoredSpeed = speed <= walkBlendThreshold
-            ? Mathf.Lerp(0f, authoredWalkSpeed, walkBlendThreshold <= 0.001f ? 1f : speed / walkBlendThreshold)
-            : Mathf.Lerp(authoredWalkSpeed, authoredRunSpeed, Mathf.InverseLerp(walkBlendThreshold, runBlendThreshold, speed));
-        MoveOwner(
-            direction * (deltaPosition.magnitude * speed * attackRootMotionScale /
-                         Mathf.Max(0.01f, authoredSpeed)),
-            1f);
+        // The Animator still consumes its authored root motion, but translation
+        // of the network root is owned exclusively by the FixedUpdate motor.
     }
 
     private void UpdateFacingAndMoveTarget(Vector3 velocity, float deltaTime)
@@ -268,9 +269,24 @@ public sealed class PlayerController : NetworkBehaviour
     private void UpdateMoveAnimation(float deltaTime)
     {
         if (anim == null || !NetworkAuthority.IsOwnerOrOffline(this)) return;
-        // FixedUpdate drives the target. This method intentionally only keeps
-        // the visual parameter alive while a prefab is idle.
+        // OwnerMovementMotor drives the local pose. This compatibility hook
+        // intentionally only keeps the visual parameter alive while a prefab is idle.
         if (deltaTime <= 0f) return;
+    }
+
+    private void ConfigurePhysicsAuthority(bool simulateLocally)
+    {
+        if (body == null) return;
+        if (!simulateLocally)
+        {
+            if (!body.isKinematic) body.linearVelocity = Vector3.zero;
+            body.useGravity = false;
+            body.isKinematic = true;
+            return;
+        }
+
+        body.isKinematic = false;
+        body.useGravity = true;
     }
 
     private void RefreshLocalInputState()
@@ -281,20 +297,63 @@ public sealed class PlayerController : NetworkBehaviour
             return;
         }
         if (inputEnabled) return;
-        moveAction.Enable();
-        attackAction.Enable();
-        attackAction.performed += AttackTrigger;
+        moveAction?.Enable();
+        attackAction?.Enable();
         inputEnabled = true;
     }
 
     private void DisableLocalInput()
     {
         if (!inputEnabled) return;
-        attackAction.performed -= AttackTrigger;
-        moveAction.Disable();
-        attackAction.Disable();
+        moveAction?.Disable();
+        attackAction?.Disable();
         inputEnabled = false;
     }
+
+    /// <summary>
+    /// Builds the new Input/OwnerMovement adapter lazily. Runtime binding is
+    /// performed by Bootstrap after Unity Awake; delaying id resolution prevents
+    /// the compatibility shell from allocating an id before it can be bound to
+    /// the server-owned PlayerAggregate.
+    /// </summary>
+    private void EnsureInputAdapter()
+    {
+        if (inputAdapter != null || playerState == null) return;
+        if (NetworkAuthority.IsNetworkActive && (!IsSpawned || !IsOwner)) return;
+
+        if (!playerState.TryGetAuthoritativeLogicalPlayerId(out EntityId playerId)) return;
+        LegacyPlayerCommandGateway gateway = new(playerState);
+        movementMotor = new OwnerMovementMotor(
+            transform,
+            playerId,
+            poseTransport: playerState,
+            moveSpeed: playerState.MoveSpeed,
+            dashSpeedMultiplier: playerState.DashSpeedMultiplier,
+            body: body,
+            moveSpeedSource: () => playerState != null ? playerState.MoveSpeed : 0f,
+            dashSpeedMultiplierSource: () => playerState != null ? playerState.DashSpeedMultiplier : 1f);
+        inputAdapter = new PlayerInputAdapter(
+            playerId,
+            movementMotor,
+            gateway,
+            moveAction,
+            dashAction: null,
+            attackAction: attackAction,
+            aimSource: new DelegateAimWorldPositionSource(_ =>
+                ToWorldPosition(transform.position + GetPointerAimDirection())),
+            moveResolver: ResolveMovementInput,
+            attackAccepted: () => _attackPresenter?.PlayAttackPresentation());
+    }
+
+    private MoveVector ResolveMovementInput(MoveVector input)
+    {
+        if (isKnockedBack || ownerDashRemaining > 0f) return default;
+        Vector3 world = ConvertInputToWorld(new Vector2(input.X, input.Z));
+        return new MoveVector(world.x, world.z);
+    }
+
+    private static WorldPosition ToWorldPosition(Vector3 value) =>
+        new(value.x, value.y, value.z);
 
     private void BindLocalPresentation()
     {
@@ -307,5 +366,27 @@ public sealed class PlayerController : NetworkBehaviour
         target.TrackingTarget = transform;
         if (!target.CustomLookAtTarget) target.LookAtTarget = transform;
         cinematicCamera.Target = target;
+    }
+
+    private sealed class LegacyPlayerCommandGateway : IPlayerCommandGateway
+    {
+        private readonly PlayerNetworkState state;
+
+        public LegacyPlayerCommandGateway(PlayerNetworkState state) =>
+            this.state = state ?? throw new ArgumentNullException(nameof(state));
+
+        public CommandResult SubmitDash(DashCommand command) =>
+            state.RequestDashIntent(new Vector3(command.Direction.X, command.Direction.Y, command.Direction.Z));
+
+        public CommandResult SubmitAttack(AttackCommand command) =>
+            state.RequestAttackIntent(new Vector3(command.AimAt.X, command.AimAt.Y, command.AimAt.Z));
+
+        public CommandResult SelectBloodPact(SelectBloodPactCommand command)
+        {
+            bool accepted = state.RequestBloodPactSelection(command.Selection.Value);
+            return accepted
+                ? CommandResult.Accept(command.Sequence)
+                : new CommandResult(CommandResultStatus.Rejected, "Blood Pact selection was rejected", command.Sequence);
+        }
     }
 }

@@ -114,13 +114,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2771379608
+  GlobalObjectIdHash: 1611195774
   InScenePlacedSourceGlobalObjectIdHash: 1611195774
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
-  m_InScenePlaced: 1
+  m_InScenePlaced: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
@@ -153,6 +153,10 @@ MonoBehaviour:
   stuckSideSwitchDelay: 0.4
   attackHitDelay: 0.35
   attackAnimationDuration: 1.25
+  body: {fileID: 2850761947813871155}
+  animationController: {fileID: 7342711397950216335}
+  combat: {fileID: 5210169198397585749}
+  enemyHealth: {fileID: 7777113142325540555}
 --- !u!114 &5210169198397585749
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -176,7 +180,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 77f215207c0bfdd468ac4c380ed44d73, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyKnockBack
 --- !u!114 &7777113142325540555
 MonoBehaviour:
