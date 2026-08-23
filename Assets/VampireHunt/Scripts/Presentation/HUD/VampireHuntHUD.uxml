@@ -1,0 +1,112 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/VampireHunt/Scripts/Presentation/HUD/VampireHuntHUD.uss?fileID=7433441132597879392&amp;guid=048bcc2190334e148f7c092fa3f83b94&amp;type=3#VampireHuntHUD"/>
+    <ui:VisualElement name="hud-root" picking-mode="Ignore">
+        <ui:VisualElement name="low-health-vignette" picking-mode="Ignore"/>
+
+        <ui:VisualElement name="run-header" class="hud-panel run-header" picking-mode="Ignore">
+            <ui:Label name="run-phase" text="探索阶段" class="eyebrow"/>
+            <ui:Label name="run-timer" text="00:00" class="run-timer"/>
+            <ui:Label name="objective-text" text="寻找敌人并收集猩红" class="objective-text"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="boss-panel" class="boss-panel" picking-mode="Ignore">
+            <ui:VisualElement class="boss-title-row">
+                <ui:Label text="契约目标" class="eyebrow boss-eyebrow"/>
+                <ui:Label name="boss-name" text="BOSS" class="boss-name"/>
+                <ui:Label name="boss-health-value" text="0 / 0" class="boss-health-value"/>
+            </ui:VisualElement>
+            <ui:ProgressBar name="boss-health-bar" low-value="0" high-value="100" value="100" class="vital-bar boss-health-bar"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="pact-summary" class="hud-panel pact-summary" picking-mode="Ignore">
+            <ui:Label text="血契构筑" class="eyebrow"/>
+            <ui:VisualElement class="pact-summary-row">
+                <ui:Label name="pact-count" text="0" class="pact-count"/>
+                <ui:Label text="份血契" class="pact-count-suffix"/>
+            </ui:VisualElement>
+            <ui:Label name="build-name" text="尚未缔结血契" class="build-name"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="player-vitals" class="hud-panel player-vitals" picking-mode="Ignore">
+            <ui:Label text="血族状态" class="eyebrow"/>
+            <ui:VisualElement class="vital-row">
+                <ui:Label text="生命" class="vital-name health-name"/>
+                <ui:ProgressBar name="player-health-bar" low-value="0" high-value="100" value="100" class="vital-bar health-bar"/>
+                <ui:Label name="health-value" text="100 / 100" class="vital-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="vital-row">
+                <ui:Label text="体力" class="vital-name stamina-name"/>
+                <ui:ProgressBar name="player-stamina-bar" low-value="0" high-value="100" value="100" class="vital-bar stamina-bar"/>
+                <ui:Label name="stamina-value" text="100 / 100" class="vital-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="vital-row">
+                <ui:Label text="猩红" class="vital-name scarlet-name"/>
+                <ui:ProgressBar name="player-scarlet-bar" low-value="0" high-value="100" value="0" class="vital-bar scarlet-bar"/>
+                <ui:Label name="scarlet-value" text="0 / 100" class="vital-value"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="ability-tray" class="ability-tray" picking-mode="Ignore">
+            <ui:VisualElement name="primary-ability-slot" class="ability-slot">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="普攻" class="ability-name"/>
+                <ui:Label text="LMB" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="secondary-ability-slot" class="ability-slot">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="重击" class="ability-name"/>
+                <ui:Label text="RMB" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="dash-ability-slot" class="ability-slot ability-slot--accent">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="血影冲刺" class="ability-name"/>
+                <ui:Label text="SHIFT" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="artifact-ability-slot" class="ability-slot">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="神器" class="ability-name"/>
+                <ui:Label text="Q" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="notification-container" class="notification-container" picking-mode="Ignore"/>
+
+        <ui:VisualElement name="pact-selection-overlay" class="pact-selection-overlay" picking-mode="Position">
+            <ui:Label text="猩红已满" class="pact-draft-eyebrow"/>
+            <ui:Label text="选择一份血契" class="pact-draft-title"/>
+            <ui:Label text="服务器将扣除 100 猩红并记录选择" class="pact-draft-subtitle"/>
+            <ui:VisualElement class="pact-card-row">
+                <ui:VisualElement class="pact-card">
+                    <ui:Label name="pact-name-0" text="血契" class="pact-card-name"/>
+                    <ui:Label name="pact-description-0" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="pact-stack-0" text="尚未拥有" class="pact-card-stack"/>
+                    <ui:Button name="pact-select-0" text="缔结" class="pact-select-button"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="pact-card">
+                    <ui:Label name="pact-name-1" text="血契" class="pact-card-name"/>
+                    <ui:Label name="pact-description-1" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="pact-stack-1" text="尚未拥有" class="pact-card-stack"/>
+                    <ui:Button name="pact-select-1" text="缔结" class="pact-select-button"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="pact-card">
+                    <ui:Label name="pact-name-2" text="血契" class="pact-card-name"/>
+                    <ui:Label name="pact-description-2" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="pact-stack-2" text="尚未拥有" class="pact-card-stack"/>
+                    <ui:Button name="pact-select-2" text="缔结" class="pact-select-button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Button name="pact-reroll" text="刷新选项" class="pact-reroll-button"/>
+            <ui:Label name="pact-reroll-hint" text="刷新预付 25 猩红，总消耗仍为 100" class="pact-reroll-hint"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="message-overlay" class="message-overlay">
+            <ui:Label name="message-label" text="重塑血躯" class="message-label"/>
+            <ui:VisualElement name="message-divider" class="message-divider"/>
+            <ui:Label name="countdown-label" text="5" class="countdown-label"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,490 @@
+:root {
+    --vh-panel: rgba(13, 8, 13, 0.88);
+    --vh-panel-soft: rgba(26, 14, 22, 0.82);
+    --vh-border: rgba(151, 47, 65, 0.72);
+    --vh-blood: rgb(172, 35, 55);
+    --vh-blood-bright: rgb(231, 58, 76);
+    --vh-stamina: rgb(190, 157, 72);
+    --vh-scarlet: rgb(217, 48, 83);
+    --vh-text: rgb(242, 231, 221);
+    --vh-muted: rgb(168, 146, 143);
+}
+
+#hud-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    color: var(--vh-text);
+}
+
+.hud-panel {
+    background-color: var(--vh-panel);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: var(--vh-border);
+    border-right-color: var(--vh-border);
+    border-top-color: var(--vh-border);
+    border-bottom-color: var(--vh-border);
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+}
+
+.eyebrow {
+    color: var(--vh-muted);
+    font-size: 10px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+}
+
+.run-header {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    width: 310px;
+    margin-left: -155px;
+    padding: 8px 18px 10px 18px;
+    align-items: center;
+}
+
+.run-timer {
+    margin-top: -2px;
+    color: var(--vh-text);
+    font-size: 32px;
+    letter-spacing: 3px;
+    -unity-font-style: bold;
+}
+
+.objective-text {
+    margin-top: 2px;
+    color: rgb(207, 188, 179);
+    font-size: 11px;
+}
+
+.boss-panel {
+    position: absolute;
+    display: none;
+    top: 112px;
+    left: 50%;
+    width: 620px;
+    margin-left: -310px;
+    padding: 8px 12px 10px 12px;
+    background-color: rgba(17, 7, 11, 0.92);
+    border-bottom-width: 2px;
+    border-bottom-color: var(--vh-blood);
+}
+
+.boss-title-row {
+    height: 22px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.boss-eyebrow {
+    width: 92px;
+}
+
+.boss-name {
+    flex-grow: 1;
+    color: rgb(244, 218, 202);
+    font-size: 15px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.boss-health-value {
+    width: 92px;
+    color: var(--vh-muted);
+    font-size: 10px;
+    -unity-text-align: middle-right;
+}
+
+.pact-summary {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    width: 190px;
+    padding: 12px;
+}
+
+.pact-summary-row {
+    margin-top: 5px;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.pact-count {
+    color: var(--vh-blood-bright);
+    font-size: 28px;
+    -unity-font-style: bold;
+}
+
+.pact-count-suffix {
+    margin-left: 5px;
+    margin-bottom: 4px;
+    color: var(--vh-muted);
+    font-size: 10px;
+}
+
+.build-name {
+    margin-top: 2px;
+    color: rgb(220, 202, 190);
+    font-size: 11px;
+}
+
+.player-vitals {
+    position: absolute;
+    left: 22px;
+    bottom: 22px;
+    width: 390px;
+    padding: 12px 14px 14px 14px;
+}
+
+.vital-row {
+    height: 28px;
+    margin-top: 7px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.vital-name {
+    width: 42px;
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.health-name {
+    color: rgb(235, 95, 100);
+}
+
+.stamina-name {
+    color: rgb(224, 193, 108);
+}
+
+.scarlet-name {
+    color: rgb(243, 75, 120);
+}
+
+.vital-bar {
+    flex-grow: 1;
+    height: 16px;
+    margin-left: 7px;
+    margin-right: 9px;
+    background-color: rgba(0, 0, 0, 0.65);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.vital-bar .unity-progress-bar__title {
+    display: none;
+}
+
+.health-bar .unity-progress-bar__progress {
+    background-color: var(--vh-blood);
+}
+
+.stamina-bar .unity-progress-bar__progress {
+    background-color: var(--vh-stamina);
+}
+
+.scarlet-bar .unity-progress-bar__progress {
+    background-color: var(--vh-scarlet);
+}
+
+.boss-health-bar .unity-progress-bar__progress {
+    background-color: rgb(128, 17, 37);
+}
+
+.vital-value {
+    width: 76px;
+    color: rgb(217, 203, 194);
+    font-size: 10px;
+    -unity-text-align: middle-right;
+}
+
+.ability-tray {
+    position: absolute;
+    left: 50%;
+    bottom: 25px;
+    width: 372px;
+    margin-left: -186px;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.ability-slot {
+    position: relative;
+    width: 82px;
+    height: 66px;
+    margin-left: 5px;
+    margin-right: 5px;
+    overflow: hidden;
+    background-color: var(--vh-panel-soft);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 2px;
+    border-left-color: rgba(128, 85, 89, 0.75);
+    border-right-color: rgba(128, 85, 89, 0.75);
+    border-top-color: rgba(128, 85, 89, 0.75);
+    border-bottom-color: var(--vh-blood);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    align-items: center;
+    justify-content: center;
+}
+
+.ability-slot--accent {
+    border-bottom-color: rgb(225, 174, 68);
+}
+
+.ability-cooldown-shade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0%;
+    background-color: rgba(0, 0, 0, 0.72);
+}
+
+.ability-name {
+    color: rgb(228, 213, 202);
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.ability-key {
+    margin-top: 5px;
+    color: var(--vh-muted);
+    font-size: 9px;
+}
+
+.ability-cooldown {
+    position: absolute;
+    left: 0;
+    top: 20px;
+    right: 0;
+    color: white;
+    font-size: 19px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ability-slot--cooling .ability-name,
+.ability-slot--cooling .ability-key {
+    opacity: 0.45;
+}
+
+.notification-container {
+    position: absolute;
+    top: 150px;
+    right: 22px;
+    width: 280px;
+    max-height: 240px;
+    flex-direction: column;
+}
+
+.pact-selection-overlay {
+    position: absolute;
+    display: none;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 90px;
+    background-color: rgba(5, 2, 5, 0.90);
+    align-items: center;
+}
+
+.pact-draft-eyebrow {
+    color: var(--vh-scarlet);
+    font-size: 11px;
+    letter-spacing: 4px;
+    -unity-font-style: bold;
+}
+
+.pact-draft-title {
+    margin-top: 5px;
+    color: var(--vh-text);
+    font-size: 32px;
+    letter-spacing: 5px;
+    -unity-font-style: bold;
+}
+
+.pact-draft-subtitle {
+    margin-top: 8px;
+    color: var(--vh-muted);
+    font-size: 11px;
+}
+
+.pact-card-row {
+    width: 870px;
+    height: 360px;
+    margin-top: 30px;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.pact-card {
+    width: 260px;
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 24px 20px 20px 20px;
+    background-color: rgba(24, 10, 17, 0.97);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 3px;
+    border-left-color: rgba(156, 63, 76, 0.72);
+    border-right-color: rgba(156, 63, 76, 0.72);
+    border-top-color: rgba(156, 63, 76, 0.72);
+    border-bottom-color: var(--vh-blood);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.pact-card-name {
+    color: rgb(244, 218, 202);
+    font-size: 22px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.pact-card-description {
+    flex-grow: 1;
+    margin-top: 22px;
+    color: rgb(213, 194, 183);
+    font-size: 13px;
+    white-space: normal;
+    -unity-text-align: upper-center;
+}
+
+.pact-card-stack {
+    margin-bottom: 12px;
+    color: var(--vh-muted);
+    font-size: 10px;
+    -unity-text-align: middle-center;
+}
+
+.pact-select-button,
+.pact-reroll-button {
+    height: 38px;
+    color: var(--vh-text);
+    background-color: rgb(103, 20, 36);
+    border-left-color: rgb(183, 50, 70);
+    border-right-color: rgb(183, 50, 70);
+    border-top-color: rgb(183, 50, 70);
+    border-bottom-color: rgb(183, 50, 70);
+    -unity-font-style: bold;
+}
+
+.pact-select-button:hover,
+.pact-reroll-button:hover {
+    background-color: rgb(153, 31, 50);
+}
+
+.pact-reroll-button {
+    width: 150px;
+    margin-top: 18px;
+}
+
+.pact-reroll-hint {
+    margin-top: 6px;
+    color: var(--vh-muted);
+    font-size: 10px;
+}
+
+.notification-item {
+    margin-bottom: 6px;
+    padding: 9px 12px;
+    opacity: 1;
+    color: var(--vh-text);
+    background-color: rgba(20, 9, 15, 0.92);
+    border-left-width: 3px;
+    border-left-color: var(--vh-blood);
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    transition-property: opacity;
+    transition-duration: 0.3s;
+}
+
+.notification-item Label {
+    color: var(--vh-text);
+    font-size: 11px;
+    white-space: normal;
+}
+
+.notification-fade-out {
+    opacity: 0;
+}
+
+.message-overlay {
+    position: absolute;
+    display: none;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(7, 2, 5, 0.87);
+    align-items: center;
+    justify-content: center;
+}
+
+.message-label {
+    color: rgb(236, 215, 204);
+    font-size: 30px;
+    letter-spacing: 4px;
+    -unity-font-style: bold;
+}
+
+.message-divider {
+    width: 230px;
+    height: 2px;
+    margin-top: 14px;
+    margin-bottom: 2px;
+    background-color: var(--vh-blood);
+}
+
+.countdown-label {
+    color: white;
+    font-size: 112px;
+    -unity-font-style: bold;
+}
+
+#low-health-vignette {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0;
+    border-left-width: 20px;
+    border-right-width: 20px;
+    border-top-width: 20px;
+    border-bottom-width: 20px;
+    border-left-color: rgba(180, 0, 25, 0.8);
+    border-right-color: rgba(180, 0, 25, 0.8);
+    border-top-color: rgba(180, 0, 25, 0.8);
+    border-bottom-color: rgba(180, 0, 25, 0.8);
+    transition-property: opacity;
+    transition-duration: 0.2s;
+}
+
+.hud--low-health .health-bar .unity-progress-bar__progress {
+    background-color: var(--vh-blood-bright);
+}
