@@ -601,7 +601,7 @@ namespace Blocks.Gameplay.Core
                 {
                     ""name"": """",
                     ""id"": ""338d2fe8-2cca-4010-aaf0-b80489f84ee2"",
-                    ""path"": ""<Keyboard>/space"",
+                    ""path"": ""<Keyboard>/c"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
