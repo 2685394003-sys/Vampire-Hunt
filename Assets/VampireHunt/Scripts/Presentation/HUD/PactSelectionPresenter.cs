@@ -28,6 +28,8 @@ namespace VampireHunt.Presentation.HUD
         private readonly Label[] m_Descriptions = new Label[3];
         private readonly Label[] m_Stacks = new Label[3];
         private VisualElement m_Overlay;
+        private Label m_DraftSubtitle;
+        private Label m_LevelUpHint;
         private Button m_RerollButton;
         private Label m_RerollHint;
         private bool m_Bound;
@@ -47,14 +49,22 @@ namespace VampireHunt.Presentation.HUD
         {
             base.OnNetworkSpawn();
             if (!IsOwner) return;
-            if (draftBridge != null) draftBridge.DraftChanged += RenderDraft;
+            if (draftBridge != null)
+            {
+                draftBridge.DraftChanged += RenderDraft;
+                draftBridge.LevelUpCostChanged += RenderLevelUpCost;
+            }
             if (pactState != null) pactState.InventoryChanged += RenderSummary;
             StartCoroutine(BindNextFrame());
         }
 
         public override void OnNetworkDespawn()
         {
-            if (draftBridge != null) draftBridge.DraftChanged -= RenderDraft;
+            if (draftBridge != null)
+            {
+                draftBridge.DraftChanged -= RenderDraft;
+                draftBridge.LevelUpCostChanged -= RenderLevelUpCost;
+            }
             if (pactState != null) pactState.InventoryChanged -= RenderSummary;
             UnbindButtons();
             SetCursorForDraft(false);
@@ -66,6 +76,7 @@ namespace VampireHunt.Presentation.HUD
             yield return null;
             BindUi();
             RenderDraft(draftBridge != null ? draftBridge.CurrentDraft : default);
+            RenderLevelUpCost(draftBridge != null ? draftBridge.SelectionScarletCost : 0f);
             RenderSummary();
         }
 
@@ -75,6 +86,8 @@ namespace VampireHunt.Presentation.HUD
             VisualElement root = uiDocument.rootVisualElement;
             if (root == null) return;
             m_Overlay = root.Q<VisualElement>("pact-selection-overlay");
+            m_DraftSubtitle = root.Q<Label>("pact-draft-subtitle");
+            m_LevelUpHint = root.Q<Label>("level-up-hint");
             for (int i = 0; i < 3; i++)
             {
                 int capturedIndex = i;
@@ -113,6 +126,11 @@ namespace VampireHunt.Presentation.HUD
             m_Overlay.style.display = draft.IsActive ? DisplayStyle.Flex : DisplayStyle.None;
             SetCursorForDraft(draft.IsActive);
 
+            if (m_DraftSubtitle != null)
+                m_DraftSubtitle.text = draft.IsActive
+                    ? $"本次升级需要 {Mathf.CeilToInt(draft.SelectionCost)} 猩红，选择后由服务器扣除"
+                    : string.Empty;
+
             for (int i = 0; i < 3; i++)
             {
                 bool available = i < draft.OptionCount;
@@ -144,7 +162,7 @@ namespace VampireHunt.Presentation.HUD
             if (m_RerollHint != null)
                 m_RerollHint.text = draft.IsActive
                     ? draft.RerollCount < draft.MaxRerolls
-                        ? $"刷新预付 {draft.RerollCost} 猩红，总消耗仍为 100"
+                        ? $"刷新预付 {draft.RerollCost} 猩红，总消耗仍为 {Mathf.CeilToInt(draft.SelectionCost)}"
                         : "本次选择已刷新"
                     : string.Empty;
         }
@@ -164,6 +182,13 @@ namespace VampireHunt.Presentation.HUD
             }
             if (m_Pacts.Count > 2) names.Append(" …");
             hud.SetPactSummary(pactState.TotalStacks, names.ToString());
+        }
+
+        private void RenderLevelUpCost(float cost)
+        {
+            BindUi();
+            if (m_LevelUpHint != null)
+                m_LevelUpHint.text = $"按 Z 手动升级 · 需要 {Mathf.CeilToInt(cost)} 猩红";
         }
 
         private void SelectOption(int index)

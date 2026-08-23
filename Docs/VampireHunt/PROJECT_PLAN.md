@@ -49,7 +49,9 @@ flowchart TD
     Start[开始单局] --> Explore[探索地图与寻找资源]
     Explore --> Kill[击杀敌人]
     Kill --> Scarlet[获得猩红/魔币/物品]
-    Scarlet --> Draft{猩红达到阈值?}
+    Scarlet --> Trigger{按下升级键?}
+    Trigger -- 否 --> Explore
+    Trigger -- 是 --> Draft{猩红足够?}
     Draft -- 否 --> Explore
     Draft -- 是 --> Pact[血契三选一或刷新]
     Pact --> Build[强化 Build]
@@ -494,8 +496,9 @@ FinalValue = (BaseValue + SumFlat)
 ### 12.3 抽取与选择
 
 ```text
-猩红达到阈值
-→ 服务端创建 Draft 请求
+玩家按下 TriggerLevelup
+→ Owner InputHandler 广播本地升级事件
+→ 服务端校验本次升级所需猩红并创建 Draft
 → 过滤前置/互斥/满层血契
 → Luck 调整权重
 → 使用单局 Seed 生成三个唯一选项
@@ -505,6 +508,8 @@ FinalValue = (BaseValue + SumFlat)
 → PactNetworkState 同步层数
 → GameplayEffectHost.SetSource 增量更新对应 EffectSource
 ```
+
+升级费用由服务端持有，以 100 猩红为基础值；每次成功选择血契后，下一次费用按默认 10% 复合增长并向上取整。Draft 创建时冻结本次费用，刷新预付与最终扣款均以该冻结值计算。
 
 ### 12.4 模块化效果核心
 

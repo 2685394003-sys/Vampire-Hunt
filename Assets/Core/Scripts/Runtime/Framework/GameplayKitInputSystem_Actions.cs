@@ -243,6 +243,16 @@ namespace Blocks.Gameplay.Core
                     ""interactions"": """",
                     ""initialStateCheck"": false,
                     ""priority"": 0
+                },
+                {
+                    ""name"": ""TriggerLevelup"",
+                    ""type"": ""Button"",
+                    ""id"": ""3d11ebcc-2db3-4b68-a10c-05181e55f98c"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
                 }
             ],
             ""bindings"": [
@@ -617,6 +627,17 @@ namespace Blocks.Gameplay.Core
                     ""processors"": """",
                     ""groups"": """",
                     ""action"": ""Interact"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c3bb95ac-8394-424e-98c1-38f3998d5a98"",
+                    ""path"": ""<Keyboard>/z"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""TriggerLevelup"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1229,6 +1250,7 @@ namespace Blocks.Gameplay.Core
             m_Player_CombatAbility3 = m_Player.FindAction("CombatAbility3", throwIfNotFound: true);
             m_Player_CombatAbility4 = m_Player.FindAction("CombatAbility4", throwIfNotFound: true);
             m_Player_Interact = m_Player.FindAction("Interact", throwIfNotFound: true);
+            m_Player_TriggerLevelup = m_Player.FindAction("TriggerLevelup", throwIfNotFound: true);
             // UI
             m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
             m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1337,6 +1359,7 @@ namespace Blocks.Gameplay.Core
         private readonly InputAction m_Player_CombatAbility3;
         private readonly InputAction m_Player_CombatAbility4;
         private readonly InputAction m_Player_Interact;
+        private readonly InputAction m_Player_TriggerLevelup;
         /// <summary>
         /// Provides access to input actions defined in input action map "Player".
         /// </summary>
@@ -1409,6 +1432,10 @@ namespace Blocks.Gameplay.Core
             /// </summary>
             public InputAction @Interact => m_Wrapper.m_Player_Interact;
             /// <summary>
+            /// Provides access to the underlying input action "Player/TriggerLevelup".
+            /// </summary>
+            public InputAction @TriggerLevelup => m_Wrapper.m_Player_TriggerLevelup;
+            /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
             public InputActionMap Get() { return m_Wrapper.m_Player; }
@@ -1479,6 +1506,9 @@ namespace Blocks.Gameplay.Core
                 @Interact.started += instance.OnInteract;
                 @Interact.performed += instance.OnInteract;
                 @Interact.canceled += instance.OnInteract;
+                @TriggerLevelup.started += instance.OnTriggerLevelup;
+                @TriggerLevelup.performed += instance.OnTriggerLevelup;
+                @TriggerLevelup.canceled += instance.OnTriggerLevelup;
             }
 
             /// <summary>
@@ -1535,6 +1565,9 @@ namespace Blocks.Gameplay.Core
                 @Interact.started -= instance.OnInteract;
                 @Interact.performed -= instance.OnInteract;
                 @Interact.canceled -= instance.OnInteract;
+                @TriggerLevelup.started -= instance.OnTriggerLevelup;
+                @TriggerLevelup.performed -= instance.OnTriggerLevelup;
+                @TriggerLevelup.canceled -= instance.OnTriggerLevelup;
             }
 
             /// <summary>
@@ -1940,6 +1973,13 @@ namespace Blocks.Gameplay.Core
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnInteract(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "TriggerLevelup" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnTriggerLevelup(InputAction.CallbackContext context);
         }
         /// <summary>
         /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

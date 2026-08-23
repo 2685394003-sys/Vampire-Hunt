@@ -1,7 +1,7 @@
 ﻿<Solution>
+  <Project Path="MoreMountains.Tools.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="AK.Wwise.Unity.MonoBehaviour.csproj" />
-  <Project Path="MoreMountains.Tools.csproj" />
   <Project Path="AK.Wwise.Unity.MonoBehaviour.Editor.csproj" />
   <Project Path="AK.Wwise.Unity.ProjectDatabase.csproj" />
   <Project Path="Blocks.Gameplay.Shooter.Editor.csproj" />

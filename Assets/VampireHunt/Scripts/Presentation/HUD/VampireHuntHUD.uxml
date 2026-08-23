@@ -44,6 +44,7 @@
                 <ui:ProgressBar name="player-scarlet-bar" low-value="0" high-value="100" value="0" class="vital-bar scarlet-bar"/>
                 <ui:Label name="scarlet-value" text="0 / 100" class="vital-value"/>
             </ui:VisualElement>
+            <ui:Label name="level-up-hint" text="按 Z 手动升级 · 需要 100 猩红" class="level-up-hint"/>
         </ui:VisualElement>
 
         <ui:VisualElement name="ability-tray" class="ability-tray" picking-mode="Ignore">
@@ -76,9 +77,9 @@
         <ui:VisualElement name="notification-container" class="notification-container" picking-mode="Ignore"/>
 
         <ui:VisualElement name="pact-selection-overlay" class="pact-selection-overlay" picking-mode="Position">
-            <ui:Label text="猩红已满" class="pact-draft-eyebrow"/>
+            <ui:Label text="升级选择" class="pact-draft-eyebrow"/>
             <ui:Label text="选择一份血契" class="pact-draft-title"/>
-            <ui:Label text="服务器将扣除 100 猩红并记录选择" class="pact-draft-subtitle"/>
+            <ui:Label name="pact-draft-subtitle" text="选择后由服务器扣除本次升级所需猩红" class="pact-draft-subtitle"/>
             <ui:VisualElement class="pact-card-row">
                 <ui:VisualElement class="pact-card">
                     <ui:Label name="pact-name-0" text="血契" class="pact-card-name"/>
@@ -100,7 +101,7 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:Button name="pact-reroll" text="刷新选项" class="pact-reroll-button"/>
-            <ui:Label name="pact-reroll-hint" text="刷新预付 25 猩红，总消耗仍为 100" class="pact-reroll-hint"/>
+            <ui:Label name="pact-reroll-hint" text="刷新费用计入本次升级总消耗" class="pact-reroll-hint"/>
         </ui:VisualElement>
 
         <ui:VisualElement name="message-overlay" class="message-overlay">

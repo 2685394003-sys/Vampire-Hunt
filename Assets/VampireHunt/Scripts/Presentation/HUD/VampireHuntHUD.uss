@@ -152,6 +152,13 @@
     align-items: center;
 }
 
+.level-up-hint {
+    margin-top: 5px;
+    color: var(--vh-muted);
+    font-size: 10px;
+    -unity-text-align: middle-right;
+}
+
 .vital-name {
     width: 42px;
     font-size: 11px;

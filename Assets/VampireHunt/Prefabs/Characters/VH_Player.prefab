@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 3213608192859822684}
   - component: {fileID: 2882169080758904526}
   - component: {fileID: -700000000000000019}
+  - component: {fileID: -700000000000000020}
   - component: {fileID: 7875331226141230548}
   - component: {fileID: 1108927199896854533}
   - component: {fileID: 1738836199841815264}
@@ -198,13 +199,27 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 08f4eb25c99e4e4a82db54a72a4baef9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.CombatAbilityInputHandler
   ShowTopMostFoldoutHeaderGroup: 1
   onCombatAbility1Pressed: {fileID: 11400000, guid: 4c3f20de94464faba77cafd4791af39d, type: 2}
   onCombatAbility2Pressed: {fileID: 11400000, guid: 6106a8422d064407ad2ae3cba60846c1, type: 2}
   onCombatAbility3Pressed: {fileID: 11400000, guid: 1cc9cd85f9d045919767834159ff35d8, type: 2}
   onCombatAbility4Pressed: {fileID: 11400000, guid: 6e0b3aaa5fa84cb29cedd71ad6833afb, type: 2}
+--- !u!114 &-700000000000000020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66a367b7845e422490c20755af5230e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.LevelUpInputHandler
+  ShowTopMostFoldoutHeaderGroup: 1
+  onTriggerLevelup: {fileID: 11400000, guid: f6e7ab143499490da5daa29eeeb1d6f1, type: 2}
 --- !u!114 &7875331226141230548
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -511,7 +526,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.CombatAbilityInputAddon
   ShowTopMostFoldoutHeaderGroup: 1
   slot: 0
-  onActionPressed: {fileID: 11400000, guid: 4c3f20de94464faba77cafd4791af39d, type: 2}
+  onActionPressed: {fileID: 11400000, guid: f48adbe17161042ef8cf65a5a455594a, type: 2}
   abilityHost: {fileID: -700000000000000004}
 --- !u!114 &-700000000000000004
 MonoBehaviour:
@@ -663,7 +678,9 @@ MonoBehaviour:
   catalog: {fileID: 11400000, guid: 44458d3615a748906c1a0f3871902a4c, type: 2}
   pactState: {fileID: -700000000000000012}
   coreStats: {fileID: 1108927199896854533}
+  onTriggerLevelup: {fileID: 11400000, guid: f6e7ab143499490da5daa29eeeb1d6f1, type: 2}
   selectionScarletCost: 100
+  levelUpCostGrowthRate: 0.1
   rerollScarletCost: 25
   maxRerolls: 1
   optionCount: 3
