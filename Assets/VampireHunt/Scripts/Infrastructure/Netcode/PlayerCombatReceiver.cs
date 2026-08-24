@@ -12,7 +12,8 @@ namespace VampireHunt.Infrastructure.Netcode
     /// the submitted result to the server authority; no hit validation is added.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerCombatReceiver : HitProcessor, IScarletRewardReceiver, IDamageReceiver, ICombatEntityIdentity
+    public sealed class PlayerCombatReceiver : HitProcessor, IScarletRewardReceiver, IDamageReceiver,
+        ICombatImpulseTarget, ICombatEntityIdentity
     {
         private const uint EnemyMeleeAttackId = 2;
 
@@ -68,6 +69,13 @@ namespace VampireHunt.Infrastructure.Netcode
             RaiseDamagePresentationRpc(request.Source.Value, CombatEntityId.Value, request.AttackId,
                 request.Sequence, result.Amount, (uint)result.Tags, transform.position + Vector3.up);
             ServerCombatResolutionRouter.Publish(NetworkManager, resolution);
+            return true;
+        }
+
+        public bool TryApplyImpulse(in VampireHunt.Contracts.Float3 impulse)
+        {
+            if (!IsServer || coreMovement == null || impulse.SqrMagnitude <= 0.0001f) return false;
+            ApplyKnockbackRpc(new Vector3(impulse.X, impulse.Y, impulse.Z));
             return true;
         }
 

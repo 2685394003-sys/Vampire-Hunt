@@ -256,6 +256,67 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!1001 &749923859
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8074345362085092813, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 183334453
+      objectReference: {fileID: 0}
+    - target: {fileID: 8413633064298302666, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_Name
+      value: Boss_AbilitySystemDemo
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.3826834
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.92387956
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
 --- !u!1 &890453300
 GameObject:
   m_ObjectHideFlags: 0
@@ -415,7 +476,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6a01b2c3d4e54f67890123456789ab03, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.EnemyAffixRunState
   catalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
 --- !u!1 &1312345085
@@ -861,3 +922,4 @@ SceneRoots:
   - {fileID: 1312345086}
   - {fileID: 995894093}
   - {fileID: 1535651532}
+  - {fileID: 749923859}

@@ -713,6 +713,52 @@ CanStart
 
 服务端同步 `AttackId + StartTick + Parameters`，客户端按同一时间轴播放预警，不逐帧同步所有预警图形。
 
+### 16.5 Ability 数据资产落地（当前实现）
+
+Boss 技能采用“定义、逻辑、表现、阶段装配”四部分组合：
+
+- `BossAbilityAsset`：一个可右键创建的技能数据表，保存唯一 ID、权重、CD、距离/血量条件、Telegraph/Resolve/Recover 时长、逻辑资产和表现 Cue。
+- `IBossAbilityLogicRuntime` 实现脚本：技能规则的可替换入口；具体横扫、弹幕、网格等逻辑分别写在 `Scripts/Boss/Abilities/Logic` 下的独立 `.cs` 文件中。`BossAbilityAsset` 的 Logic 字段直接引用脚本，Data 目录不存放逻辑资产。
+- `BossAbilityPresentationCue`：按施法时间轴配置动画 Trigger、VFX、音效，以及胸口、头部、左右手、脚底等 Boss 相对挂点。
+- `BossPhaseAsset` / `BossPhaseSetAsset`：配置某阶段可使用哪些技能、权重、初始 CD 和次数限制；Boss 预制体只挂一个阶段集合。
+
+目录约束：`Data/Boss` 只存技能、阶段等配置资产；行为代码放在 `Scripts/Boss/Abilities/Logic`；材质等客户端表现资源放在 `Presentation/Boss`；VFX 对象放在 `Prefabs/Boss`。
+
+运行时分层：
+
+```text
+BossAbilityPhaseProvider（阶段配置的唯一引用点）
++ BossAbilityContextProvider（目标、距离、血量输入采样）
+→ BossAbilityHost（只持有纯 C# 生命周期与调度）
+→ BossAbilityServerDriver（仅服务端推进与确定性随机种子）
+→ BossAbilityStateReplicator（只复制紧凑时间轴）
+→ BossAbilityPresenter（把时间轴分发成表现 Cue）
+→ BossAbilityAnimatorPresenter / BossAbilityVfxPresenter / BossAbilityAudioPresenter
+```
+
+Boss 预制体采用与 Player 相同的组件组合原则，但不照搬 Player 的技能组件膨胀：每个宿主组件只负责一种系统职责，具体技能仍由阶段数据资产装配，技能规则脚本不会逐个作为 MonoBehaviour 堆到 Boss 身上。表现 Cue 的时间调度、动画、VFX 与音频分别由独立组件消费；任何表现组件都不能反向修改技能、阶段或网络状态。
+
+当前已完成技能系统骨架、多人状态复制、Boss 相对表现挂点和演示技能 `Demo Blood Pulse`。演示技能直接引用 `Scripts/Boss/Abilities/Logic/BossNoOpAbilityLogic.cs`，该脚本只验证装配、时间轴和表现链路；横扫、弹幕、网格、轰炸、斩击、激光、狂暴等正式伤害/判定逻辑仍属于后续内容实现。
+
+### 16.6 Ability Gameplay Services（当前实现）
+
+技能规则不直接调用 Unity 物理、NGO、玩家组件或场景 `GameManager`。跨模块端口定义在 `Scripts/Contracts/BossAbilityServiceContracts.cs`，Unity/联机适配器放在 `Scripts/Infrastructure/Integration/Boss/Services`，由 Boss 预制体上的原子组件提供：
+
+```text
+BossAbilityServiceHost（只组装，不执行玩法）
+├─ BossPlayerTargetQuery      → 联机存活玩家查询
+├─ BossPhysicsHitQuery        → Sphere / Box 空间判定
+├─ BossDamageService          → IDamageReceiver 权威伤害入口
+├─ BossProjectileSpawner      → 服务端 NetworkObject 弹道生成
+├─ BossStatusEffectService    → IStatusEffectTarget 权威状态入口
+├─ BossRunClockModifier       → VampireHuntGameManager 倒计时入口
+└─ BossBodyStateHost          → 血量、踉跄、左右手状态网络读模型
+```
+
+`BossAbilityHost` 在初始化时取得一个不可变 `BossAbilityServices` 并交给纯 C# Controller；只有实现 `IBossAbilityServiceConsumer` 的技能逻辑会收到该集合，而且保证在 `OnCastStarted` 之前注入。它不是全局单例，也不允许技能自己通过 `FindObjectOfType` 寻找依赖。
+
+多人规则：所有查询、伤害、状态、弹道和倒计时写入只在服务器成功；客户端仅消费 `BossAbilityStateReplicator` 的技能时间轴和 `BossBodyStateHost` 的身体读模型。Projectile 配置表初始为空，正式弹幕预制体制作完成后再以 `ProjectileId` 注册，同时加入 NetworkManager 的 Network Prefabs。
+
 ## 17. Projectile 模块
 
 从 Shooter 模板抽取：

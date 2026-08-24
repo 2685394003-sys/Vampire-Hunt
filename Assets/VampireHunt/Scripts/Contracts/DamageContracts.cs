@@ -109,6 +109,12 @@ namespace VampireHunt.Contracts
         bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result);
     }
 
+    /// <summary>Authoritative movement impulse port used by attacks without exposing CoreMovement.</summary>
+    public interface ICombatImpulseTarget
+    {
+        bool TryApplyImpulse(in Float3 impulse);
+    }
+
     /// <summary>Trusted client-side hit result carried to the authoritative target adapter.</summary>
     public readonly struct TrustedCombatHit
     {

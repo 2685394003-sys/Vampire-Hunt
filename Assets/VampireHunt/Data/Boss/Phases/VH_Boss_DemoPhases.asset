@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: VH_Boss_DemoPhases
+  m_EditorClassIdentifier: Assembly-CSharp:VampireHunt.Infrastructure.Unity.Boss:BossPhaseSetAsset
+  phases:
+  - {fileID: 11400000, guid: c2fdd7e6e0b927f4791816d707bf7d49, type: 2}
+  - {fileID: 11400000, guid: 08c04fd91bb5ea542b689ee24475cbef, type: 2}
