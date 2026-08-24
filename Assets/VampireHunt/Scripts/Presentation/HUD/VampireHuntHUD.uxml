@@ -74,6 +74,44 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
+        <ui:VisualElement name="item-tray" class="item-tray" picking-mode="Ignore">
+            <ui:Label text="道具栏" class="item-tray-title"/>
+            <ui:VisualElement class="item-slot-row">
+                <ui:VisualElement name="item-slot-0" class="item-slot item-slot--empty">
+                    <ui:Label text="1" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-0" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-0" class="item-slot-icon">
+                        <ui:Label name="item-fallback-0" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-0" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="item-slot-1" class="item-slot item-slot--empty">
+                    <ui:Label text="2" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-1" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-1" class="item-slot-icon">
+                        <ui:Label name="item-fallback-1" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-1" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="item-slot-2" class="item-slot item-slot--empty">
+                    <ui:Label text="3" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-2" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-2" class="item-slot-icon">
+                        <ui:Label name="item-fallback-2" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-2" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="item-slot-3" class="item-slot item-slot--empty">
+                    <ui:Label text="4" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-3" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-3" class="item-slot-icon">
+                        <ui:Label name="item-fallback-3" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-3" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
         <ui:VisualElement name="notification-container" class="notification-container" picking-mode="Ignore"/>
 
         <ui:VisualElement name="pact-selection-overlay" class="pact-selection-overlay" picking-mode="Position">

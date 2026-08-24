@@ -295,6 +295,119 @@
     opacity: 0.45;
 }
 
+.item-tray {
+    position: absolute;
+    right: 22px;
+    bottom: 22px;
+    align-items: flex-end;
+}
+
+.item-tray-title {
+    margin-right: 2px;
+    margin-bottom: 5px;
+    color: var(--vh-muted);
+    font-size: 9px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+}
+
+.item-slot-row {
+    flex-direction: row;
+}
+
+.item-slot {
+    position: relative;
+    width: 70px;
+    height: 78px;
+    margin-left: 6px;
+    overflow: hidden;
+    background-color: var(--vh-panel-soft);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 2px;
+    border-left-color: rgba(128, 85, 89, 0.75);
+    border-right-color: rgba(128, 85, 89, 0.75);
+    border-top-color: rgba(128, 85, 89, 0.75);
+    border-bottom-color: var(--vh-blood);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    align-items: center;
+}
+
+.item-slot--occupied {
+    background-color: rgba(34, 16, 25, 0.94);
+    border-left-color: rgba(196, 86, 99, 0.86);
+    border-right-color: rgba(196, 86, 99, 0.86);
+    border-top-color: rgba(196, 86, 99, 0.86);
+    border-bottom-color: var(--vh-blood-bright);
+}
+
+.item-slot-key,
+.item-slot-quantity {
+    position: absolute;
+    top: 4px;
+    color: rgb(220, 199, 187);
+    font-size: 9px;
+    -unity-font-style: bold;
+}
+
+.item-slot-key {
+    left: 6px;
+}
+
+.item-slot-quantity {
+    right: 5px;
+    color: rgb(244, 218, 202);
+}
+
+.item-slot-icon {
+    width: 42px;
+    height: 42px;
+    margin-top: 10px;
+    background-position-x: center;
+    background-position-y: center;
+    -unity-background-scale-mode: scale-to-fit;
+    align-items: center;
+    justify-content: center;
+}
+
+.item-slot-fallback {
+    color: rgb(184, 75, 91);
+    font-size: 23px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.item-slot-name {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    bottom: 4px;
+    overflow: hidden;
+    color: rgb(224, 207, 197);
+    font-size: 9px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-center;
+}
+
+.item-slot--empty .item-slot-icon,
+.item-slot--unavailable .item-slot-icon {
+    opacity: 0.25;
+}
+
+.item-slot--empty .item-slot-name,
+.item-slot--unavailable .item-slot-name {
+    color: rgba(168, 146, 143, 0.52);
+}
+
+.item-slot--unavailable {
+    opacity: 0.45;
+}
+
 .notification-container {
     position: absolute;
     top: 150px;

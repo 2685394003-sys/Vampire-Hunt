@@ -386,6 +386,8 @@ MonoBehaviour:
   onStatChanged: {fileID: 11400000, guid: 3c76cce5664154d7fadbc8eaf8987962, type: 2}
   onNotification: {fileID: 11400000, guid: d0e3f72c4e5a542f592af1251451389c, type: 2}
   onRespawnStatusChanged: {fileID: 11400000, guid: 71f658fc8f4634328824b9ea768b8d21, type: 2}
+  inventory: {fileID: -700000000000000021}
+  itemCatalog: {fileID: 11400000, guid: 1b8be6c59de6422c97325a35f8063fab, type: 2}
 --- !u!114 &7994092233411356452
 MonoBehaviour:
   m_ObjectHideFlags: 0

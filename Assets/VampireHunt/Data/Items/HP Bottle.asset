@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: HP Bottle
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.UsableItemDefinitionAsset
   itemId: 1
-  displayName: New Item
-  description:
-  icon: {fileID: 0}
+  displayName: "\u8840\u74F6"
+  description: 
+  icon: {fileID: -724805922, guid: 7f0bfb2df760aaf48bd8f732e31ab9d6, type: 3}
   consumptionPolicy: 1
   maxStackPerSlot: 5
   cooldownSeconds: 0

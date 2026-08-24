@@ -2,6 +2,8 @@ using System;
 using Blocks.Gameplay.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
+using VampireHunt.Infrastructure.Netcode;
+using VampireHunt.Infrastructure.Unity;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -12,6 +14,7 @@ namespace VampireHunt.Presentation.HUD
     /// </summary>
     public sealed class VampireHuntHudPresenter : CoreHUD
     {
+        private const int ItemSlotCount = 4;
         private const string HealthStatName = "Health";
         private const string StaminaStatName = "Stamina";
         private const string ScarletStatName = "Scarlet";
@@ -33,6 +36,15 @@ namespace VampireHunt.Presentation.HUD
         private Label m_BossHealthValue;
         private Label m_PactCount;
         private Label m_BuildName;
+        private readonly VisualElement[] m_ItemSlots = new VisualElement[ItemSlotCount];
+        private readonly VisualElement[] m_ItemIcons = new VisualElement[ItemSlotCount];
+        private readonly Label[] m_ItemFallbacks = new Label[ItemSlotCount];
+        private readonly Label[] m_ItemNames = new Label[ItemSlotCount];
+        private readonly Label[] m_ItemQuantities = new Label[ItemSlotCount];
+
+        [Header("Inventory HUD")]
+        [SerializeField] private PlayerInventoryNetworkState inventory;
+        [SerializeField] private ItemCatalogAsset itemCatalog;
 
         protected override void QueryHUDElements(VisualElement root)
         {
@@ -53,6 +65,14 @@ namespace VampireHunt.Presentation.HUD
             m_BossHealthValue = root.Q<Label>("boss-health-value");
             m_PactCount = root.Q<Label>("pact-count");
             m_BuildName = root.Q<Label>("build-name");
+            for (int i = 0; i < ItemSlotCount; i++)
+            {
+                m_ItemSlots[i] = root.Q<VisualElement>($"item-slot-{i}");
+                m_ItemIcons[i] = root.Q<VisualElement>($"item-icon-{i}");
+                m_ItemFallbacks[i] = root.Q<Label>($"item-fallback-{i}");
+                m_ItemNames[i] = root.Q<Label>($"item-name-{i}");
+                m_ItemQuantities[i] = root.Q<Label>($"item-quantity-{i}");
+            }
         }
 
         protected override void SetHUDDefaults()
@@ -66,6 +86,26 @@ namespace VampireHunt.Presentation.HUD
             SetVital(m_StaminaBar, m_StaminaValue, 0f, 100f);
             SetVital(m_ScarletBar, m_ScarletValue, 0f, 100f);
             UpdateLowHealthPresentation(1f);
+            RenderItemSlots();
+        }
+
+        protected override void Initialize()
+        {
+            base.Initialize();
+            if (inventory == null) inventory = GetComponent<PlayerInventoryNetworkState>();
+        }
+
+        protected override void RegisterAdditionalListeners()
+        {
+            base.RegisterAdditionalListeners();
+            if (inventory != null) inventory.UsableItemsChanged += RenderItemSlots;
+            RenderItemSlots();
+        }
+
+        protected override void UnregisterAdditionalListeners()
+        {
+            if (inventory != null) inventory.UsableItemsChanged -= RenderItemSlots;
+            base.UnregisterAdditionalListeners();
         }
 
         protected override void HandleStatChangedLocal(StatChangePayload payload)
@@ -160,6 +200,69 @@ namespace VampireHunt.Presentation.HUD
         private static bool IsStat(StatChangePayload payload, string expectedName)
         {
             return string.Equals(payload.statName, expectedName, StringComparison.Ordinal);
+        }
+
+        private void RenderItemSlots()
+        {
+            for (int i = 0; i < ItemSlotCount; i++)
+            {
+                bool available = inventory != null && i < inventory.UsableSlotCapacity;
+                UsableItemSlotNetworkState slot = default;
+                bool occupied = available && inventory.TryGetUsableSlot(i, out slot) && !slot.IsEmpty;
+                UsableItemDefinitionAsset item = null;
+                if (occupied && itemCatalog != null)
+                    itemCatalog.TryGetUsableAsset(slot.ItemId, out item);
+
+                VisualElement slotElement = m_ItemSlots[i];
+                slotElement?.EnableInClassList("item-slot--occupied", occupied);
+                slotElement?.EnableInClassList("item-slot--empty", available && !occupied);
+                slotElement?.EnableInClassList("item-slot--unavailable", !available);
+
+                if (m_ItemNames[i] != null)
+                {
+                    m_ItemNames[i].text = occupied
+                        ? ResolveItemName(item, slot.ItemId)
+                        : available ? "空" : "锁定";
+                }
+
+                if (m_ItemQuantities[i] != null)
+                    m_ItemQuantities[i].text = occupied ? $"×{slot.Quantity}" : string.Empty;
+
+                Sprite icon = item != null ? item.Icon : null;
+                if (m_ItemIcons[i] != null)
+                    m_ItemIcons[i].style.backgroundImage = icon != null
+                        ? new StyleBackground(icon)
+                        : StyleKeyword.None;
+
+                if (m_ItemFallbacks[i] != null)
+                {
+                    string itemName = occupied ? ResolveItemName(item, slot.ItemId) : string.Empty;
+                    m_ItemFallbacks[i].text = occupied && icon == null && itemName.Length > 0
+                        ? itemName.Substring(0, 1)
+                        : string.Empty;
+                }
+
+                if (slotElement != null)
+                {
+                    slotElement.tooltip = occupied
+                        ? ResolveItemTooltip(item, slot.ItemId, slot.Quantity)
+                        : available ? $"道具槽 {i + 1}" : $"道具槽 {i + 1} 尚未解锁";
+                }
+            }
+        }
+
+        private static string ResolveItemName(UsableItemDefinitionAsset item, uint itemId)
+        {
+            if (item == null) return $"道具 {itemId}";
+            return string.IsNullOrWhiteSpace(item.DisplayName) ? item.name : item.DisplayName;
+        }
+
+        private static string ResolveItemTooltip(UsableItemDefinitionAsset item, uint itemId, int quantity)
+        {
+            string itemName = ResolveItemName(item, itemId);
+            if (item == null || string.IsNullOrWhiteSpace(item.Description))
+                return $"{itemName} ×{quantity}";
+            return $"{itemName} ×{quantity}\n{item.Description}";
         }
 
         private static void SetVital(ProgressBar bar, Label label, float current, float maximum)

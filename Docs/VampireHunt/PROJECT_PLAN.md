@@ -781,7 +781,7 @@ CanStart
 - `ConsumableService` 在服务端校验槽位、动作阻断、按 ItemId 计算冷却，并且只在至少一个效果成功后消耗道具。
 - `UsableItemDefinitionAsset.useEffects` 可组合配置 `UsableItemEffectAsset`；当前内置修改 Stat 与施加 Status 两种效果执行器。
 - 现有 `HP Bottle.asset` 已配置 `RestoreHealth35`，作为 ItemId 1 的可运行示例；物品仍需由掉落、奖励或调试入口发放给玩家。
-- 背包 UI 仍未实现；使用结果通过 `ItemUsePresentationEvent` 提供给后续 HUD、音效和 VFX Presenter。
+- 玩家 HUD 右下角固定展示 4 个可使用道具槽，监听 Owner-only `UsableItemsChanged` 更新名称、Asset 图标、数量和键盘 1～4 提示；使用结果继续通过 `ItemUsePresentationEvent` 提供给音效和 VFX Presenter。
 
 ### 18.7 当前商店实现（2026-08-24）
 
