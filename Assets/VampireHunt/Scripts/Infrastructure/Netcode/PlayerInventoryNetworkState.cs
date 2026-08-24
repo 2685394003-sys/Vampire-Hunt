@@ -126,6 +126,13 @@ namespace VampireHunt.Infrastructure.Netcode
             return true;
         }
 
+        public bool CanGrantUsable(uint itemId, int quantity)
+        {
+            return IsServer && m_ServerUsableItems != null && quantity > 0 &&
+                   m_DomainCatalog.TryGetUsable(itemId, out UsableItemDefinition definition) &&
+                   m_ServerUsableItems.CanAdd(definition, quantity);
+        }
+
         public bool TryConsumeUsable(int slotIndex, int quantity)
         {
             if (!IsServer || m_ServerUsableItems == null ||
@@ -154,6 +161,13 @@ namespace VampireHunt.Infrastructure.Netcode
                 return false;
             SyncAccessoryServer(stack);
             return true;
+        }
+
+        public bool CanGrantAccessory(uint accessoryId, int quantity)
+        {
+            return IsServer && m_ServerAccessories != null && quantity > 0 &&
+                   m_DomainCatalog.TryGetAccessory(accessoryId, out AccessoryDefinition definition) &&
+                   m_ServerAccessories.CanAdd(definition, quantity);
         }
 
         public bool TryRemoveAccessory(uint accessoryId, int quantity)

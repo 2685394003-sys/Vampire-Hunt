@@ -104,6 +104,46 @@
             <ui:Label name="pact-reroll-hint" text="刷新费用计入本次升级总消耗" class="pact-reroll-hint"/>
         </ui:VisualElement>
 
+        <ui:VisualElement name="shop-overlay" class="shop-overlay" picking-mode="Position">
+            <ui:VisualElement class="shop-window">
+                <ui:VisualElement class="shop-header">
+                    <ui:VisualElement>
+                        <ui:Label text="游荡英灵" class="shop-eyebrow"/>
+                        <ui:Label name="shop-title" text="英灵商店" class="shop-title"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="shop-wallet">
+                        <ui:Label name="shop-coin" text="魔币  0" class="shop-coin"/>
+                        <ui:Button name="shop-close" text="关闭" class="shop-close"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="shop-card-row">
+                    <ui:VisualElement name="shop-card-0" class="shop-card">
+                        <ui:Label name="shop-name-0" text="商品" class="shop-card-name"/>
+                        <ui:Label name="shop-description-0" text="商品说明" class="shop-card-description"/>
+                        <ui:Label name="shop-quantity-0" text="数量 ×1" class="shop-card-quantity"/>
+                        <ui:Label name="shop-price-0" text="10 魔币" class="shop-card-price"/>
+                        <ui:Button name="shop-buy-0" text="购买" class="shop-buy"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="shop-card-1" class="shop-card">
+                        <ui:Label name="shop-name-1" text="商品" class="shop-card-name"/>
+                        <ui:Label name="shop-description-1" text="商品说明" class="shop-card-description"/>
+                        <ui:Label name="shop-quantity-1" text="数量 ×1" class="shop-card-quantity"/>
+                        <ui:Label name="shop-price-1" text="10 魔币" class="shop-card-price"/>
+                        <ui:Button name="shop-buy-1" text="购买" class="shop-buy"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="shop-card-2" class="shop-card">
+                        <ui:Label name="shop-name-2" text="商品" class="shop-card-name"/>
+                        <ui:Label name="shop-description-2" text="商品说明" class="shop-card-description"/>
+                        <ui:Label name="shop-quantity-2" text="数量 ×1" class="shop-card-quantity"/>
+                        <ui:Label name="shop-price-2" text="10 魔币" class="shop-card-price"/>
+                        <ui:Button name="shop-buy-2" text="购买" class="shop-buy"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Button name="shop-refresh" text="刷新商品（5 魔币）" class="shop-refresh"/>
+                <ui:Label name="shop-result" text="" class="shop-result"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
         <ui:VisualElement name="message-overlay" class="message-overlay">
             <ui:Label name="message-label" text="重塑血躯" class="message-label"/>
             <ui:VisualElement name="message-divider" class="message-divider"/>

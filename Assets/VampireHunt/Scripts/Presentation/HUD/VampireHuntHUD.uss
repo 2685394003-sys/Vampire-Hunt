@@ -416,6 +416,169 @@
     font-size: 10px;
 }
 
+.shop-overlay {
+    position: absolute;
+    display: none;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(5, 2, 5, 0.90);
+    align-items: center;
+    justify-content: center;
+}
+
+.shop-window {
+    width: 920px;
+    min-height: 560px;
+    padding: 28px 34px 24px 34px;
+    background-color: rgba(20, 9, 15, 0.98);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 3px;
+    border-left-color: rgba(169, 91, 57, 0.8);
+    border-right-color: rgba(169, 91, 57, 0.8);
+    border-top-color: rgba(169, 91, 57, 0.8);
+    border-bottom-color: rgb(210, 145, 45);
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    border-bottom-left-radius: 9px;
+    border-bottom-right-radius: 9px;
+}
+
+.shop-header,
+.shop-wallet,
+.shop-card-row {
+    flex-direction: row;
+}
+
+.shop-header {
+    justify-content: space-between;
+    align-items: center;
+}
+
+.shop-eyebrow {
+    color: rgb(210, 145, 45);
+    font-size: 10px;
+    letter-spacing: 4px;
+    -unity-font-style: bold;
+}
+
+.shop-title {
+    margin-top: 3px;
+    color: var(--vh-text);
+    font-size: 28px;
+    -unity-font-style: bold;
+}
+
+.shop-wallet {
+    align-items: center;
+}
+
+.shop-coin {
+    margin-right: 18px;
+    color: rgb(238, 190, 85);
+    font-size: 17px;
+    -unity-font-style: bold;
+}
+
+.shop-close {
+    width: 70px;
+    height: 32px;
+}
+
+.shop-card-row {
+    height: 350px;
+    margin-top: 26px;
+    justify-content: center;
+}
+
+.shop-card {
+    width: 255px;
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 22px 18px 18px 18px;
+    background-color: rgba(32, 15, 20, 0.98);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 3px;
+    border-left-color: rgba(141, 91, 65, 0.8);
+    border-right-color: rgba(141, 91, 65, 0.8);
+    border-top-color: rgba(141, 91, 65, 0.8);
+    border-bottom-color: rgb(181, 115, 42);
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+}
+
+.shop-card-name {
+    color: rgb(244, 222, 196);
+    font-size: 20px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.shop-card-description {
+    flex-grow: 1;
+    margin-top: 18px;
+    color: rgb(207, 191, 177);
+    font-size: 12px;
+    white-space: normal;
+    -unity-text-align: upper-center;
+}
+
+.shop-card-quantity,
+.shop-card-price {
+    margin-bottom: 7px;
+    color: var(--vh-muted);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
+.shop-card-price {
+    color: rgb(238, 190, 85);
+    font-size: 15px;
+    -unity-font-style: bold;
+}
+
+.shop-buy,
+.shop-refresh {
+    height: 38px;
+    color: var(--vh-text);
+    background-color: rgb(111, 63, 24);
+    border-left-color: rgb(191, 126, 49);
+    border-right-color: rgb(191, 126, 49);
+    border-top-color: rgb(191, 126, 49);
+    border-bottom-color: rgb(191, 126, 49);
+    -unity-font-style: bold;
+}
+
+.shop-buy:hover,
+.shop-refresh:hover {
+    background-color: rgb(156, 92, 30);
+}
+
+.shop-refresh {
+    width: 210px;
+    align-self: center;
+    margin-top: 18px;
+}
+
+.shop-result {
+    height: 22px;
+    margin-top: 9px;
+    color: rgb(179, 221, 161);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
+.shop-result--failure {
+    color: rgb(235, 105, 105);
+}
+
 .notification-item {
     margin-bottom: 6px;
     padding: 9px 12px;

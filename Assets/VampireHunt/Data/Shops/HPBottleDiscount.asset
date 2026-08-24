@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da960e1b87c946d4af3c43d309e7293a, type: 3}
+  m_Name: HPBottleDiscount
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.ShopProductDefinitionAsset
+  productId: 4
+  displayName: "\u82F1\u7075\u6298\u6263\u8840\u74F6"
+  item: {fileID: 11400000, guid: f3158753aa1e2e54bbe0931dafb5514f, type: 2}
+  quantity: 1
+  basePrice: 7
+  rollWeight: 1

@@ -8,8 +8,10 @@ namespace VampireHunt.Contracts
     /// </summary>
     public interface IPlayerItemInventory
     {
+        bool CanGrantUsable(uint itemId, int quantity);
         bool TryGrantUsable(uint itemId, int quantity);
         bool TryConsumeUsable(int slotIndex, int quantity);
+        bool CanGrantAccessory(uint accessoryId, int quantity);
         bool TryGrantAccessory(uint accessoryId, int quantity);
         bool TryRemoveAccessory(uint accessoryId, int quantity);
     }

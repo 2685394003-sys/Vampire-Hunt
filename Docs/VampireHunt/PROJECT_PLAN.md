@@ -781,7 +781,17 @@ CanStart
 - `ConsumableService` 在服务端校验槽位、动作阻断、按 ItemId 计算冷却，并且只在至少一个效果成功后消耗道具。
 - `UsableItemDefinitionAsset.useEffects` 可组合配置 `UsableItemEffectAsset`；当前内置修改 Stat 与施加 Status 两种效果执行器。
 - 现有 `HP Bottle.asset` 已配置 `RestoreHealth35`，作为 ItemId 1 的可运行示例；物品仍需由掉落、奖励或调试入口发放给玩家。
-- 本阶段不包含商店和背包 UI；使用结果通过 `ItemUsePresentationEvent` 提供给后续 HUD、音效和 VFX Presenter。
+- 背包 UI 仍未实现；使用结果通过 `ItemUsePresentationEvent` 提供给后续 HUD、音效和 VFX Presenter。
+
+### 18.7 当前商店实现（2026-08-24）
+
+- `ShopDefinitionAsset` 配置商店商品池、一次出现数量和魔币刷新价格；`ShopProductDefinitionAsset` 将商品价格、数量和权重与道具自身定义分离。
+- 每个玩家按 `RunSeed + ShopInstanceId + PlayerId + RefreshCount` 在本地维护独立 `ShopSession`；关闭后重开保留本人的商品和售罄状态，不向队友同步。
+- 客户端商品 Roll 结果可信；购买只提交稳定 `ProductId`，服务端仍从共享 `ShopCatalogAsset` 解析道具、数量和价格。
+- `ShopTransactionService` 先预检背包，再原子扣除 `Coin` 并通过 `IPlayerItemInventory` 发放；提交异常会退回魔币，交易 ID 用于避免重复请求。
+- 刷新商品需要服务端成功扣除配置的魔币费用，随后客户端才生成下一组三个商品；魔币不足时保留当前商品。
+- `OpenShopInteractionEffect` 让 `ModularInteractable` 只负责打开商店；`PlayerShopNetworkBridge` 负责交易 RPC，`ShopPresenter` 消费本地会话并复用玩家 HUD 的 UI Toolkit 文档。
+- `SpiritShop.prefab` 是当前可放入场景或由服务端生成的示例，商品池使用已有血瓶的四种数量/价格组合。
 
 ## 19. World 模块
 
@@ -1187,7 +1197,7 @@ Editor 验证：
 6. 高级/终极血契的具体数量、出现条件和保底。
 7. 多人“时空共鸣之器”的确切作用。
 8. 残缺命运星盘在多人中的暂停和风险结算方式。
-9. 商店商品是否玩家独立、团队共享或限购竞争。
+9. 商店已确定为每个玩家独立商品、独立购买和独立付费刷新，不进行团队限购竞争。
 10. 局外成长的货币、解锁树和失败保留规则。
 11. 是否允许断线重连以及重连保留哪些局内状态。
 12. 最终目标平台、目标帧率、敌人软上限和带宽预算。
