@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a01b2c3d4e54f67890123456789ab01, type: 3}
+  m_Name: HuntingInstinct
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.EnemyAffixDefinitionAsset
+  affixId: 1003
+  displayName: 猎杀本能
+  description: 之后生成的敌人每层提高 12% 移速，并缩短 8% 攻击前摇。
+  icon: {fileID: 0}
+  baseWeight: 100
+  prerequisites: []
+  exclusions: []
+  repeatable: 1
+  maxStacks: 5
+  includedArchetypeIds: []
+  excludedArchetypeIds: []
+  statModifiers:
+  - stat: 1
+    operation: 1
+    constantValue: 0
+    valuePerStack: 0.12
+  - stat: 7
+    operation: 1
+    constantValue: 0
+    valuePerStack: -0.08
+  effectModules: []

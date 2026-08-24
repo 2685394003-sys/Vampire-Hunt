@@ -70,6 +70,7 @@ namespace VampireHunt.Enemies
 
         public EntityId Id { get; }
         public EnemyArchetypeDefinition Definition { get; }
+        public EnemyRuntimeStats RuntimeStats { get; }
         public EntityId TargetId { get; private set; }
         public EnemyState State { get; private set; }
         public float CurrentHealth { get; private set; }
@@ -78,16 +79,21 @@ namespace VampireHunt.Enemies
         public uint Revision { get; private set; }
         public bool IsDead => State == EnemyState.Dead;
 
-        public EnemyAggregate(EntityId id, EnemyArchetypeDefinition definition, double time)
+        public EnemyAggregate(
+            EntityId id,
+            EnemyArchetypeDefinition definition,
+            EnemyRuntimeStats runtimeStats,
+            double time)
         {
             if (id.IsNone) throw new ArgumentException("Enemy ID cannot be None.", nameof(id));
             Definition = definition ?? throw new ArgumentNullException(nameof(definition));
+            RuntimeStats = runtimeStats ?? throw new ArgumentNullException(nameof(runtimeStats));
 
             Id = id;
             TargetId = EntityId.None;
-            CurrentHealth = definition.MaxHealth;
+            CurrentHealth = runtimeStats.MaxHealth;
             State = EnemyState.Spawning;
-            StateEndTime = time + definition.SpawnDuration;
+            StateEndTime = time + runtimeStats.SpawnDuration;
             Revision = 1;
         }
 
@@ -131,24 +137,24 @@ namespace VampireHunt.Enemies
                         TransitionTo(EnemyState.Approaching, input.Time, 0d);
                         break;
                     case EnemyState.Approaching:
-                        if (input.TargetDistance <= Definition.AttackRange)
-                            TransitionTo(EnemyState.Telegraphing, input.Time, Definition.TelegraphDuration);
+                        if (input.TargetDistance <= RuntimeStats.AttackRange)
+                            TransitionTo(EnemyState.Telegraphing, input.Time, RuntimeStats.TelegraphDuration);
                         break;
                     case EnemyState.Telegraphing:
-                        if (input.TargetDistance > Definition.AttackBreakRange)
+                        if (input.TargetDistance > RuntimeStats.AttackBreakRange)
                             TransitionTo(EnemyState.Approaching, input.Time, 0d);
                         else if (input.Time >= StateEndTime)
                         {
                             AttackSequence++;
                             m_AttackCommitted = false;
-                            TransitionTo(EnemyState.Attacking, input.Time, Definition.ActiveDuration);
+                            TransitionTo(EnemyState.Attacking, input.Time, RuntimeStats.ActiveDuration);
                             shouldCommit = true;
                         }
                         break;
                     case EnemyState.Attacking:
                         shouldCommit = !m_AttackCommitted;
                         if (input.Time >= StateEndTime)
-                            TransitionTo(EnemyState.Recovering, input.Time, Definition.RecoveryDuration);
+                            TransitionTo(EnemyState.Recovering, input.Time, RuntimeStats.RecoveryDuration);
                         break;
                     case EnemyState.Recovering:
                         if (input.Time >= StateEndTime)
@@ -199,7 +205,14 @@ namespace VampireHunt.Enemies
 
         public EnemySnapshot CaptureSnapshot()
         {
-            return new EnemySnapshot(Id, State, CurrentHealth, Definition.MaxHealth, StateEndTime, AttackSequence, Revision);
+            return new EnemySnapshot(
+                Id,
+                State,
+                CurrentHealth,
+                RuntimeStats.MaxHealth,
+                StateEndTime,
+                AttackSequence,
+                Revision);
         }
 
         private void TransitionTo(EnemyState next, double time, double duration)

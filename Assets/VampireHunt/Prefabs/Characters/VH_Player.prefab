@@ -729,7 +729,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.PactDraftNetworkBridge
   ShowTopMostFoldoutHeaderGroup: 1
   catalog: {fileID: 11400000, guid: 44458d3615a748906c1a0f3871902a4c, type: 2}
+  enemyAffixCatalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
   pactState: {fileID: -700000000000000012}
+  enemyAffixState: {fileID: 0}
   coreStats: {fileID: 1108927199896854533}
   onTriggerLevelup: {fileID: 11400000, guid: f6e7ab143499490da5daa29eeeb1d6f1, type: 2}
   selectionScarletCost: 100
@@ -816,6 +818,8 @@ MonoBehaviour:
   draftBridge: {fileID: -700000000000000013}
   pactState: {fileID: -700000000000000012}
   catalog: {fileID: 11400000, guid: 44458d3615a748906c1a0f3871902a4c, type: 2}
+  enemyAffixCatalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
+  enemyAffixState: {fileID: 0}
   hud: {fileID: 8754785922802519086}
 --- !u!114 &-700000000000000017
 MonoBehaviour:

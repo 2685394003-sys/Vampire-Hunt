@@ -424,7 +424,7 @@
     top: 0;
     right: 0;
     bottom: 0;
-    padding-top: 90px;
+    padding-top: 24px;
     background-color: rgba(5, 2, 5, 0.90);
     align-items: center;
 }
@@ -437,32 +437,46 @@
 }
 
 .pact-draft-title {
-    margin-top: 5px;
+    margin-top: 3px;
     color: var(--vh-text);
-    font-size: 32px;
+    font-size: 27px;
     letter-spacing: 5px;
     -unity-font-style: bold;
 }
 
 .pact-draft-subtitle {
-    margin-top: 8px;
+    margin-top: 5px;
     color: var(--vh-muted);
     font-size: 11px;
 }
 
+.draft-row-title {
+    width: 830px;
+    margin-top: 12px;
+    color: rgb(224, 195, 186);
+    font-size: 12px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+}
+
+.affix-row-title {
+    margin-top: 10px;
+    color: rgb(204, 143, 224);
+}
+
 .pact-card-row {
-    width: 870px;
-    height: 360px;
-    margin-top: 30px;
+    width: 850px;
+    height: 190px;
+    margin-top: 6px;
     flex-direction: row;
     justify-content: center;
 }
 
 .pact-card {
     width: 260px;
-    margin-left: 12px;
-    margin-right: 12px;
-    padding: 24px 20px 20px 20px;
+    margin-left: 9px;
+    margin-right: 9px;
+    padding: 13px 16px 12px 16px;
     background-color: rgba(24, 10, 17, 0.97);
     border-left-width: 1px;
     border-right-width: 1px;
@@ -480,30 +494,31 @@
 
 .pact-card-name {
     color: rgb(244, 218, 202);
-    font-size: 22px;
+    font-size: 17px;
     -unity-font-style: bold;
     -unity-text-align: middle-center;
 }
 
 .pact-card-description {
     flex-grow: 1;
-    margin-top: 22px;
+    margin-top: 9px;
     color: rgb(213, 194, 183);
-    font-size: 13px;
+    font-size: 11px;
     white-space: normal;
     -unity-text-align: upper-center;
 }
 
 .pact-card-stack {
-    margin-bottom: 12px;
+    margin-bottom: 7px;
     color: var(--vh-muted);
     font-size: 10px;
     -unity-text-align: middle-center;
 }
 
 .pact-select-button,
-.pact-reroll-button {
-    height: 38px;
+.pact-reroll-button,
+.pact-confirm-button {
+    height: 34px;
     color: var(--vh-text);
     background-color: rgb(103, 20, 36);
     border-left-color: rgb(183, 50, 70);
@@ -514,17 +529,68 @@
 }
 
 .pact-select-button:hover,
-.pact-reroll-button:hover {
+.pact-reroll-button:hover,
+.pact-confirm-button:hover {
     background-color: rgb(153, 31, 50);
 }
 
+.affix-card {
+    background-color: rgba(23, 13, 29, 0.97);
+    border-left-color: rgba(132, 76, 154, 0.76);
+    border-right-color: rgba(132, 76, 154, 0.76);
+    border-top-color: rgba(132, 76, 154, 0.76);
+    border-bottom-color: rgb(144, 62, 175);
+}
+
+.affix-card-name {
+    color: rgb(231, 205, 241);
+}
+
+.affix-select-button {
+    background-color: rgb(79, 34, 96);
+    border-left-color: rgb(146, 76, 174);
+    border-right-color: rgb(146, 76, 174);
+    border-top-color: rgb(146, 76, 174);
+    border-bottom-color: rgb(146, 76, 174);
+}
+
+.affix-select-button:hover {
+    background-color: rgb(115, 49, 139);
+}
+
+.draft-card--selected {
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-left-color: rgb(239, 196, 82);
+    border-right-color: rgb(239, 196, 82);
+    border-top-color: rgb(239, 196, 82);
+    border-bottom-color: rgb(239, 196, 82);
+}
+
+.draft-action-row {
+    margin-top: 12px;
+    flex-direction: row;
+}
+
 .pact-reroll-button {
-    width: 150px;
-    margin-top: 18px;
+    width: 170px;
+    margin-right: 8px;
+}
+
+.pact-confirm-button {
+    width: 170px;
+    margin-left: 8px;
+    background-color: rgb(126, 74, 20);
+    border-left-color: rgb(210, 145, 45);
+    border-right-color: rgb(210, 145, 45);
+    border-top-color: rgb(210, 145, 45);
+    border-bottom-color: rgb(210, 145, 45);
 }
 
 .pact-reroll-hint {
-    margin-top: 6px;
+    margin-top: 4px;
     color: var(--vh-muted);
     font-size: 10px;
 }

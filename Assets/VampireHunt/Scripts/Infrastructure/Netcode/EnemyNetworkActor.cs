@@ -2,10 +2,12 @@ using Blocks.Gameplay.Core;
 using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Contracts;
+using VampireHunt.Effects;
 using VampireHunt.Enemies;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Presentation.Enemies;
+using VampireHunt.Progression;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -25,12 +27,14 @@ namespace VampireHunt.Infrastructure.Netcode
 
         [Header("Configuration")]
         [SerializeField] private EnemyArchetypeAsset archetype;
+        [SerializeField] private EnemyAffixCatalogAsset affixCatalog;
 
         [Header("Unity Adapters")]
         [SerializeField] private CharacterController characterController;
         [SerializeField] private EnemyPresenter presenter;
         [SerializeField] private CombatModifierHost modifierHost;
         [SerializeField] private CombatStatusHost statusHost;
+        [SerializeField] private GameplayEffectHost effectHost;
         [SerializeField] private EnemyLootDropper lootDropper;
         [SerializeField] private DamagePresentationEvent onDamagePresented;
 
@@ -42,11 +46,15 @@ namespace VampireHunt.Infrastructure.Netcode
                 default,
                 NetworkVariableReadPermission.Everyone,
                 NetworkVariableWritePermission.Server);
+        private readonly NetworkList<EnemyAffixStackNetworkState> m_ReplicatedAffixes =
+            new NetworkList<EnemyAffixStackNetworkState>();
 
         private readonly EnemyApplicationService m_Application = new EnemyApplicationService();
         private EnemyAggregate m_Aggregate;
         private NetworkObject m_TargetPlayer;
         private ulong m_PreparedEntityId;
+        private EnemyAffixSpawnSnapshot m_PreparedAffixes = EnemyAffixSpawnSnapshot.Empty;
+        private EnemyAffixCatalog m_DomainAffixCatalog;
         private ulong m_TrustedHitSequence;
         private float m_NextBrainTime;
         private float m_NextTargetRefreshTime;
@@ -68,23 +76,37 @@ namespace VampireHunt.Infrastructure.Netcode
             if (presenter == null) presenter = GetComponentInChildren<EnemyPresenter>();
             if (modifierHost == null) modifierHost = GetComponent<CombatModifierHost>();
             if (statusHost == null) statusHost = GetComponent<CombatStatusHost>();
+            if (effectHost == null) effectHost = GetComponent<GameplayEffectHost>();
             if (lootDropper == null) lootDropper = GetComponent<EnemyLootDropper>();
+            if (affixCatalog == null)
+            {
+                EnemyAffixRunState runState = FindAnyObjectByType<EnemyAffixRunState>();
+                if (runState != null) affixCatalog = runState.CatalogAsset;
+            }
+            m_DomainAffixCatalog = affixCatalog != null
+                ? affixCatalog.CreateCatalog()
+                : new EnemyAffixCatalog(null);
         }
 
-        public void PrepareServerSpawn(ulong entityId)
+        public void PrepareServerSpawn(ulong entityId, EnemyAffixSpawnSnapshot affixes)
         {
             m_PreparedEntityId = entityId;
+            m_PreparedAffixes = affixes ?? EnemyAffixSpawnSnapshot.Empty;
         }
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
             m_ReplicatedState.OnValueChanged += HandleReplicatedStateChanged;
+            m_ReplicatedAffixes.OnListChanged += HandleAffixListChanged;
 
             if (IsServer)
             {
                 InitializeServerAggregate();
             }
+
+            for (int i = 0; i < m_ReplicatedAffixes.Count; i++)
+                InstallOrUpdateAffixEffect(m_ReplicatedAffixes[i]);
 
             ApplyReplicatedState(m_ReplicatedState.Value);
         }
@@ -92,8 +114,11 @@ namespace VampireHunt.Infrastructure.Netcode
         public override void OnNetworkDespawn()
         {
             m_ReplicatedState.OnValueChanged -= HandleReplicatedStateChanged;
+            m_ReplicatedAffixes.OnListChanged -= HandleAffixListChanged;
+            effectHost?.RemoveSourceKind(EffectSourceKind.EnemyAffix);
             m_TargetPlayer = null;
             m_Aggregate = null;
+            m_PreparedAffixes = EnemyAffixSpawnSnapshot.Empty;
             m_KnockbackVelocity = Vector3.zero;
             base.OnNetworkDespawn();
         }
@@ -263,7 +288,34 @@ namespace VampireHunt.Infrastructure.Netcode
                 ? m_PreparedEntityId
                 : (1UL << 32) + NetworkObjectId + 1UL;
             double serverTime = NetworkManager.ServerTime.Time;
-            m_Aggregate = new EnemyAggregate(new GameplayEntityId(entityId), archetype.ToDefinition(), serverTime);
+            EnemyArchetypeDefinition definition = archetype.ToDefinition();
+            var statsBuilder = new EnemyRuntimeStatsBuilder(definition);
+            var appliedAffixes = new System.Collections.Generic.List<EnemyAffixStackNetworkState>();
+            for (int i = 0; i < m_PreparedAffixes.Entries.Length; i++)
+            {
+                EnemyAffixSpawnEntry entry = m_PreparedAffixes.Entries[i];
+                if (entry.Definition == null || entry.Stacks <= 0 ||
+                    !entry.Definition.AppliesTo(definition.StableId)) continue;
+                for (int modifierIndex = 0;
+                     modifierIndex < entry.Definition.StatModifiers.Length;
+                     modifierIndex++)
+                {
+                    statsBuilder.Add(entry.Definition.StatModifiers[modifierIndex], entry.Stacks);
+                }
+                appliedAffixes.Add(new EnemyAffixStackNetworkState
+                {
+                    AffixId = entry.Definition.AffixId,
+                    Stacks = entry.Stacks
+                });
+            }
+            m_Aggregate = new EnemyAggregate(
+                new GameplayEntityId(entityId),
+                definition,
+                statsBuilder.Build(),
+                serverTime);
+            m_ReplicatedAffixes.Clear();
+            for (int i = 0; i < appliedAffixes.Count; i++)
+                m_ReplicatedAffixes.Add(appliedAffixes[i]);
             m_TargetPlayer = null;
             m_TrustedHitSequence = 0;
             m_KnockbackVelocity = Vector3.zero;
@@ -347,7 +399,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
             if (m_Aggregate.State == EnemyState.Approaching && characterController != null && characterController.enabled)
             {
-                characterController.Move(direction * (m_Aggregate.Definition.MoveSpeed * Time.deltaTime));
+                characterController.Move(direction * (m_Aggregate.RuntimeStats.MoveSpeed * Time.deltaTime));
             }
 
             if (m_Aggregate.State == EnemyState.Approaching ||
@@ -363,7 +415,8 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             NetworkObject bestTarget = null;
             float bestSqrDistance = float.MaxValue;
-            float maxSqrDistance = m_Aggregate.Definition.DetectionRange * m_Aggregate.Definition.DetectionRange;
+            float maxSqrDistance =
+                m_Aggregate.RuntimeStats.DetectionRange * m_Aggregate.RuntimeStats.DetectionRange;
 
             var clients = NetworkManager.ConnectedClientsList;
             for (int i = 0; i < clients.Count; i++)
@@ -391,18 +444,18 @@ namespace VampireHunt.Infrastructure.Netcode
             if (!IsTargetValid(m_TargetPlayer)) return;
 
             float distance = Vector3.Distance(transform.position, m_TargetPlayer.transform.position);
-            if (distance > m_Aggregate.Definition.AttackBreakRange) return;
+            if (distance > m_Aggregate.RuntimeStats.AttackBreakRange) return;
 
             Vector3 direction = m_TargetPlayer.transform.position - transform.position;
             direction.y = 0f;
             direction = direction.sqrMagnitude > 0f ? direction.normalized : transform.forward;
             var hitInfo = new HitInfo
             {
-                amount = m_Aggregate.Definition.AttackDamage,
+                amount = m_Aggregate.RuntimeStats.AttackDamage,
                 hitPoint = m_TargetPlayer.transform.position + Vector3.up,
                 hitNormal = -direction,
                 attackerId = m_Aggregate.Id.Value,
-                impactForce = direction * m_Aggregate.Definition.AttackKnockback
+                impactForce = direction * m_Aggregate.RuntimeStats.AttackKnockback
             };
 
             var behaviours = m_TargetPlayer.GetComponents<MonoBehaviour>();
@@ -423,7 +476,7 @@ namespace VampireHunt.Infrastructure.Netcode
             for (int i = 0; i < behaviours.Length; i++)
             {
                 if (!(behaviours[i] is IScarletRewardReceiver receiver)) continue;
-                if (receiver.TryGrantScarlet(m_Aggregate.Definition.ScarletReward, m_Aggregate.Id))
+                if (receiver.TryGrantScarlet(m_Aggregate.RuntimeStats.ScarletReward, m_Aggregate.Id))
                 {
                     m_RewardGranted = true;
                 }
@@ -455,6 +508,52 @@ namespace VampireHunt.Infrastructure.Netcode
                 // server simulation alive and surface the presentation fault.
                 Debug.LogException(exception, this);
             }
+        }
+
+        private void HandleAffixListChanged(NetworkListEvent<EnemyAffixStackNetworkState> change)
+        {
+            switch (change.Type)
+            {
+                case NetworkListEvent<EnemyAffixStackNetworkState>.EventType.Add:
+                case NetworkListEvent<EnemyAffixStackNetworkState>.EventType.Insert:
+                case NetworkListEvent<EnemyAffixStackNetworkState>.EventType.Value:
+                    InstallOrUpdateAffixEffect(change.Value);
+                    break;
+                case NetworkListEvent<EnemyAffixStackNetworkState>.EventType.Remove:
+                case NetworkListEvent<EnemyAffixStackNetworkState>.EventType.RemoveAt:
+                    RemoveAffixEffect(change.Value.AffixId);
+                    break;
+                case NetworkListEvent<EnemyAffixStackNetworkState>.EventType.Full:
+                    effectHost?.RemoveSourceKind(EffectSourceKind.EnemyAffix);
+                    for (int i = 0; i < m_ReplicatedAffixes.Count; i++)
+                        InstallOrUpdateAffixEffect(m_ReplicatedAffixes[i]);
+                    break;
+            }
+        }
+
+        private void InstallOrUpdateAffixEffect(in EnemyAffixStackNetworkState affix)
+        {
+            if (effectHost == null || affix.AffixId == 0 || affix.Stacks <= 0 ||
+                m_DomainAffixCatalog == null ||
+                !m_DomainAffixCatalog.TryGet(affix.AffixId, out EnemyAffixDefinition definition)) return;
+            GameplayEntityId entity = CombatEntityId;
+            var key = new EffectSourceKey(EffectSourceKind.EnemyAffix, affix.AffixId);
+            var state = new EffectRuntimeState(
+                key,
+                GameplayEntityId.None,
+                entity,
+                affix.Stacks,
+                1f,
+                0d,
+                double.PositiveInfinity);
+            effectHost.SetSource(definition.RuntimeEffects, state, statusHost);
+        }
+
+        private void RemoveAffixEffect(uint affixId)
+        {
+            if (affixId == 0) return;
+            var key = new EffectSourceKey(EffectSourceKind.EnemyAffix, affixId);
+            effectHost?.RemoveSource(key);
         }
 
         private void ApplyReplicatedState(in EnemyNetworkState state)

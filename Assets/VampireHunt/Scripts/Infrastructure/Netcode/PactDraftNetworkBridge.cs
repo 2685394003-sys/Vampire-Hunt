@@ -14,12 +14,16 @@ namespace VampireHunt.Infrastructure.Netcode
         public uint Option1;
         public uint Option2;
         public byte OptionCount;
+        public uint AffixOption0;
+        public uint AffixOption1;
+        public uint AffixOption2;
+        public byte AffixOptionCount;
         public byte RerollCount;
         public byte MaxRerolls;
         public int RerollCost;
         public float SelectionCost;
 
-        public bool IsActive => OfferId != 0 && OptionCount > 0;
+        public bool IsActive => OfferId != 0 && OptionCount > 0 && AffixOptionCount > 0;
 
         public uint GetOption(int index)
         {
@@ -27,9 +31,22 @@ namespace VampireHunt.Infrastructure.Netcode
             return index == 0 ? Option0 : index == 1 ? Option1 : Option2;
         }
 
-        public bool Contains(uint pactId)
+        public uint GetAffixOption(int index)
+        {
+            if (index < 0 || index >= AffixOptionCount) return 0;
+            return index == 0 ? AffixOption0 : index == 1 ? AffixOption1 : AffixOption2;
+        }
+
+        public bool ContainsPact(uint pactId)
         {
             for (int i = 0; i < OptionCount; i++) if (GetOption(i) == pactId) return true;
+            return false;
+        }
+
+        public bool ContainsAffix(uint affixId)
+        {
+            for (int i = 0; i < AffixOptionCount; i++)
+                if (GetAffixOption(i) == affixId) return true;
             return false;
         }
 
@@ -40,6 +57,10 @@ namespace VampireHunt.Infrastructure.Netcode
             serializer.SerializeValue(ref Option1);
             serializer.SerializeValue(ref Option2);
             serializer.SerializeValue(ref OptionCount);
+            serializer.SerializeValue(ref AffixOption0);
+            serializer.SerializeValue(ref AffixOption1);
+            serializer.SerializeValue(ref AffixOption2);
+            serializer.SerializeValue(ref AffixOptionCount);
             serializer.SerializeValue(ref RerollCount);
             serializer.SerializeValue(ref MaxRerolls);
             serializer.SerializeValue(ref RerollCost);
@@ -49,17 +70,24 @@ namespace VampireHunt.Infrastructure.Netcode
         public bool Equals(PactDraftNetworkState other) =>
             OfferId == other.OfferId && Option0 == other.Option0 && Option1 == other.Option1 &&
             Option2 == other.Option2 && OptionCount == other.OptionCount &&
+            AffixOption0 == other.AffixOption0 && AffixOption1 == other.AffixOption1 &&
+            AffixOption2 == other.AffixOption2 && AffixOptionCount == other.AffixOptionCount &&
             RerollCount == other.RerollCount && MaxRerolls == other.MaxRerolls &&
             RerollCost == other.RerollCost && SelectionCost == other.SelectionCost;
     }
 
-    /// <summary>Owner UI commands enter here; the server owns rolls, costs and inventory writes.</summary>
+    /// <summary>
+    /// Owner UI commands enter here. The server rolls both rows and commits one player pact plus
+    /// one run-wide enemy affix as a single level-up choice.
+    /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(NetworkObject))]
     public sealed class PactDraftNetworkBridge : NetworkBehaviour
     {
         [SerializeField] private PactCatalogAsset catalog;
+        [SerializeField] private EnemyAffixCatalogAsset enemyAffixCatalog;
         [SerializeField] private PactNetworkState pactState;
+        [SerializeField] private EnemyAffixRunState enemyAffixState;
         [SerializeField] private CoreStatsHandler coreStats;
         [Tooltip("Raised locally when the owner presses the manual level-up button.")]
         [SerializeField] private GameEvent onTriggerLevelup;
@@ -78,11 +106,13 @@ namespace VampireHunt.Infrastructure.Netcode
         private readonly NetworkVariable<int> m_CompletedLevelUps =
             new NetworkVariable<int>(0,
                 NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
-        private readonly PactRollService m_RollService = new PactRollService();
+        private readonly PactRollService m_PactRollService = new PactRollService();
+        private readonly EnemyAffixRollService m_AffixRollService = new EnemyAffixRollService();
         private PactCatalog m_DomainCatalog;
+        private EnemyAffixCatalog m_DomainAffixCatalog;
         private ulong m_NextOfferId = 1;
         private int m_RollIndex;
-        private bool m_NoEligiblePacts;
+        private bool m_NoEligibleOptions;
 
         public event Action<PactDraftNetworkState> DraftChanged;
         public event Action<float> LevelUpCostChanged;
@@ -94,12 +124,17 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             if (pactState == null) pactState = GetComponent<PactNetworkState>();
             if (coreStats == null) coreStats = GetComponent<CoreStatsHandler>();
+            ResolveEnemyAffixDependencies();
         }
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
+            ResolveEnemyAffixDependencies();
             m_DomainCatalog = catalog != null ? catalog.CreateCatalog() : new PactCatalog(null);
+            m_DomainAffixCatalog = enemyAffixCatalog != null
+                ? enemyAffixCatalog.CreateCatalog()
+                : new EnemyAffixCatalog(null);
             m_Draft.OnValueChanged += HandleDraftChanged;
             m_CompletedLevelUps.OnValueChanged += HandleCompletedLevelUpsChanged;
             if (IsServer) m_CompletedLevelUps.Value = pactState != null ? pactState.TotalStacks : 0;
@@ -128,8 +163,9 @@ namespace VampireHunt.Infrastructure.Netcode
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void RequestLevelUpRpc()
         {
-            if (m_Draft.Value.IsActive || m_NoEligiblePacts || coreStats == null || pactState == null)
-                return;
+            ResolveEnemyAffixDependencies();
+            if (m_Draft.Value.IsActive || m_NoEligibleOptions || coreStats == null ||
+                pactState == null || enemyAffixState == null) return;
 
             float selectionCost = LevelUpCostPolicy.CalculateRequiredScarlet(
                 selectionScarletCost, levelUpCostGrowthRate, m_CompletedLevelUps.Value);
@@ -137,10 +173,10 @@ namespace VampireHunt.Infrastructure.Netcode
             CreateDraftServer(0, selectionCost);
         }
 
-        public void SelectPact(uint pactId)
+        public void ConfirmSelection(uint pactId, uint affixId)
         {
-            if (!IsOwner || !m_Draft.Value.IsActive) return;
-            SelectPactRpc(m_Draft.Value.OfferId, pactId);
+            if (!IsOwner || !m_Draft.Value.IsActive || pactId == 0 || affixId == 0) return;
+            ConfirmSelectionRpc(m_Draft.Value.OfferId, pactId, affixId);
         }
 
         public void Reroll()
@@ -150,29 +186,43 @@ namespace VampireHunt.Infrastructure.Netcode
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        private void SelectPactRpc(ulong offerId, uint pactId)
+        private void ConfirmSelectionRpc(ulong offerId, uint pactId, uint affixId)
         {
+            ResolveEnemyAffixDependencies();
             PactDraftNetworkState draft = m_Draft.Value;
-            if (!draft.IsActive || draft.OfferId != offerId || !draft.Contains(pactId) ||
-                pactState == null || coreStats == null ||
-                !m_DomainCatalog.TryGet(pactId, out PactDefinition definition)) return;
+            if (!draft.IsActive || draft.OfferId != offerId ||
+                !draft.ContainsPact(pactId) || !draft.ContainsAffix(affixId) ||
+                pactState == null || enemyAffixState == null || coreStats == null ||
+                !m_DomainCatalog.TryGet(pactId, out PactDefinition pactDefinition) ||
+                !m_DomainAffixCatalog.TryGet(affixId, out EnemyAffixDefinition affixDefinition)) return;
 
             PactInventory inventory = pactState.CreateInventorySnapshot();
+            EnemyAffixSet affixSet = enemyAffixState.CreateSetSnapshot();
             float remainingSelectionCost = Mathf.Max(
                 0f, draft.SelectionCost - draft.RerollCount * draft.RerollCost);
-            if (!m_RollService.IsEligible(m_DomainCatalog, inventory, definition) ||
-                !coreStats.TryConsumeStat(StatKeys.Scarlet, remainingSelectionCost, OwnerClientId)) return;
+            if (!m_PactRollService.IsEligible(m_DomainCatalog, inventory, pactDefinition) ||
+                !m_AffixRollService.IsEligible(m_DomainAffixCatalog, affixSet, affixDefinition) ||
+                !coreStats.TryConsumeStat(
+                    StatKeys.Scarlet,
+                    remainingSelectionCost,
+                    OwnerClientId)) return;
+
+            if (!enemyAffixState.TryAddOrStackServer(affixId, out _))
+            {
+                RefundSelectionCost(remainingSelectionCost);
+                return;
+            }
 
             if (!pactState.TryAddOrStackServer(pactId, out _))
             {
-                coreStats.ModifyStat(StatKeys.Scarlet, remainingSelectionCost, OwnerClientId,
-                    ModificationSource.Direct);
+                enemyAffixState.TryRemoveOneServer(affixId);
+                RefundSelectionCost(remainingSelectionCost);
                 return;
             }
 
             m_CompletedLevelUps.Value = Mathf.Max(m_CompletedLevelUps.Value + 1, pactState.TotalStacks);
             m_Draft.Value = default;
-            m_NoEligiblePacts = false;
+            m_NoEligibleOptions = false;
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
@@ -187,12 +237,27 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private void CreateDraftServer(int rerollCount, float selectionCost)
         {
-            PactInventory inventory = pactState != null ? pactState.CreateInventorySnapshot() : new PactInventory();
-            int seed = unchecked(runSeed * 397 ^ (int)OwnerClientId * 7919 ^ ++m_RollIndex * 104729);
-            uint[] options = m_RollService.Roll(m_DomainCatalog, inventory, optionCount, seed);
-            if (options.Length == 0)
+            ResolveEnemyAffixDependencies();
+            if (enemyAffixState == null)
             {
-                m_NoEligiblePacts = true;
+                m_Draft.Value = default;
+                return;
+            }
+
+            PactInventory inventory = pactState != null
+                ? pactState.CreateInventorySnapshot()
+                : new PactInventory();
+            EnemyAffixSet affixSet = enemyAffixState.CreateSetSnapshot();
+            int roll = ++m_RollIndex;
+            int pactSeed = unchecked(runSeed * 397 ^ (int)OwnerClientId * 7919 ^ roll * 104729);
+            int affixSeed = unchecked(pactSeed ^ (int)0x5F356495);
+            uint[] pactOptions = m_PactRollService.Roll(
+                m_DomainCatalog, inventory, optionCount, pactSeed);
+            uint[] affixOptions = m_AffixRollService.Roll(
+                m_DomainAffixCatalog, affixSet, optionCount, affixSeed);
+            if (pactOptions.Length == 0 || affixOptions.Length == 0)
+            {
+                m_NoEligibleOptions = true;
                 m_Draft.Value = default;
                 return;
             }
@@ -200,15 +265,35 @@ namespace VampireHunt.Infrastructure.Netcode
             m_Draft.Value = new PactDraftNetworkState
             {
                 OfferId = m_NextOfferId++,
-                Option0 = options.Length > 0 ? options[0] : 0,
-                Option1 = options.Length > 1 ? options[1] : 0,
-                Option2 = options.Length > 2 ? options[2] : 0,
-                OptionCount = (byte)options.Length,
+                Option0 = pactOptions.Length > 0 ? pactOptions[0] : 0,
+                Option1 = pactOptions.Length > 1 ? pactOptions[1] : 0,
+                Option2 = pactOptions.Length > 2 ? pactOptions[2] : 0,
+                OptionCount = (byte)pactOptions.Length,
+                AffixOption0 = affixOptions.Length > 0 ? affixOptions[0] : 0,
+                AffixOption1 = affixOptions.Length > 1 ? affixOptions[1] : 0,
+                AffixOption2 = affixOptions.Length > 2 ? affixOptions[2] : 0,
+                AffixOptionCount = (byte)affixOptions.Length,
                 RerollCount = (byte)rerollCount,
                 MaxRerolls = (byte)Mathf.Clamp(maxRerolls, 0, byte.MaxValue),
                 RerollCost = rerollScarletCost,
                 SelectionCost = selectionCost
             };
+        }
+
+        private void ResolveEnemyAffixDependencies()
+        {
+            if (enemyAffixState == null) enemyAffixState = FindAnyObjectByType<EnemyAffixRunState>();
+            if (enemyAffixCatalog == null && enemyAffixState != null)
+                enemyAffixCatalog = enemyAffixState.CatalogAsset;
+        }
+
+        private void RefundSelectionCost(float amount)
+        {
+            coreStats.ModifyStat(
+                StatKeys.Scarlet,
+                amount,
+                OwnerClientId,
+                ModificationSource.Direct);
         }
 
         private void HandleDraftChanged(PactDraftNetworkState previous, PactDraftNetworkState current)

@@ -4,6 +4,7 @@ using UnityEngine;
 using VampireHunt.Bootstrap;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Progression;
 using VampireHunt.Run;
 
 namespace VampireHunt.Spawning
@@ -16,6 +17,7 @@ namespace VampireHunt.Spawning
 
         [Header("Dependencies")]
         [SerializeField] private VampireHuntGameManager runManager;
+        [SerializeField] private EnemyAffixRunState enemyAffixState;
         [SerializeField] private EnemyArchetypeAsset meleeArchetype;
 
         [Header("Budget")]
@@ -38,6 +40,8 @@ namespace VampireHunt.Spawning
         {
             if (runManager == null) runManager = GetComponent<VampireHuntGameManager>();
             if (runManager == null) runManager = FindAnyObjectByType<VampireHuntGameManager>();
+            if (enemyAffixState == null) enemyAffixState = GetComponent<EnemyAffixRunState>();
+            if (enemyAffixState == null) enemyAffixState = FindAnyObjectByType<EnemyAffixRunState>();
             maximumPlayerDistance = Mathf.Max(minimumPlayerDistance, maximumPlayerDistance);
         }
 
@@ -82,7 +86,11 @@ namespace VampireHunt.Spawning
                 return;
             }
 
-            actor.PrepareServerSpawn(++m_NextEntityId);
+            actor.PrepareServerSpawn(
+                ++m_NextEntityId,
+                enemyAffixState != null
+                    ? enemyAffixState.CaptureSpawnSnapshot()
+                    : EnemyAffixSpawnSnapshot.Empty);
             instance.Spawn();
             m_ActiveEnemies.Add(actor);
         }

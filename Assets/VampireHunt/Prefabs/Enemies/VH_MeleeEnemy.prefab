@@ -165,10 +165,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.EnemyNetworkActor
   ShowTopMostFoldoutHeaderGroup: 1
   archetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
+  affixCatalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
   characterController: {fileID: 810000000000000004}
   presenter: {fileID: 810000000000000008}
   modifierHost: {fileID: 810000000000000006}
   statusHost: {fileID: 810000000000000013}
+  effectHost: {fileID: 810000000000000015}
   lootDropper: {fileID: 810000000000000016}
   onDamagePresented: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
   deathDespawnDelay: 1.25

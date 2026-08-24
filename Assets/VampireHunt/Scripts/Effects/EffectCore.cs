@@ -20,7 +20,8 @@ namespace VampireHunt.Effects
         Status = 2,
         Equipment = 3,
         Ability = 4,
-        World = 5
+        World = 5,
+        EnemyAffix = 6
     }
 
     [Flags]
