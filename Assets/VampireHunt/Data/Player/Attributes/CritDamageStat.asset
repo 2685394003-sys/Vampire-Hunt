@@ -18,4 +18,4 @@ MonoBehaviour:
   startingValue: 2
   regenRate: 0
   regenDelay: 0
-  eventFlags: 0
+  eventFlags: 1

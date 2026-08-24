@@ -136,7 +136,6 @@ flowchart LR
 ### 5.1 必须修正的模板约束
 
 - `CoreStatsHandler` 的运行时 `NetworkList` 已迁移为 Server 写入；Owner 的体力消费等操作通过 RPC 请求，仍只作为迁移期属性外壳。
-- 当前 `HitProcessor` 接收客户端提交的伤害值，缺少攻击阶段、距离、冷却、命中体等验证。
 - 当前 `ShooterHitProcessor` 混合伤害、Animator、镜头震动、伤害数字，正式实现必须拆分。
 - 当前 NetworkManager 拓扑和 Session 网络类型必须在 M0 阶段统一确认。
 - `GameEvent<T>.LastValue` 不是权威状态，也不承担网络同步。
@@ -770,6 +769,19 @@ CanStart
 - 背包：增加消耗品容量。
 - 血狼牙：提高攻击伤害并附带受击视觉。
 - 赫尔墨斯之靴：提高移速并附带移动视觉。
+
+### 18.6 当前背包实现（2026-08-24）
+
+- `UsableItemInventory` 使用固定槽位；默认玩家容量为 4，按定义的单槽上限自动堆叠，空间不足时整笔添加失败。
+- 可使用道具分为成功使用后消耗与使用后保留两类；保留型道具固定为单槽单件。
+- `AccessoryInventory` 不限制饰品种类总数，仅按饰品定义执行唯一、有限或无限堆叠规则。
+- `PlayerInventoryNetworkState` 由服务端修改库存：可使用道具槽仅向所属玩家同步，饰品向观察者同步并以 `Equipment` 来源安装到 `GameplayEffectHost`。
+- `ItemCatalogAsset` 是稳定 `ItemId` 的统一入口；拾取、奖励及后续商店只能通过 `IPlayerItemInventory` 提交库存变更。
+- `UseItem1`～`UseItem4` 将键盘 1～4 或手柄十字键转换为本地槽位事件；`PlayerItemUseNetworkBridge` 再由 Owner 向 Server 请求执行。
+- `ConsumableService` 在服务端校验槽位、动作阻断、按 ItemId 计算冷却，并且只在至少一个效果成功后消耗道具。
+- `UsableItemDefinitionAsset.useEffects` 可组合配置 `UsableItemEffectAsset`；当前内置修改 Stat 与施加 Status 两种效果执行器。
+- 现有 `HP Bottle.asset` 已配置 `RestoreHealth35`，作为 ItemId 1 的可运行示例；物品仍需由掉落、奖励或调试入口发放给玩家。
+- 本阶段不包含商店和背包 UI；使用结果通过 `ItemUsePresentationEvent` 提供给后续 HUD、音效和 VFX Presenter。
 
 ## 19. World 模块
 

@@ -1821,13 +1821,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a1d9e7c3b4f4a6ebfd05d6a8c237941, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CinemachineScrollZoom
-  zoomedOutOffset: {x: 0, y: 10.5, z: -3.18}
-  zoomedInOffset: {x: 0, y: 1, z: -3}
-  initialZoom: 0
-  scrollSensitivity: 0.05
-  smoothSpeed: 14
-  follow: {fileID: 0}
-  targetZoom: 0
 --- !u!1001 &182942515
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2781,21 +2774,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f5467890abcdef12345678, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossGuard
-  side: 0
-  maxHealth: 25
-  spriteRenderer: {fileID: 0}
-  hitCollider: {fileID: 287885614}
-  hitFlashDuration: 0.08
-  brokenAlpha: 0.18
-  bossRoot: {fileID: 1328963133}
-  independentMovement: 1
-  formationDistance: 2
-  formationHeight: 0.6
-  followSpeed: 4.5
-  formationReference: {fileID: 1328963133}
-  <CurrentHealth>k__BackingField: 0
-  controller: {fileID: 0}
-  previousHealth: 0
 --- !u!135 &287885614
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -7650,23 +7628,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f7edd1a7a011744883e58427537d93b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Tools.RoadSpline
-  points:
-  - {x: -27.673218, y: -0.046885, z: -1.7884827}
-  - {x: 53.05774, y: -0.01172875, z: -1.2885437}
-  closed: 0
-  prefab: {fileID: 335660468080939347, guid: f8dcc3fc6c27e9c4eb78333905af265b, type: 3}
-  segmentLength: 2.65
-  spacing: 1.93
-  startOffset: 0
-  forwardAxis: 0
-  rotationOffset: {x: 0, y: 0, z: 0}
-  heightMode: 2
-  raycastHeight: 50
-  raycastMaxDist: 100
-  snapLayers:
-    m_Bits: 4294967295
-  heightOffset: 0
-  generatedRoot: {fileID: 1196990117}
 --- !u!4 &672526051
 Transform:
   m_ObjectHideFlags: 0
@@ -8084,54 +8045,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f7edd1a7a011744883e58427537d93b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Tools.RoadSpline
-  points:
-  - {x: 0, y: 0, z: 2.02}
-  - {x: -4.5861816, y: -0.000045776367, z: -17.43518}
-  - {x: -13.786987, y: -0.000045776367, z: -35.34842}
-  - {x: -27.588318, y: -0.000045776367, z: -53.7789}
-  - {x: -41.390015, y: -0.000045776367, z: -74.76111}
-  - {x: -54.168457, y: -0.000045776367, z: -88.07684}
-  - {x: -74.101685, y: -0.000045776367, z: -98.326324}
-  - {x: -94.03516, y: -0.000045776367, z: -98.35214}
-  - {x: -118.06055, y: -0.000045776367, z: -89.68829}
-  - {x: -136.46246, y: -0.000045776367, z: -77.44418}
-  - {x: -156.39597, y: -0.000045776367, z: -62.134186}
-  - {x: -173.26547, y: -0.000045776367, z: -56.540527}
-  - {x: -196.2734, y: -0.000061035156, z: -44.299316}
-  - {x: -204.96582, y: -0.000061035156, z: -23.36856}
-  - {x: -198.32495, y: -0.000061035156, z: 0.63113403}
-  - {x: -208.55475, y: -0.000061035156, z: 20.541718}
-  - {x: -206.0057, y: -0.000061035156, z: 37.383514}
-  - {x: -196.2962, y: -0.000061035156, z: 60.3602}
-  - {x: -198.84549, y: -0.000061035156, z: 81.808624}
-  - {x: -190.66757, y: -0.000061035156, z: 99.16458}
-  - {x: -170.72827, y: -0.000061035156, z: 115.49765}
-  - {x: -141.5882, y: -0.000061035156, z: 135.92258}
-  - {x: -130.85004, y: -0.000061035156, z: 157.87906}
-  - {x: -117.55011, y: -0.000061035156, z: 170.63351}
-  - {x: -88.40973, y: -0.000061035156, z: 158.34067}
-  - {x: -68.4707, y: -0.000061035156, z: 140.41891}
-  - {x: -42.3938, y: -0.000061035156, z: 132.22366}
-  - {x: -10.698914, y: -0.000061035156, z: 133.72672}
-  - {x: 5.14447, y: -0.000061035156, z: 120.41495}
-  - {x: 5.653137, y: -0.000061035156, z: 96.37222}
-  - {x: -0.69525146, y: -0.000061035156, z: 78.52231}
-  - {x: -3.5495605, y: -0.00005340576, z: 64.68259}
-  - {x: -2.026062, y: -0.00005340576, z: 48.109955}
-  closed: 0
-  prefab: {fileID: 1200251307846539781, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
-  segmentLength: 2.65
-  spacing: 2.02
-  startOffset: 0
-  forwardAxis: 1
-  rotationOffset: {x: 0, y: 0, z: 0}
-  heightMode: 1
-  raycastHeight: 62
-  raycastMaxDist: 61.3
-  snapLayers:
-    m_Bits: 4294967295
-  heightOffset: 1.16
-  generatedRoot: {fileID: 366581766}
 --- !u!4 &720995466
 Transform:
   m_ObjectHideFlags: 0
@@ -14946,153 +14859,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f546778899001122334455, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossConfig
-  bossDefinition: {fileID: 11400000, guid: 06d13826847950f4c9cb6ee653f5ec81, type: 2}
-  maxHealth: 100
-  phase1HealthRate: 0.7
-  phase2HealthRate: 0.3
-  phase3HealthRate: 0.1
-  invulnerableDuringPhaseChange: 1
-  phaseChangeDuration: 1.5
-  phaseBlinkInterval: 0.12
-  teleportAfterPhaseChange: 1
-  stationaryAfterFirstPhase: 1
-  phaseSlowMotionScale: 0.25
-  phaseSlowMotionRealtime: 0.45
-  phaseTransitionKnockback: 7
-  deathDisableDelay: 2
-  randomSpawnOnStart: 0
-  arenaCenter: {x: 597.70776, y: 0.61, z: 561.47}
-  arenaHalfSize: {x: 6, y: 6}
-  spawnMinDistanceFromPlayer: 8
-  spawnPositionAttempts: 24
-  spawnObstacleCheckRadius: 0.8
-  obstacleLayer:
-    m_Bits: 8
-  clearObstaclesOnPhaseChange: 1
-  phaseClearObstacleRadius: 4
-  initialActionDelay: 1.5
-  moveSpeed: 2.4
-  phase1MoveMultiplier: 1.05
-  phase2MoveMultiplier: 1.18
-  phase3MoveMultiplier: 1.35
-  stoppingDistance: 2.6
-  turnSpeed: 10
-  viewportPadding: 0.05
-  offscreenAttackInterval: 2.5
-  globalAttackInterval: 0.35
-  initialEncounterMode: 0
-  huntRetreatStartDistance: 7
-  huntRetreatStopDistance: 9
-  huntMatchTargetMoveSpeed: 1
-  huntFallbackRetreatSpeed: 5
-  huntRetreatSpeedMultiplier: 1
-  playPreStaggerAttack: 1
-  staggerActivationDistance: 3.5
-  staggerWindowDuration: 4
-  teleportAfterStaggerTimeout: 1
-  teleportAfterStaggerExecution: 1
-  playerLayer:
-    m_Bits: 64
-  warningColor:
-    r: 1
-    g: 0.08
-    b: 0.08
-    a: 0.9
-  projectileColor:
-    r: 0.65
-    g: 0.02
-    b: 0.12
-    a: 1
-  telegraphHeight: 0.63
-  telegraphLineWidth: 0.1
-  telegraphMaterial: {fileID: 0}
-  projectileMaterial: {fileID: 0}
-  projectilePrefab: {fileID: 6814867514893896397, guid: 6dab62d441f3a0f479ac4ff7a08a5209, type: 3}
-  phaseChangeClip: {fileID: 0}
-  attackClip: {fileID: 0}
-  deathClip: {fileID: 0}
-  minimumEffectHeight: 0.63
-  guardMaxHealth: 25
-  guardHitFlashDuration: 0.08
-  brokenGuardAlpha: 0.18
-  guardIndependentMovement: 1
-  guardFormationDistance: 2
-  guardFormationHeight: 0.6
-  guardFollowSpeed: 4.5
-  createPhaseBloodPool: 1
-  bloodPoolRadius: 1.4
-  bloodPoolSpawnDistance: 4
-  phaseRewardDamage: 1
-  phaseRewardSpeed: 1
-  phaseRewardMaxHealth: 10
-  createPhase3Rain: 1
-  phaseParameter: Phase
-  phaseChangeTrigger: PhaseChange
-  deathTrigger: Death
-  format1Trigger: Format1
-  format2Trigger: Format2
-  format3Trigger: Format3
-  format4Trigger: Format4
-  format5Trigger: Format5
-  format6Trigger: Format6
-  showDebugPanel: 1
-  logCombatEvents: 1
-  drawCombatGizmos: 1
-  debugDamageAmount: 10
-  debugPanelPosition: {x: 12, y: 12}
-  format1Damage: 1
-  format1WarningTime: 0.9
-  format1Radius: 1.8
-  format1SweepLength: 7
-  format1SweepWidth: 1.5
-  format1SweepSteps: 10
-  format1SweepStepInterval: 0.05
-  format1Knockback: 4
-  format1Cooldown: 3.5
-  format1Weight: 1
-  format2Damage: 1
-  format2ProjectileCount: 10
-  format2ProjectileArms: 4
-  format2RotationPerWave: 17
-  format2PreDelay: 0.25
-  format2ProjectileInterval: 0.16
-  format2ProjectileSpeed: 7
-  format2ProjectileRadius: 0.22
-  format2ProjectileLife: 6
-  format2Knockback: 2.5
-  format2Cooldown: 2.8
-  format2Weight: 1.25
-  format3Damage: 1
-  format3WarningTime: 1.1
-  format3Radius: 7
-  format3HalfLength: 7
-  format3Width: 1.15
-  format3FillAlpha: 0.55
-  format3Knockback: 0
-  format3Cooldown: 5
-  format3Weight: 0.8
-  format4Damage: 1
-  format4WarningTime: 1.6
-  format4Radius: 12
-  format4Length: 12
-  format4Width: 3.5
-  format4Knockback: 7
-  format4Cooldown: 10.5
-  format4Weight: 0.45
-  enableFormat5Countdown: 1
-  format5TriggerHealthRate: 0.2
-  format5CountdownSeconds: 30
-  format5CountdownRate: 2
-  format6Damage: 1
-  format6WarningTime: 0.8
-  format6Width: 1.6
-  format6Distance: 9
-  format6Speed: 14
-  format6ActiveDuration: 1.2
-  format6DamageInterval: 0.2
-  format6Knockback: 6
-  format6Cooldown: 5.5
-  format6Weight: 1
 --- !u!82 &1328963130
 AudioSource:
   m_ObjectHideFlags: 0
@@ -15274,41 +15040,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a5b6c7d8e9f4012a3b4c5d6e7f8091a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Boss3DAnimationPresenter
-  ShowTopMostFoldoutHeaderGroup: 1
-  m_NetworkManager: {fileID: 0}
-  <IsLocalPlayer>k__BackingField: 0
-  <IsOwner>k__BackingField: 0
-  <IsServer>k__BackingField: 0
-  <HasAuthority>k__BackingField: 0
-  <IsSessionOwner>k__BackingField: 0
-  <ServerIsHost>k__BackingField: 0
-  <IsClient>k__BackingField: 0
-  <IsHost>k__BackingField: 0
-  <IsOwnedByServer>k__BackingField: 0
-  <IsSpawned>k__BackingField: 0
-  m_NetworkObject: {fileID: 0}
-  <NetworkObjectId>k__BackingField: 0
-  <NetworkBehaviourId>k__BackingField: 0
-  <OwnerClientId>k__BackingField: 0
-  <IsDestroying>k__BackingField: 0
-  m_VarInit: 0
-  <m_TargetIdBeingSynchronized>k__BackingField: 0
-  controller: {fileID: 1328963135}
-  humanoidAnimator: {fileID: 2021692572}
-  animations: {idle: {fileID: 7400000, guid: d76f0e544b1b6a64c878272630fbdea6, type: 2}, run: {fileID: 7400000, guid: f1294cbd621d163499fcbbaa892c6603, type: 2}, retreat: {fileID: 7400000, guid: a5c96607ee11fdd46a2c4ffdde308a8c, type: 2}, phaseChange: {fileID: -203655887218126122, guid: e59000b490ed00449982cdd527a8eab6, type: 3}, stagger: {fileID: -203655887218126122, guid: eaba5cd88fdf53a42a5e91a8ead6896f, type: 3}, executionImpact: {fileID: -203655887218126122, guid: a48bdb4261217cd43ad88461307a87b8, type: 3}, death: {fileID: -203655887218126122, guid: f1618cc3e7f574549a985184f566c942, type: 3}, format1Sweep: {fileID: 7400000, guid: 62800c19316470e46b17f70089536c90, type: 2}, format2Barrage: {fileID: -203655887218126122, guid: b96432b1128724d4e87c4a8ec12e55ef, type: 3}, format3CrossSlash: {fileID: -203655887218126122, guid: c053941476f4df141912f93b482df4f5, type: 3}, format4ChargedSlash: {fileID: -203655887218126122, guid: 915342fd77913fe408d0f32e08bc6e8a, type: 3}, format6Dash: {fileID: -203655887218126122, guid: 1b5c334af0b4c0749b3d4ec9b1540690, type: 3}}
-  crossFadeDuration: 0.12
-  applyFootIk: 1
-  logMissingClips: 1
-  activeClip: {fileID: 0}
-  incomingClip: {fileID: 0}
-  activePort: -1
-  incomingPort: -1
-  blendElapsed: 0
-  activeLoops: 0
-  incomingLoops: 0
-  eventsBound: 0
-  missingClipsLogged: 0
-  localCommandSequence: 0
 --- !u!114 &1328963135
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15321,34 +15052,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f546778899001122334457, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossController
-  stats: {fileID: 1328963129}
-  bossHealth: {fileID: 1328963137}
-  attackController: {fileID: 1328963136}
-  bossRigidbody: {fileID: 1328963132}
-  bossCollider: {fileID: 1328963131}
-  animator: {fileID: 2021692572}
-  audioSource: {fileID: 1328963130}
-  player: {fileID: 0}
-  visualRoot: {fileID: 1459619907}
-  vfxRoot: {fileID: 1836102623}
-  leftGuard: {fileID: 287885613}
-  rightGuard: {fileID: 1894150842}
-  runtimeReady: 0
-  combatEnabled: 0
-  combatCommandReceived: 0
-  eventsBound: 0
-  runtimeEventsBound: 0
-  runtimeOwnedByBootstrap: 0
-  defeatedRaised: 0
-  legacyFallbackWarningLogged: 0
-  contractWasActive: 0
-  contractExpiredRaised: 0
-  nextTargetResolveTime: 0
-  encounterMode: 0
-  staggerState: 0
-  <CurrentState>k__BackingField: 0
-  <RemainingContractSeconds>k__BackingField: 0
-  <ContractCountdownActive>k__BackingField: 0
 --- !u!114 &1328963136
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15361,20 +15064,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f546778899001122334458, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossAttackController
-  stats: {fileID: 1328963129}
-  player: {fileID: 0}
-  meleePoint: {fileID: 786693579}
-  projectileOrigin: {fileID: 2035624550}
-  groundIndicator: {fileID: 979760171}
-  vfxRoot: {fileID: 1836102623}
-  bossRigidbody: {fileID: 1328963132}
-  animator: {fileID: 2021692572}
-  audioSource: {fileID: 1328963130}
-  leftGuard: {fileID: 287885613}
-  rightGuard: {fileID: 1894150842}
-  <IsBusy>k__BackingField: 0
-  <AttacksStarted>k__BackingField: 0
-  controller: {fileID: 0}
 --- !u!114 &1328963137
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15387,34 +15076,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f546778899001122334456, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossHealth
-  ShowTopMostFoldoutHeaderGroup: 1
-  m_NetworkManager: {fileID: 0}
-  <IsLocalPlayer>k__BackingField: 0
-  <IsOwner>k__BackingField: 0
-  <IsServer>k__BackingField: 0
-  <HasAuthority>k__BackingField: 0
-  <IsSessionOwner>k__BackingField: 0
-  <ServerIsHost>k__BackingField: 0
-  <IsClient>k__BackingField: 0
-  <IsHost>k__BackingField: 0
-  <IsOwnedByServer>k__BackingField: 0
-  <IsSpawned>k__BackingField: 0
-  m_NetworkObject: {fileID: 0}
-  <NetworkObjectId>k__BackingField: 0
-  <NetworkBehaviourId>k__BackingField: 0
-  <OwnerClientId>k__BackingField: 0
-  <IsDestroying>k__BackingField: 0
-  m_VarInit: 0
-  <m_TargetIdBeingSynchronized>k__BackingField: 0
-  stats: {fileID: 1328963129}
-  offlineCurrentHealth: 0
-  offlineMaxHealth: 1
-  offlinePhase: 0
-  offlineInvulnerable: 0
-  offlineDead: 0
-  controller: {fileID: 0}
-  deathNotified: 0
-  lastPhase: 0
 --- !u!114 &1328963138
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15427,9 +15088,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 52266ef1a043385489af4624e3622124, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossNetworkPrefabRegistrar
-  config: {fileID: 0}
-  registeredManager: {fileID: 0}
-  registeredProjectile: {fileID: 0}
 --- !u!1001 &1332695017
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -21769,21 +21427,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f5467890abcdef12345678, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossGuard
-  side: 1
-  maxHealth: 25
-  spriteRenderer: {fileID: 0}
-  hitCollider: {fileID: 1894150843}
-  hitFlashDuration: 0.08
-  brokenAlpha: 0.18
-  bossRoot: {fileID: 1328963133}
-  independentMovement: 1
-  formationDistance: 2
-  formationHeight: 0.6
-  followSpeed: 4.5
-  formationReference: {fileID: 1328963133}
-  <CurrentHealth>k__BackingField: 0
-  controller: {fileID: 0}
-  previousHealth: 0
 --- !u!135 &1894150843
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -23687,11 +23330,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
---- !u!95 &2021692572 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
-  m_PrefabInstance: {fileID: 2021692571}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2021692573 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}

@@ -253,6 +253,46 @@ namespace Blocks.Gameplay.Core
                     ""interactions"": """",
                     ""initialStateCheck"": false,
                     ""priority"": 0
+                },
+                {
+                    ""name"": ""UseItem1"",
+                    ""type"": ""Button"",
+                    ""id"": ""98a3e8ca-31ae-4a29-974f-67886ffe43f2"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""UseItem2"",
+                    ""type"": ""Button"",
+                    ""id"": ""ef8184b5-04ba-45f3-8984-740bb0fa2d66"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""UseItem3"",
+                    ""type"": ""Button"",
+                    ""id"": ""abf36a3b-6fb7-41e1-835c-52d3a5471054"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""UseItem4"",
+                    ""type"": ""Button"",
+                    ""id"": ""4a66dea7-690e-4782-afba-cd121b1e8193"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
                 }
             ],
             ""bindings"": [
@@ -638,6 +678,94 @@ namespace Blocks.Gameplay.Core
                     ""processors"": """",
                     ""groups"": """",
                     ""action"": ""TriggerLevelup"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""3734e359-0bdb-4da8-a053-edb9e2433595"",
+                    ""path"": ""<Keyboard>/1"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""UseItem1"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""61cb2635-1e3e-4eef-90d7-f36dd949695f"",
+                    ""path"": ""<Gamepad>/dpad/up"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""UseItem1"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""53090109-05a7-4dda-be16-7f7759f20f20"",
+                    ""path"": ""<Keyboard>/2"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""UseItem2"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""3df29247-2118-455d-bfee-7dde6ec4e6f3"",
+                    ""path"": ""<Gamepad>/dpad/right"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""UseItem2"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""6fe4a426-ed62-41d7-a3a5-bb13393ab50d"",
+                    ""path"": ""<Keyboard>/3"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""UseItem3"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""7266ba88-db35-4541-9c8f-8f3692dbd423"",
+                    ""path"": ""<Gamepad>/dpad/down"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""UseItem3"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""ea61b825-fd60-4950-a209-d2cad9a7f666"",
+                    ""path"": ""<Keyboard>/4"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""UseItem4"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""bb71678a-d2d9-45c7-8b02-1ec7b51863f6"",
+                    ""path"": ""<Gamepad>/dpad/left"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""UseItem4"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1251,6 +1379,10 @@ namespace Blocks.Gameplay.Core
             m_Player_CombatAbility4 = m_Player.FindAction("CombatAbility4", throwIfNotFound: true);
             m_Player_Interact = m_Player.FindAction("Interact", throwIfNotFound: true);
             m_Player_TriggerLevelup = m_Player.FindAction("TriggerLevelup", throwIfNotFound: true);
+            m_Player_UseItem1 = m_Player.FindAction("UseItem1", throwIfNotFound: true);
+            m_Player_UseItem2 = m_Player.FindAction("UseItem2", throwIfNotFound: true);
+            m_Player_UseItem3 = m_Player.FindAction("UseItem3", throwIfNotFound: true);
+            m_Player_UseItem4 = m_Player.FindAction("UseItem4", throwIfNotFound: true);
             // UI
             m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
             m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1360,6 +1492,10 @@ namespace Blocks.Gameplay.Core
         private readonly InputAction m_Player_CombatAbility4;
         private readonly InputAction m_Player_Interact;
         private readonly InputAction m_Player_TriggerLevelup;
+        private readonly InputAction m_Player_UseItem1;
+        private readonly InputAction m_Player_UseItem2;
+        private readonly InputAction m_Player_UseItem3;
+        private readonly InputAction m_Player_UseItem4;
         /// <summary>
         /// Provides access to input actions defined in input action map "Player".
         /// </summary>
@@ -1436,6 +1572,22 @@ namespace Blocks.Gameplay.Core
             /// </summary>
             public InputAction @TriggerLevelup => m_Wrapper.m_Player_TriggerLevelup;
             /// <summary>
+            /// Provides access to the underlying input action "Player/UseItem1".
+            /// </summary>
+            public InputAction @UseItem1 => m_Wrapper.m_Player_UseItem1;
+            /// <summary>
+            /// Provides access to the underlying input action "Player/UseItem2".
+            /// </summary>
+            public InputAction @UseItem2 => m_Wrapper.m_Player_UseItem2;
+            /// <summary>
+            /// Provides access to the underlying input action "Player/UseItem3".
+            /// </summary>
+            public InputAction @UseItem3 => m_Wrapper.m_Player_UseItem3;
+            /// <summary>
+            /// Provides access to the underlying input action "Player/UseItem4".
+            /// </summary>
+            public InputAction @UseItem4 => m_Wrapper.m_Player_UseItem4;
+            /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
             public InputActionMap Get() { return m_Wrapper.m_Player; }
@@ -1509,6 +1661,18 @@ namespace Blocks.Gameplay.Core
                 @TriggerLevelup.started += instance.OnTriggerLevelup;
                 @TriggerLevelup.performed += instance.OnTriggerLevelup;
                 @TriggerLevelup.canceled += instance.OnTriggerLevelup;
+                @UseItem1.started += instance.OnUseItem1;
+                @UseItem1.performed += instance.OnUseItem1;
+                @UseItem1.canceled += instance.OnUseItem1;
+                @UseItem2.started += instance.OnUseItem2;
+                @UseItem2.performed += instance.OnUseItem2;
+                @UseItem2.canceled += instance.OnUseItem2;
+                @UseItem3.started += instance.OnUseItem3;
+                @UseItem3.performed += instance.OnUseItem3;
+                @UseItem3.canceled += instance.OnUseItem3;
+                @UseItem4.started += instance.OnUseItem4;
+                @UseItem4.performed += instance.OnUseItem4;
+                @UseItem4.canceled += instance.OnUseItem4;
             }
 
             /// <summary>
@@ -1568,6 +1732,18 @@ namespace Blocks.Gameplay.Core
                 @TriggerLevelup.started -= instance.OnTriggerLevelup;
                 @TriggerLevelup.performed -= instance.OnTriggerLevelup;
                 @TriggerLevelup.canceled -= instance.OnTriggerLevelup;
+                @UseItem1.started -= instance.OnUseItem1;
+                @UseItem1.performed -= instance.OnUseItem1;
+                @UseItem1.canceled -= instance.OnUseItem1;
+                @UseItem2.started -= instance.OnUseItem2;
+                @UseItem2.performed -= instance.OnUseItem2;
+                @UseItem2.canceled -= instance.OnUseItem2;
+                @UseItem3.started -= instance.OnUseItem3;
+                @UseItem3.performed -= instance.OnUseItem3;
+                @UseItem3.canceled -= instance.OnUseItem3;
+                @UseItem4.started -= instance.OnUseItem4;
+                @UseItem4.performed -= instance.OnUseItem4;
+                @UseItem4.canceled -= instance.OnUseItem4;
             }
 
             /// <summary>
@@ -1980,6 +2156,34 @@ namespace Blocks.Gameplay.Core
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnTriggerLevelup(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "UseItem1" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnUseItem1(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "UseItem2" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnUseItem2(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "UseItem3" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnUseItem3(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "UseItem4" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnUseItem4(InputAction.CallbackContext context);
         }
         /// <summary>
         /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.
