@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using UnityEngine.Serialization;
 using Blocks.Gameplay.Core;
 using VampireHunt.Contracts;
 
@@ -7,8 +8,9 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
 {
     [Header("References")]
     [SerializeField] private DashAbility dashAbility;
-    [Tooltip("Boolean input event used to trigger Dash. Dash activates only on the pressed state.")]
-    [SerializeField] private BoolEvent onDashInputChanged;
+    [FormerlySerializedAs("onDashInputChanged")]
+    [Tooltip("Button-press event used to trigger Dash.")]
+    [SerializeField] private GameEvent onDashPressed;
 
     [Header("Feedback")]
     [SerializeField] private SoundDef insufficientStaminaSound;
@@ -36,9 +38,9 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
     public void OnPlayerSpawn()
     {
         if (!m_PlayerManager.IsOwner) return;
-        if (onDashInputChanged != null)
+        if (onDashPressed != null)
         {
-            onDashInputChanged.RegisterListener(HandleDashInput);
+            onDashPressed.RegisterListener(HandleDashPressed);
         }
     }
 
@@ -46,18 +48,16 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
     public void OnPlayerDespawn()
     {
         if (!m_PlayerManager.IsOwner) return;
-        if (onDashInputChanged != null)
+        if (onDashPressed != null)
         {
-            onDashInputChanged.UnregisterListener(HandleDashInput);
+            onDashPressed.UnregisterListener(HandleDashPressed);
         }
     }
 
     public void OnLifeStateChanged(PlayerLifeState previousState, PlayerLifeState newState) { }
 
-    private void HandleDashInput(bool isPressed)
+    private void HandleDashPressed()
     {
-        if (!isPressed) return;
-
         if (dashAbility == null)
         {
             Debug.LogWarning("[DashAddon] DashAbility component not found.", this);

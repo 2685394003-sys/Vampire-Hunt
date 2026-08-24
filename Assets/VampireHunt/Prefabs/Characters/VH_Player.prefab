@@ -160,7 +160,7 @@ MonoBehaviour:
   coreCamera: {fileID: 6335676085073359025}
   corePlayerState: {fileID: 1738836199841815264}
   autoHandleLifecycle: 0
-  enableSprinting: 0
+  enableSprinting: 1
   onMoveInput: {fileID: 11400000, guid: a9096ef1199d14af0bd27800ad2e3ebf, type: 2}
   onLookInput: {fileID: 11400000, guid: 8af931367978e4bc9bae53b88856ff5b, type: 2}
   onJumpPressed: {fileID: 11400000, guid: 84375de8d548d4a43a42608cffd89549, type: 2}
@@ -268,7 +268,7 @@ MonoBehaviour:
   SlerpPosition: 0
   directionMode: 0
   moveSpeed: 3
-  sprintSpeed: 3
+  sprintSpeed: 6
   rotationSmoothTime: 0.1
   speedChangeRate: 15
   forceDecayRate: 5
@@ -459,7 +459,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DashAddon
   ShowTopMostFoldoutHeaderGroup: 1
   dashAbility: {fileID: -8488595099661193913}
-  onDashInputChanged: {fileID: 11400000, guid: c3ec94fe2e7dd47aaadddb5e98e7c375, type: 2}
+  onDashPressed: {fileID: 11400000, guid: 84375de8d548d4a43a42608cffd89549, type: 2}
   insufficientStaminaSound: {fileID: 0}
   warningCooldown: 2
 --- !u!114 &-8488595099661193913
