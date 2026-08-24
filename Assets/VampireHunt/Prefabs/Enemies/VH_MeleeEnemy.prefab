@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 810000000000000013}
   - component: {fileID: 810000000000000014}
   - component: {fileID: 810000000000000015}
+  - component: {fileID: 810000000000000016}
   m_Layer: 8
   m_Name: VH_MeleeEnemy
   m_TagString: Untagged
@@ -168,6 +169,7 @@ MonoBehaviour:
   presenter: {fileID: 810000000000000008}
   modifierHost: {fileID: 810000000000000006}
   statusHost: {fileID: 810000000000000013}
+  lootDropper: {fileID: 810000000000000016}
   onDamagePresented: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
   deathDespawnDelay: 1.25
 --- !u!114 &810000000000000008
@@ -232,6 +234,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53447c250496478f5b09fe27608f193b, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.GameplayEffectHost
+--- !u!114 &810000000000000016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810000000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b15e8c9fad4b02e61728394a5b6c7d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.EnemyLootDropper
+  runSeed: 1337
+  scatterRadius: 0.75
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 1
+  groundProbeHeight: 4
+  groundOffset: 0.1
 --- !u!1 &810000000000000009
 GameObject:
   m_ObjectHideFlags: 0

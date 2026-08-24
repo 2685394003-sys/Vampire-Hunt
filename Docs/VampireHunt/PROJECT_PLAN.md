@@ -793,6 +793,16 @@ CanStart
 - `OpenShopInteractionEffect` 让 `ModularInteractable` 只负责打开商店；`PlayerShopNetworkBridge` 负责交易 RPC，`ShopPresenter` 消费本地会话并复用玩家 HUD 的 UI Toolkit 文档。
 - `SpiritShop.prefab` 是当前可放入场景或由服务端生成的示例，商品池使用已有血瓶的四种数量/价格组合。
 
+### 18.8 当前共享世界掉落实现（2026-08-24）
+
+- 每个 `EnemyArchetypeAsset` 独立引用一个 `LootTableAsset`；掉落表可同时配置必定掉落、加权抽取次数、空掉落权重以及每项数量范围。
+- `LootRollService` 使用 `RunSeed + LootTable StableId + EnemyEntityId` 在纯 C# 中确定性计算结果，不依赖客户端或 Unity 全局随机状态。
+- `EnemyLootDropper` 只在服务端确认敌人死亡后提交一次 Roll，并在敌人销毁前生成已注册的 `NetworkObject` 拾取物。
+- 掉落物属于共享世界，首个通过服务端背包校验的玩家获得；背包拒绝整笔物品时拾取物保留，成功后由 `GrantItemInteractionEffect` 请求销毁。
+- `NetworkPickupLifetime` 负责服务端超时清理。当前 `HPBottlePickup.prefab` 的存活时间为 45 秒。
+- `VH_MeleeEnemyLoot.asset` 是首个配置；当前由 Asset 配置普通近战敌人的必定 Coin 掉落，以及 99 空权重、1 血瓶权重的一次额外抽取。
+- `LootPickupDefinitionAsset.spawnMode` 区分两种生成语义：`PreparedItemGrant` 生成一个道具拾取物并向 `GrantItemInteractionEffect` 写入数量；`PrefabOnly` 按数量生成多个 prefab，不检查或配置拾取组件，交互和销毁完全由 prefab 自身负责。Coin 使用后者。
+
 ## 19. World 模块
 
 ### 19.1 地图结构

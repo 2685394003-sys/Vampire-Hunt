@@ -26,3 +26,4 @@ MonoBehaviour:
   recoveryDuration: 0.8
   scarletReward: 20
   spawnCost: 1
+  lootTable: {fileID: 11400000, guid: 84f592c0d3e14f462a5b6c7d8e9fa0b1, type: 2}

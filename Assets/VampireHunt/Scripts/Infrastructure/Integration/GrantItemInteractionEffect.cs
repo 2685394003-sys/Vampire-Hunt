@@ -35,6 +35,18 @@ namespace VampireHunt.Infrastructure.Integration
         public bool DespawnOnSuccess => despawnOnSuccess;
         public float MaxGrantDistance => maxGrantDistance;
 
+        /// <summary>Overrides the granted stack size on the server instance before it is spawned.</summary>
+        public void PrepareServerSpawn(int preparedQuantity)
+        {
+            if (IsSpawned)
+            {
+                Debug.LogWarning("[GrantItemInteractionEffect] Quantity must be prepared before spawn.", this);
+                return;
+            }
+
+            quantity = Mathf.Max(1, preparedQuantity);
+        }
+
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();

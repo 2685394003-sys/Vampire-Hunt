@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 940185786388625171}
   - component: {fileID: 4749097043135285354}
   - component: {fileID: 8114863375129987408}
+  - component: {fileID: 8114863375129987409}
   m_Layer: 0
   m_Name: HPBottlePickup
   m_TagString: Untagged
@@ -181,6 +182,19 @@ MonoBehaviour:
   priority: 100
   despawnOnSuccess: 1
   maxGrantDistance: 4
+--- !u!114 &8114863375129987409
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2426780611620156085}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51c26f9da0be4c13f728394a5b6c7d8e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.NetworkPickupLifetime
+  lifetimeSeconds: 45
 --- !u!1 &4629874646103330785
 GameObject:
   m_ObjectHideFlags: 0

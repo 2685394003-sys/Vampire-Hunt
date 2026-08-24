@@ -31,6 +31,7 @@ namespace VampireHunt.Infrastructure.Netcode
         [SerializeField] private EnemyPresenter presenter;
         [SerializeField] private CombatModifierHost modifierHost;
         [SerializeField] private CombatStatusHost statusHost;
+        [SerializeField] private EnemyLootDropper lootDropper;
         [SerializeField] private DamagePresentationEvent onDamagePresented;
 
         [Header("Lifecycle")]
@@ -67,6 +68,7 @@ namespace VampireHunt.Infrastructure.Netcode
             if (presenter == null) presenter = GetComponentInChildren<EnemyPresenter>();
             if (modifierHost == null) modifierHost = GetComponent<CombatModifierHost>();
             if (statusHost == null) statusHost = GetComponent<CombatStatusHost>();
+            if (lootDropper == null) lootDropper = GetComponent<EnemyLootDropper>();
         }
 
         public void PrepareServerSpawn(ulong entityId)
@@ -219,6 +221,7 @@ namespace VampireHunt.Infrastructure.Netcode
             {
                 ScheduleDeathDespawn();
                 GrantDeathRewardFromSource(request.Source);
+                lootDropper?.SpawnDropsOnce(archetype.LootTable, m_Aggregate.Id.Value, transform.position);
             }
 
             PublishState();

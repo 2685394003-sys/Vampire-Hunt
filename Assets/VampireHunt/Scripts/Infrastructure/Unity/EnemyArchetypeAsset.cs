@@ -28,10 +28,12 @@ namespace VampireHunt.Infrastructure.Unity
         [Header("Spawn and Reward")]
         [Min(0f)] [SerializeField] private float scarletReward = 5f;
         [Min(1)] [SerializeField] private int spawnCost = 1;
+        [SerializeField] private LootTableAsset lootTable;
 
         public string StableId => stableId;
         public NetworkObject NetworkPrefab => networkPrefab;
         public int SpawnCost => Mathf.Max(1, spawnCost);
+        public LootTableAsset LootTable => lootTable;
 
         public EnemyArchetypeDefinition ToDefinition()
         {
