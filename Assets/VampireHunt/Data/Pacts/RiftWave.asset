@@ -13,15 +13,16 @@ MonoBehaviour:
   m_Name: RiftWave
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
   pactId: 2
-  displayName: 裂空
-  description: 每层额外发射一道剑气，并将剑气扇形扩展至 12 度。
+  displayName: "\u88C2\u7A7A"
+  description: "\u6BCF\u5C42\u989D\u5916\u53D1\u5C04\u4E00\u9053\u5251\u6C14\uFF0C\u5E76\u5C06\u5251\u6C14\u6247\u5F62\u6269\u5C55\u81F3
+    12 \u5EA6\u3002"
   icon: {fileID: 0}
   tier: 0
   rarity: 1
   baseWeight: 80
   tags: 5
-  prerequisites: []
-  exclusions: []
+  prerequisites: 
+  exclusions: 
   repeatable: 1
   maxStacks: 3
   effectModules:
