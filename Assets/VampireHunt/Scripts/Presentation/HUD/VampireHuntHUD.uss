@@ -89,6 +89,13 @@
     width: 92px;
 }
 
+.boss-stage {
+    width: 76px;
+    color: rgb(235, 191, 91);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+
 .boss-name {
     flex-grow: 1;
     color: rgb(244, 218, 202);
@@ -101,6 +108,45 @@
     width: 92px;
     color: var(--vh-muted);
     font-size: 10px;
+    -unity-text-align: middle-right;
+}
+
+.boss-status {
+    width: 72px;
+    color: rgb(236, 126, 145);
+    font-size: 10px;
+    -unity-text-align: middle-right;
+}
+
+.boss-guard-row {
+    height: 18px;
+    margin-bottom: 4px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.boss-guard-label {
+    width: 40px;
+    color: rgb(244, 205, 93);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+
+.boss-guard-bar {
+    flex-grow: 1;
+    height: 11px;
+    margin-left: 4px;
+    margin-right: 7px;
+}
+
+.boss-guard-bar .unity-progress-bar__progress {
+    background-color: rgb(225, 166, 42);
+}
+
+.boss-guard-value {
+    width: 72px;
+    color: rgb(221, 198, 139);
+    font-size: 9px;
     -unity-text-align: middle-right;
 }
 

@@ -26,6 +26,8 @@ namespace VampireHunt.Presentation.HUD
         private ProgressBar m_StaminaBar;
         private ProgressBar m_ScarletBar;
         private ProgressBar m_BossHealthBar;
+        private ProgressBar m_BossGuardBar;
+        private VisualElement m_BossGuardRow;
         private Label m_HealthValue;
         private Label m_StaminaValue;
         private Label m_ScarletValue;
@@ -34,6 +36,9 @@ namespace VampireHunt.Presentation.HUD
         private Label m_Objective;
         private Label m_BossName;
         private Label m_BossHealthValue;
+        private Label m_BossGuardValue;
+        private Label m_BossStage;
+        private Label m_BossStatus;
         private Label m_PactCount;
         private Label m_BuildName;
         private readonly VisualElement[] m_ItemSlots = new VisualElement[ItemSlotCount];
@@ -55,6 +60,8 @@ namespace VampireHunt.Presentation.HUD
             m_StaminaBar = root.Q<ProgressBar>("player-stamina-bar");
             m_ScarletBar = root.Q<ProgressBar>("player-scarlet-bar");
             m_BossHealthBar = root.Q<ProgressBar>("boss-health-bar");
+            m_BossGuardBar = root.Q<ProgressBar>("boss-guard-bar");
+            m_BossGuardRow = root.Q<VisualElement>("boss-guard-row");
             m_HealthValue = root.Q<Label>("health-value");
             m_StaminaValue = root.Q<Label>("stamina-value");
             m_ScarletValue = root.Q<Label>("scarlet-value");
@@ -63,6 +70,9 @@ namespace VampireHunt.Presentation.HUD
             m_Objective = root.Q<Label>("objective-text");
             m_BossName = root.Q<Label>("boss-name");
             m_BossHealthValue = root.Q<Label>("boss-health-value");
+            m_BossGuardValue = root.Q<Label>("boss-guard-value");
+            m_BossStage = root.Q<Label>("boss-stage");
+            m_BossStatus = root.Q<Label>("boss-status");
             m_PactCount = root.Q<Label>("pact-count");
             m_BuildName = root.Q<Label>("build-name");
             for (int i = 0; i < ItemSlotCount; i++)
@@ -152,6 +162,14 @@ namespace VampireHunt.Presentation.HUD
         /// <summary>Shows or hides the boss header and updates its read model.</summary>
         public void SetBossState(string bossName, float currentHealth, float maxHealth, bool visible)
         {
+            SetBossEncounterState(bossName, currentHealth, maxHealth, 0f, 1f, 1,
+                string.Empty, visible, false);
+        }
+
+        public void SetBossEncounterState(string bossName, float currentHealth, float maxHealth,
+            float currentGuard, float maxGuard, int stageNumber, string status,
+            bool visible, bool guardVisible)
+        {
             if (m_BossPanel != null)
             {
                 m_BossPanel.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
@@ -161,6 +179,11 @@ namespace VampireHunt.Presentation.HUD
 
             if (m_BossName != null) m_BossName.text = bossName ?? string.Empty;
             SetVital(m_BossHealthBar, m_BossHealthValue, currentHealth, maxHealth);
+            SetVital(m_BossGuardBar, m_BossGuardValue, currentGuard, maxGuard);
+            if (m_BossGuardRow != null)
+                m_BossGuardRow.style.display = guardVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (m_BossStage != null) m_BossStage.text = $"阶段 {Mathf.Clamp(stageNumber, 1, 3)} / 3";
+            if (m_BossStatus != null) m_BossStatus.text = status ?? string.Empty;
         }
 
         /// <summary>Updates the compact blood-pact build summary.</summary>

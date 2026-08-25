@@ -31,6 +31,7 @@ namespace VampireHunt.Boss.Abilities
         public ulong CastSequence { get; }
         public double StartServerTime { get; }
         public ulong TargetEntityId { get; }
+        public Float3 SourcePosition { get; }
         public Float3 TargetPosition { get; }
         public Float3 Direction { get; }
         public uint RandomSeed { get; }
@@ -40,6 +41,7 @@ namespace VampireHunt.Boss.Abilities
             ulong castSequence,
             double startServerTime,
             ulong targetEntityId,
+            in Float3 sourcePosition,
             in Float3 targetPosition,
             in Float3 direction,
             uint randomSeed)
@@ -48,6 +50,7 @@ namespace VampireHunt.Boss.Abilities
             CastSequence = castSequence;
             StartServerTime = startServerTime;
             TargetEntityId = targetEntityId;
+            SourcePosition = sourcePosition;
             TargetPosition = targetPosition;
             Direction = direction;
             RandomSeed = randomSeed;
@@ -63,17 +66,20 @@ namespace VampireHunt.Boss.Abilities
     {
         public BossAbilitySelectionContext Selection { get; }
         public ulong TargetEntityId { get; }
+        public Float3 SourcePosition { get; }
         public Float3 TargetPosition { get; }
         public Float3 Direction { get; }
 
         public BossAbilityExecutionInput(
             in BossAbilitySelectionContext selection,
             ulong targetEntityId,
+            in Float3 sourcePosition,
             in Float3 targetPosition,
             in Float3 direction)
         {
             Selection = selection;
             TargetEntityId = targetEntityId;
+            SourcePosition = sourcePosition;
             TargetPosition = targetPosition;
             Direction = direction;
         }

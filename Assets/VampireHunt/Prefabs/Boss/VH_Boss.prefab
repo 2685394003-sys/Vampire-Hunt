@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 217993167276084358}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.1379492, y: 0.9708987, z: -0.17364502}
+  m_LocalPosition: {x: 1.2, y: 1.3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -56,7 +56,7 @@ Transform:
   m_GameObject: {fileID: 424901609985094085}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.00010359287, z: -0.17364502}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -87,7 +87,7 @@ Transform:
   m_GameObject: {fileID: 1928710821014171830}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.0378643, z: -0.17364502}
+  m_LocalPosition: {x: 0, y: 1.4, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -118,7 +118,7 @@ Transform:
   m_GameObject: {fileID: 3049482725468057693}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.5066241, z: -0.17364502}
+  m_LocalPosition: {x: 0, y: 2.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -149,7 +149,7 @@ Transform:
   m_GameObject: {fileID: 4345950770810978495}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.1379492, y: 0.9708987, z: -0.17364502}
+  m_LocalPosition: {x: -1.2, y: 1.3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -205,7 +205,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
       propertyPath: m_Name
-      value: Boss
+      value: VH_Boss
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -292,6 +296,24 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
       insertIndex: -1
       addedObject: {fileID: -800000000000000014}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1137482579880286980}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2041100596713562046}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8597334096629814681}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7727192009711774727}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5418780529182945612}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7093883878696336080}
   m_SourcePrefab: {fileID: 100100000, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
 --- !u!95 &2983853323149822986 stripped
 Animator:
@@ -520,6 +542,36 @@ MonoBehaviour:
     anchor: {fileID: 7868515050073251760}
   - id: 5
     anchor: {fileID: 3371437874730604884}
+--- !u!114 &-800000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e23edd4f31844cd69baf49e3d1933997, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityPhaseProvider
+  phaseSet: {fileID: 11400000, guid: e30dec8e00722e64ab34a82cb27bb55e, type: 2}
+  startingPhase: 4
+--- !u!114 &-800000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aec7fd077fa441c6ae4a0b27c10b71e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityContextProvider
+  target: {fileID: 0}
+  useForwardPreviewWhenTargetIsMissing: 0
+  previewTargetDistance: 5
+  normalizedBossHealth: 1
 --- !u!114 &5990140894383972731
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -546,51 +598,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossAbilityStateReplicator
   ShowTopMostFoldoutHeaderGroup: 1
---- !u!114 &5381297212528300698
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c1aaa9b7868fa6409ceae1f028c3f0a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAbilityPresenter
-  stateReplicator: {fileID: 7271680608736971871}
-  phaseProvider: {fileID: -800000000000000001}
-  anchors: {fileID: 2353146040679830220}
---- !u!114 &-800000000000000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e23edd4f31844cd69baf49e3d1933997, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityPhaseProvider
-  phaseSet: {fileID: 11400000, guid: b1cf03b3ae7013e4fa544228ee481713, type: 2}
-  startingPhase: 1
---- !u!114 &-800000000000000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aec7fd077fa441c6ae4a0b27c10b71e0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityContextProvider
-  target: {fileID: 0}
-  useForwardPreviewWhenTargetIsMissing: 1
-  previewTargetDistance: 5
-  normalizedBossHealth: 1
 --- !u!114 &-800000000000000003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -608,9 +615,24 @@ MonoBehaviour:
   phaseProvider: {fileID: -800000000000000001}
   contextProvider: {fileID: -800000000000000002}
   stateReplicator: {fileID: 7271680608736971871}
-  allowAutomaticCasts: 1
+  allowAutomaticCasts: 0
   runSeed: 1337
-  offlinePreview: 1
+  offlinePreview: 0
+--- !u!114 &5381297212528300698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c1aaa9b7868fa6409ceae1f028c3f0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAbilityPresenter
+  stateReplicator: {fileID: 7271680608736971871}
+  phaseProvider: {fileID: -800000000000000001}
+  anchors: {fileID: 2353146040679830220}
 --- !u!114 &-800000000000000004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -718,7 +740,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5de94b358674e744cb4024e1e22b4b13, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossProjectileSpawner
-  projectiles: []
+  projectiles:
+  - projectileId: 1
+    prefab: {fileID: 53171000436061689, guid: 5e49305f8c9a422419881ab7b31bc85f, type: 3}
+    hitMask:
+      serializedVersion: 2
+      m_Bits: 8
 --- !u!114 &-800000000000000012
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -761,6 +788,100 @@ MonoBehaviour:
   initialNormalizedHealth: 1
   initialLeftHandFunctional: 1
   initialRightHandFunctional: 1
+--- !u!114 &1137482579880286980
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 022edcec28dcb1c408a67c44c3d189ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Navigation.BossRoamingMovement
+  config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
+  characterController: {fileID: 730932755976496644}
+--- !u!114 &2041100596713562046
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 239ea92b275a4094284d0a7a775a77cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossEncounterStateReplicator
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &8597334096629814681
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80e74b7df7b8900478b565f2d777680f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossEncounterDirector
+  ShowTopMostFoldoutHeaderGroup: 1
+  config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
+  stateReplicator: {fileID: 2041100596713562046}
+  abilityDriver: {fileID: -800000000000000003}
+  roamingMovement: {fileID: 1137482579880286980}
+  bodyState: {fileID: -800000000000000014}
+  runManager: {fileID: 0}
+  runSeed: 72631
+--- !u!114 &7727192009711774727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10bb527f8694ef74e927b2e3a08a6203, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossVitalsReceiver
+  ShowTopMostFoldoutHeaderGroup: 1
+  director: {fileID: 8597334096629814681}
+  bodyState: {fileID: -800000000000000014}
+--- !u!114 &5418780529182945612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abd810f721fc3e0479cc573c1455f6d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossHandCoordinator
+  ShowTopMostFoldoutHeaderGroup: 1
+  handPrefab: {fileID: 6406686544024085330, guid: cc4764a7be788d3438d6496db3043fe1, type: 3}
+  leftAnchor: {fileID: 2278838077001767659}
+  rightAnchor: {fileID: 7868515050073251760}
+  bodyState: {fileID: -800000000000000014}
+  handHealth: 100
+--- !u!114 &7093883878696336080
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c23a32d23630b0c4b9383010611078d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.HUD.BossHudBinder
+  config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
+  stateSource: {fileID: 2041100596713562046}
 --- !u!4 &9189852451154105968 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}

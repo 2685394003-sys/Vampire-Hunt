@@ -53,10 +53,28 @@ namespace VampireHunt.Infrastructure.Integration
                 serverTime,
                 input.Selection,
                 input.TargetEntityId,
+                input.SourcePosition,
                 input.TargetPosition,
                 input.Direction,
                 randomSeed,
                 allowNewCast);
+        }
+
+        public bool TryStartAbilityServer(
+            BossAbilityDefinition ability,
+            double serverTime,
+            in BossAbilityExecutionInput input,
+            uint randomSeed)
+        {
+            return m_Initialized && m_Controller != null &&
+                   m_Controller.TryStartAbility(
+                       ability,
+                       serverTime,
+                       input.TargetEntityId,
+                       input.SourcePosition,
+                       input.TargetPosition,
+                       input.Direction,
+                       randomSeed);
         }
 
         public bool TrySetPhaseServer(BossPhaseDefinition phase, double serverTime)

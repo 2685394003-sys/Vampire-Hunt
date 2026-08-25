@@ -43,6 +43,21 @@ namespace VampireHunt.Boss.Abilities
             uint randomSeed,
             bool allowNewCast)
         {
+            Float3 sourcePosition = Float3.Zero;
+            return Tick(serverTime, selection, targetEntityId, sourcePosition,
+                targetPosition, direction, randomSeed, allowNewCast);
+        }
+
+        public bool Tick(
+            double serverTime,
+            in BossAbilitySelectionContext selection,
+            ulong targetEntityId,
+            in Float3 sourcePosition,
+            in Float3 targetPosition,
+            in Float3 direction,
+            uint randomSeed,
+            bool allowNewCast)
+        {
             uint previousRevision = m_Revision;
 
             if (m_CurrentAbility != null)
@@ -55,7 +70,15 @@ namespace VampireHunt.Boss.Abilities
                 float random01 = (randomSeed & 0x00FFFFFFu) / 16777216f;
                 if (m_Scheduler.TrySelect(serverTime, selection, random01, out BossAbilityScheduleSlot slot))
                 {
-                    BeginCast(slot, serverTime, targetEntityId, targetPosition, direction, randomSeed);
+                    BeginCast(
+                        slot.Entry.Ability,
+                        slot,
+                        serverTime,
+                        targetEntityId,
+                        sourcePosition,
+                        targetPosition,
+                        direction,
+                        randomSeed);
                 }
             }
 
@@ -77,6 +100,28 @@ namespace VampireHunt.Boss.Abilities
             m_CastPhase = BossAbilityCastPhase.None;
             m_PhaseStartServerTime = serverTime;
             if (wasCasting) IncrementRevision();
+        }
+
+        public bool TryStartAbility(
+            BossAbilityDefinition ability,
+            double serverTime,
+            ulong targetEntityId,
+            in Float3 sourcePosition,
+            in Float3 targetPosition,
+            in Float3 direction,
+            uint randomSeed)
+        {
+            if (ability == null || m_CurrentAbility != null) return false;
+            BeginCast(
+                ability,
+                null,
+                serverTime,
+                targetEntityId,
+                sourcePosition,
+                targetPosition,
+                direction,
+                randomSeed);
+            return true;
         }
 
         public BossAbilitySnapshot CaptureSnapshot()
@@ -121,14 +166,15 @@ namespace VampireHunt.Boss.Abilities
         }
 
         private void BeginCast(
+            BossAbilityDefinition ability,
             BossAbilityScheduleSlot slot,
             double serverTime,
             ulong targetEntityId,
+            in Float3 sourcePosition,
             in Float3 targetPosition,
             in Float3 direction,
             uint randomSeed)
         {
-            BossAbilityDefinition ability = slot.Entry.Ability;
             IBossAbilityLogicRuntime runtime = ability.CreateLogic();
 
             if (runtime is IBossAbilityServiceConsumer consumer)
@@ -143,12 +189,13 @@ namespace VampireHunt.Boss.Abilities
                 ++m_NextCastSequence,
                 serverTime,
                 targetEntityId,
+                sourcePosition,
                 targetPosition,
                 direction,
                 randomSeed);
             m_CastPhase = BossAbilityCastPhase.Telegraph;
             m_PhaseStartServerTime = serverTime;
-            BossAbilityScheduler.CommitCast(slot, serverTime);
+            if (slot != null) BossAbilityScheduler.CommitCast(slot, serverTime);
             m_CurrentLogic.OnCastStarted(m_CurrentContext);
             m_CurrentLogic.OnPhaseEntered(m_CastPhase, serverTime);
             IncrementRevision();

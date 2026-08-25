@@ -1,6 +1,9 @@
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 using VampireHunt.Boss.Abilities;
 using VampireHunt.Contracts;
+using VampireHunt.Infrastructure.Unity.Boss;
 
 namespace VampireHunt.Tests.Editor
 {
@@ -105,6 +108,29 @@ namespace VampireHunt.Tests.Editor
 
             Assert.That(logic.Services, Is.SameAs(services));
             Assert.That(logic.WasBoundWhenStarted, Is.True);
+        }
+
+        [Test]
+        public void BossContentAssets_HaveLoadableMonoScripts()
+        {
+            AssertHasLoadableMonoScript<BossAbilityAsset>();
+            AssertHasLoadableMonoScript<BossPhaseAsset>();
+            AssertHasLoadableMonoScript<BossPhaseSetAsset>();
+        }
+
+        private static void AssertHasLoadableMonoScript<T>() where T : ScriptableObject
+        {
+            T instance = ScriptableObject.CreateInstance<T>();
+            try
+            {
+                MonoScript script = MonoScript.FromScriptableObject(instance);
+                Assert.That(script, Is.Not.Null, $"{typeof(T).Name} has no MonoScript asset.");
+                Assert.That(script.GetClass(), Is.EqualTo(typeof(T)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
         }
 
         private static BossAbilityDefinition CreateAbility(

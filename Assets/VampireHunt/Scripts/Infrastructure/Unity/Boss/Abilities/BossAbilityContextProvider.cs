@@ -74,6 +74,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
             return new BossAbilityExecutionInput(
                 selection,
                 targetEntityId,
+                ToFloat3(transform.position),
                 ToFloat3(targetPosition),
                 ToFloat3(direction));
         }

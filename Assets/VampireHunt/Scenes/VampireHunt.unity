@@ -270,7 +270,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8413633064298302666, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_Name
-      value: Boss_AbilitySystemDemo
+      value: Boss_Encounter
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.x
@@ -466,6 +466,8 @@ MonoBehaviour:
   blockingMask:
     serializedVersion: 2
     m_Bits: 0
+  navMeshSampleRadius: 2
+  navMeshAreaMask: -1
 --- !u!114 &995894096
 MonoBehaviour:
   m_ObjectHideFlags: 0

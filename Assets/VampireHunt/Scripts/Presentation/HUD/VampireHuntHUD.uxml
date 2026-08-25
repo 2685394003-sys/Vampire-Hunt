@@ -12,8 +12,15 @@
         <ui:VisualElement name="boss-panel" class="boss-panel" picking-mode="Ignore">
             <ui:VisualElement class="boss-title-row">
                 <ui:Label text="契约目标" class="eyebrow boss-eyebrow"/>
+                <ui:Label name="boss-stage" text="阶段 1 / 3" class="boss-stage"/>
                 <ui:Label name="boss-name" text="BOSS" class="boss-name"/>
+                <ui:Label name="boss-status" text="游走" class="boss-status"/>
                 <ui:Label name="boss-health-value" text="0 / 0" class="boss-health-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="boss-guard-row" class="boss-guard-row">
+                <ui:Label text="格挡" class="boss-guard-label"/>
+                <ui:ProgressBar name="boss-guard-bar" low-value="0" high-value="100" value="100" class="vital-bar boss-guard-bar"/>
+                <ui:Label name="boss-guard-value" text="0 / 0" class="boss-guard-value"/>
             </ui:VisualElement>
             <ui:ProgressBar name="boss-health-bar" low-value="0" high-value="100" value="100" class="vital-bar boss-health-bar"/>
         </ui:VisualElement>

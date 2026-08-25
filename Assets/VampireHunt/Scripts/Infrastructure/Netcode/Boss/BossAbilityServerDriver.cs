@@ -34,6 +34,9 @@ namespace VampireHunt.Infrastructure.Netcode
         private uint m_SelectionOrdinal;
         private bool m_OfflineInitialized;
 
+        public bool HasActiveCast => host != null && host.Snapshot.IsCasting;
+        public bool AutomaticCastsEnabled => allowAutomaticCasts;
+
         private void Awake()
         {
             if (host == null) host = GetComponent<BossAbilityHost>();
@@ -91,6 +94,28 @@ namespace VampireHunt.Infrastructure.Netcode
             if (!changed) return false;
 
             m_SelectionOrdinal = 0;
+            stateReplicator.PublishServer(host.Snapshot, force: true);
+            return true;
+        }
+
+        public bool SetAutomaticCastsServer(bool enabled)
+        {
+            if (IsSpawned && !IsServer) return false;
+            if (allowAutomaticCasts == enabled) return false;
+            allowAutomaticCasts = enabled;
+            return true;
+        }
+
+        public bool TryForceAbilityServer(uint abilityId)
+        {
+            if (abilityId == 0 || !IsServer || host == null || !host.IsInitialized ||
+                phaseProvider == null || contextProvider == null || stateReplicator == null ||
+                !phaseProvider.TryGetAbility(abilityId, out BossAbilityAsset ability)) return false;
+
+            double serverTime = NetworkManager.ServerTime.Time;
+            BossAbilityExecutionInput input = contextProvider.Capture();
+            uint seed = HashSeed(unchecked((uint)runSeed), ++m_SelectionOrdinal);
+            if (!host.TryStartAbilityServer(ability.CreateDefinition(), serverTime, input, seed)) return false;
             stateReplicator.PublishServer(host.Snapshot, force: true);
             return true;
         }

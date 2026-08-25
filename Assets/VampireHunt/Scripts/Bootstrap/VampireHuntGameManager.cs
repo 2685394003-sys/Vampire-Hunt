@@ -112,6 +112,11 @@ namespace VampireHunt.Bootstrap
             return TryTransition(RunPhase.BossEncounter);
         }
 
+        public bool TryResumeExploration()
+        {
+            return TryTransition(RunPhase.Exploring);
+        }
+
         public bool TryCompleteRun()
         {
             return TryTransition(RunPhase.Victory);

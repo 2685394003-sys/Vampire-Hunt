@@ -33,6 +33,7 @@ namespace VampireHunt.Run
 
                 case RunPhase.BossPhaseTransition:
                     return nextPhase == RunPhase.BossEncounter ||
+                           nextPhase == RunPhase.Exploring ||
                            nextPhase == RunPhase.Victory ||
                            nextPhase == RunPhase.Defeat;
 
