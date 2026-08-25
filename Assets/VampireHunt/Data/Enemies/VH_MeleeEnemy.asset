@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: VH_MeleeEnemy
   m_EditorClassIdentifier: 
   stableId: enemy.melee.basic
-  networkPrefab: {fileID: 810000000000000003, guid: 0979fc572f3f45b39f312a2015c6305c, type: 3}
+  networkPrefab: {fileID: 6459075909094421060, guid: b849db44122fe844c9354247d693852c, type: 3}
   maxHealth: 50
   moveSpeed: 2.5
   detectionRange: 30

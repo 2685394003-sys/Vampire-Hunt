@@ -6,6 +6,7 @@ using VampireHunt.Effects;
 using VampireHunt.Enemies;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Navigation;
 using VampireHunt.Presentation.Enemies;
 using VampireHunt.Progression;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
@@ -31,6 +32,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
         [Header("Unity Adapters")]
         [SerializeField] private CharacterController characterController;
+        [SerializeField] private EnemyNavigationAgent navigationAgent;
         [SerializeField] private EnemyPresenter presenter;
         [SerializeField] private CombatModifierHost modifierHost;
         [SerializeField] private CombatStatusHost statusHost;
@@ -60,6 +62,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private float m_NextTargetRefreshTime;
         private float m_DeathDespawnTime = float.PositiveInfinity;
         private Vector3 m_KnockbackVelocity;
+        private float m_VerticalVelocity;
         private bool m_RewardGranted;
         private bool m_WasMovementBlocked;
         private double m_BlockStartedTime;
@@ -73,6 +76,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private void Awake()
         {
             if (characterController == null) characterController = GetComponent<CharacterController>();
+            if (navigationAgent == null) navigationAgent = GetComponent<EnemyNavigationAgent>();
             if (presenter == null) presenter = GetComponentInChildren<EnemyPresenter>();
             if (modifierHost == null) modifierHost = GetComponent<CombatModifierHost>();
             if (statusHost == null) statusHost = GetComponent<CombatStatusHost>();
@@ -104,6 +108,7 @@ namespace VampireHunt.Infrastructure.Netcode
             {
                 InitializeServerAggregate();
             }
+            navigationAgent?.SetServerActive(IsServer);
 
             for (int i = 0; i < m_ReplicatedAffixes.Count; i++)
                 InstallOrUpdateAffixEffect(m_ReplicatedAffixes[i]);
@@ -120,6 +125,8 @@ namespace VampireHunt.Infrastructure.Netcode
             m_Aggregate = null;
             m_PreparedAffixes = EnemyAffixSpawnSnapshot.Empty;
             m_KnockbackVelocity = Vector3.zero;
+            m_VerticalVelocity = 0f;
+            navigationAgent?.SetServerActive(false);
             base.OnNetworkDespawn();
         }
 
@@ -129,6 +136,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
             if (m_Aggregate.IsDead)
             {
+                navigationAgent?.Stop(true);
                 if (Time.unscaledTime >= m_DeathDespawnTime && NetworkObject.IsSpawned)
                 {
                     NetworkObject.Despawn();
@@ -319,12 +327,14 @@ namespace VampireHunt.Infrastructure.Netcode
             m_TargetPlayer = null;
             m_TrustedHitSequence = 0;
             m_KnockbackVelocity = Vector3.zero;
+            m_VerticalVelocity = 0f;
             m_NextBrainTime = Time.unscaledTime;
             m_NextTargetRefreshTime = Time.unscaledTime;
             m_RewardGranted = false;
             m_DeathDespawnTime = float.PositiveInfinity;
             m_WasMovementBlocked = false;
             m_BlockStartedTime = 0d;
+            navigationAgent?.ResetRuntime();
             PublishState();
         }
 
@@ -336,6 +346,7 @@ namespace VampireHunt.Infrastructure.Netcode
             {
                 m_WasMovementBlocked = true;
                 m_BlockStartedTime = serverTime;
+                navigationAgent?.Stop();
             }
             else if (!blocked && m_WasMovementBlocked)
             {
@@ -381,32 +392,80 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private void MoveAndFaceTarget()
         {
-            if (characterController != null && characterController.enabled && m_KnockbackVelocity.sqrMagnitude > 0.0001f)
+            bool canMove = characterController != null && characterController.enabled;
+            Vector3 movement = Vector3.zero;
+            if (m_KnockbackVelocity.sqrMagnitude > 0.0001f)
             {
-                characterController.Move(m_KnockbackVelocity * Time.deltaTime);
+                movement += m_KnockbackVelocity;
                 m_KnockbackVelocity = Vector3.MoveTowards(
                     m_KnockbackVelocity,
                     Vector3.zero,
                     KnockbackDecay * Time.deltaTime);
             }
 
-            if (!IsTargetValid(m_TargetPlayer)) return;
-
-            Vector3 direction = m_TargetPlayer.transform.position - transform.position;
-            direction.y = 0f;
-            if (direction.sqrMagnitude <= 0.0001f) return;
-            direction.Normalize();
-
-            if (m_Aggregate.State == EnemyState.Approaching && characterController != null && characterController.enabled)
+            Vector3 facingDirection = Vector3.zero;
+            if (IsTargetValid(m_TargetPlayer))
             {
-                characterController.Move(direction * (m_Aggregate.RuntimeStats.MoveSpeed * Time.deltaTime));
+                Vector3 directDirection = m_TargetPlayer.transform.position - transform.position;
+                directDirection.y = 0f;
+                if (directDirection.sqrMagnitude > 0.0001f)
+                    directDirection.Normalize();
+
+                if (m_Aggregate.State == EnemyState.Approaching)
+                {
+                    Vector3 navigationVelocity;
+                    if (navigationAgent != null)
+                    {
+                        float stoppingDistance = Mathf.Max(0.1f, m_Aggregate.RuntimeStats.AttackRange * 0.85f);
+                        if (navigationAgent.TryGetDesiredVelocity(
+                                m_TargetPlayer.transform.position,
+                                m_Aggregate.RuntimeStats.MoveSpeed,
+                                stoppingDistance,
+                                out navigationVelocity))
+                        {
+                            movement += navigationVelocity;
+                            facingDirection = navigationVelocity.sqrMagnitude > 0.0001f
+                                ? navigationVelocity.normalized
+                                : directDirection;
+                        }
+                    }
+                    else
+                    {
+                        // Compatibility for older enemy prefabs which do not yet
+                        // carry the navigation adapter.
+                        movement += directDirection * m_Aggregate.RuntimeStats.MoveSpeed;
+                        facingDirection = directDirection;
+                    }
+                }
+                else
+                {
+                    navigationAgent?.Stop();
+                    if (m_Aggregate.State == EnemyState.Telegraphing ||
+                        m_Aggregate.State == EnemyState.Attacking)
+                    {
+                        facingDirection = directDirection;
+                    }
+                }
+            }
+            else
+            {
+                navigationAgent?.Stop(true);
             }
 
-            if (m_Aggregate.State == EnemyState.Approaching ||
-                m_Aggregate.State == EnemyState.Telegraphing ||
-                m_Aggregate.State == EnemyState.Attacking)
+            if (canMove)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+                if (characterController.isGrounded && m_VerticalVelocity < 0f)
+                    m_VerticalVelocity = -2f;
+                else
+                    m_VerticalVelocity += Physics.gravity.y * Time.deltaTime;
+                movement.y += m_VerticalVelocity;
+                characterController.Move(movement * Time.deltaTime);
+                navigationAgent?.SyncToTransform();
+            }
+
+            if (facingDirection.sqrMagnitude > 0.0001f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(facingDirection, Vector3.up);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 540f * Time.deltaTime);
             }
         }

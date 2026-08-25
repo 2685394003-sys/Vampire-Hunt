@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.AI;
 using VampireHunt.Bootstrap;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
@@ -30,14 +31,18 @@ namespace VampireHunt.Spawning
         [Min(1f)] [SerializeField] private float maximumPlayerDistance = 20f;
         [SerializeField] private LayerMask groundMask = -1;
         [SerializeField] private LayerMask blockingMask = 0;
+        [Min(0.1f)] [SerializeField] private float navMeshSampleRadius = 2f;
+        [SerializeField] private int navMeshAreaMask = NavMesh.AllAreas;
 
         private readonly List<EnemyNetworkActor> m_ActiveEnemies = new List<EnemyNetworkActor>();
+        private NavMeshPath m_SpawnPath;
         private float m_NextSpawnTime;
         private ulong m_NextEntityId = 1UL << 32;
         private bool m_MissingConfigurationReported;
 
         private void Awake()
         {
+            m_SpawnPath = new NavMeshPath();
             if (runManager == null) runManager = GetComponent<VampireHuntGameManager>();
             if (runManager == null) runManager = FindAnyObjectByType<VampireHuntGameManager>();
             if (enemyAffixState == null) enemyAffixState = GetComponent<EnemyAffixRunState>();
@@ -131,7 +136,20 @@ namespace VampireHunt.Spawning
                 Vector3 top = candidate + Vector3.up * 1.55f;
                 if (Physics.CheckCapsule(bottom, top, 0.45f, blockingMask, QueryTriggerInteraction.Ignore)) continue;
 
-                position = candidate;
+                if (!NavMesh.SamplePosition(
+                        candidate,
+                        out NavMeshHit spawnHit,
+                        navMeshSampleRadius,
+                        navMeshAreaMask)) continue;
+                if (!NavMesh.SamplePosition(
+                        center,
+                        out NavMeshHit targetHit,
+                        Mathf.Max(3f, navMeshSampleRadius),
+                        navMeshAreaMask)) continue;
+                if (!NavMesh.CalculatePath(spawnHit.position, targetHit.position, navMeshAreaMask, m_SpawnPath) ||
+                    m_SpawnPath.status != NavMeshPathStatus.PathComplete) continue;
+
+                position = spawnHit.position;
                 return true;
             }
 
