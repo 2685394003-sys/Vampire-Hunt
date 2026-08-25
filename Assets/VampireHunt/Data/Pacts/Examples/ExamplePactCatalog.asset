@@ -10,16 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3899d17a59eb4cd4a05e427cb5d46e80, type: 3}
-  m_Name: PactCatalog
+  m_Name: ExamplePactCatalog
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactCatalogAsset
   definitions:
-  - {fileID: 11400000, guid: 41125a03e274456d39e7dc054e6df719, type: 2}
-  - {fileID: 11400000, guid: 42236b14f385467e4af8ed165f7e082a, type: 2}
-  - {fileID: 11400000, guid: 43347c250496478f5b09fe27608f193b, type: 2}
-  - {fileID: 11400000, guid: e0a710b924ef4d246b28091b88535b05, type: 2}
-  - {fileID: 11400000, guid: 6fa6cf3f72fb6d34fad4da791414f4f9, type: 2}
   - {fileID: 11400000, guid: 2ddd957c05ee4e7482e63b727725801d, type: 2}
-  - {fileID: 11400000, guid: db44636864524ea0844a8384d650248a, type: 2}
-  - {fileID: 11400000, guid: 5d43e8af7756468ab899bdbfa3017218, type: 2}
   - {fileID: 11400000, guid: 7d1d66856791434b97dae05bd3f0534f, type: 2}
+  - {fileID: 11400000, guid: 5d43e8af7756468ab899bdbfa3017218, type: 2}
+  - {fileID: 11400000, guid: db44636864524ea0844a8384d650248a, type: 2}
   - {fileID: 11400000, guid: ad701d735bca42349cae42e150b0e59a, type: 2}
