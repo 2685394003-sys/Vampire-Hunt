@@ -25,6 +25,13 @@ namespace VampireHunt.Infrastructure.Unity
         [Min(0.01f)] [SerializeField] private float activeDuration = 0.1f;
         [Min(0f)] [SerializeField] private float recoveryDuration = 0.8f;
 
+        [Header("Tactics")]
+        [SerializeField] private EnemyCombatStyle combatStyle = EnemyCombatStyle.MeleeChase;
+        [Min(0f)] [SerializeField] private float preferredRangeMin;
+        [Min(0f)] [SerializeField] private float preferredRangeMax;
+        [Min(0f)] [SerializeField] private float retreatRange;
+        [Min(1)] [SerializeField] private uint attackId = 2;
+
         [Header("Spawn and Reward")]
         [Min(0f)] [SerializeField] private float scarletReward = 5f;
         [Min(1)] [SerializeField] private int spawnCost = 1;
@@ -50,7 +57,12 @@ namespace VampireHunt.Infrastructure.Unity
                 activeDuration,
                 recoveryDuration,
                 scarletReward,
-                spawnCost);
+                spawnCost,
+                combatStyle,
+                preferredRangeMin,
+                preferredRangeMax,
+                retreatRange,
+                attackId);
         }
 
         private void OnValidate()
@@ -64,6 +76,22 @@ namespace VampireHunt.Infrastructure.Unity
             attackKnockback = Mathf.Max(0f, attackKnockback);
             activeDuration = Mathf.Max(0.01f, activeDuration);
             spawnCost = Mathf.Max(1, spawnCost);
+            attackId = System.Math.Max(1u, attackId);
+            if (combatStyle == EnemyCombatStyle.RangedOrbit)
+            {
+                preferredRangeMin = Mathf.Clamp(preferredRangeMin, 0.1f, attackRange);
+                preferredRangeMax = Mathf.Clamp(
+                    preferredRangeMax > 0f ? preferredRangeMax : attackRange,
+                    preferredRangeMin,
+                    attackRange);
+                retreatRange = Mathf.Clamp(retreatRange, 0f, preferredRangeMin);
+            }
+            else
+            {
+                preferredRangeMin = 0f;
+                preferredRangeMax = attackRange;
+                retreatRange = 0f;
+            }
         }
     }
 }

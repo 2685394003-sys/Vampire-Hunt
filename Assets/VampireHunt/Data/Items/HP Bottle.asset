@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: 1
   displayName: "\u8840\u74F6"
   description: 
-  icon: {fileID: -724805922, guid: 7f0bfb2df760aaf48bd8f732e31ab9d6, type: 3}
+  icon: {fileID: -724805922, guid: 35abdf35016565d43b66074bf27d8ea0, type: 3}
   consumptionPolicy: 1
   maxStackPerSlot: 5
   cooldownSeconds: 0

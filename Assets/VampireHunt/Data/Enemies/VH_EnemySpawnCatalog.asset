@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a1d502a9c3e4ef18a6b2c7d5e901005, type: 3}
+  m_Name: VH_EnemySpawnCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.EnemySpawnCatalogAsset
+  entries:
+  - archetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
+    weight: 1
+    minimumElapsedSeconds: 0
+    maximumConcurrent: 20
+  - archetype: {fileID: 11400000, guid: a1921e76280e04e4daf3b905ba4176c2, type: 2}
+    weight: 1
+    minimumElapsedSeconds: 0
+    maximumConcurrent: 20

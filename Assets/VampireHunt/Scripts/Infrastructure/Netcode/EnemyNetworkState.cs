@@ -1,5 +1,6 @@
 using System;
 using Unity.Netcode;
+using UnityEngine;
 using VampireHunt.Enemies;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -13,9 +14,12 @@ namespace VampireHunt.Infrastructure.Netcode
         public float MaxHealth;
         public double StateEndServerTime;
         public uint AttackSequence;
+        public Vector3 AttackAimDirection;
         public uint Revision;
 
-        public static EnemyNetworkState FromSnapshot(in EnemySnapshot snapshot)
+        public static EnemyNetworkState FromSnapshot(
+            in EnemySnapshot snapshot,
+            Vector3 attackAimDirection = default)
         {
             return new EnemyNetworkState
             {
@@ -25,6 +29,7 @@ namespace VampireHunt.Infrastructure.Netcode
                 MaxHealth = snapshot.MaxHealth,
                 StateEndServerTime = snapshot.StateEndTime,
                 AttackSequence = snapshot.AttackSequence,
+                AttackAimDirection = attackAimDirection,
                 Revision = snapshot.Revision
             };
         }
@@ -37,6 +42,7 @@ namespace VampireHunt.Infrastructure.Netcode
             serializer.SerializeValue(ref MaxHealth);
             serializer.SerializeValue(ref StateEndServerTime);
             serializer.SerializeValue(ref AttackSequence);
+            serializer.SerializeValue(ref AttackAimDirection);
             serializer.SerializeValue(ref Revision);
         }
 
@@ -48,6 +54,7 @@ namespace VampireHunt.Infrastructure.Netcode
                    MaxHealth.Equals(other.MaxHealth) &&
                    StateEndServerTime.Equals(other.StateEndServerTime) &&
                    AttackSequence == other.AttackSequence &&
+                   AttackAimDirection.Equals(other.AttackAimDirection) &&
                    Revision == other.Revision;
         }
     }

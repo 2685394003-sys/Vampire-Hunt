@@ -2,6 +2,12 @@ using System;
 
 namespace VampireHunt.Enemies
 {
+    public enum EnemyCombatStyle : byte
+    {
+        MeleeChase = 0,
+        RangedOrbit = 1
+    }
+
     /// <summary>Unity-free immutable gameplay configuration for one enemy type.</summary>
     public sealed class EnemyArchetypeDefinition
     {
@@ -19,6 +25,11 @@ namespace VampireHunt.Enemies
         public double RecoveryDuration { get; }
         public float ScarletReward { get; }
         public int SpawnCost { get; }
+        public EnemyCombatStyle CombatStyle { get; }
+        public float PreferredRangeMin { get; }
+        public float PreferredRangeMax { get; }
+        public float RetreatRange { get; }
+        public uint AttackId { get; }
 
         public EnemyArchetypeDefinition(
             string stableId,
@@ -33,7 +44,12 @@ namespace VampireHunt.Enemies
             double activeDuration,
             double recoveryDuration,
             float scarletReward,
-            int spawnCost)
+            int spawnCost,
+            EnemyCombatStyle combatStyle = EnemyCombatStyle.MeleeChase,
+            float preferredRangeMin = 0f,
+            float preferredRangeMax = 0f,
+            float retreatRange = 0f,
+            uint attackId = 2)
         {
             if (string.IsNullOrWhiteSpace(stableId))
                 throw new ArgumentException("Enemy stable ID is required.", nameof(stableId));
@@ -52,6 +68,24 @@ namespace VampireHunt.Enemies
             RecoveryDuration = Math.Max(0d, recoveryDuration);
             ScarletReward = Math.Max(0f, scarletReward);
             SpawnCost = Math.Max(1, spawnCost);
+            CombatStyle = combatStyle;
+
+            if (combatStyle == EnemyCombatStyle.RangedOrbit)
+            {
+                PreferredRangeMin = Math.Max(0.1f, preferredRangeMin);
+                PreferredRangeMax = Math.Max(
+                    PreferredRangeMin,
+                    Math.Min(AttackRange, preferredRangeMax > 0f ? preferredRangeMax : AttackRange));
+                RetreatRange = Math.Max(0f, Math.Min(PreferredRangeMin, retreatRange));
+            }
+            else
+            {
+                PreferredRangeMin = 0f;
+                PreferredRangeMax = AttackRange;
+                RetreatRange = 0f;
+            }
+
+            AttackId = Math.Max(1u, attackId);
         }
     }
 }

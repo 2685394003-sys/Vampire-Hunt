@@ -5085,6 +5085,65 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: efe4db83a42254142a5f3b6d9343b645, type: 3}
+--- !u!1 &477896232
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 477896234}
+  - component: {fileID: 477896233}
+  m_Layer: 0
+  m_Name: VH_ProjectilePool
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &477896233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 477896232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ecdda20ad7cc418cbd21ade48e900af, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Blocks.Gameplay.Shooter::Blocks.Gameplay.Shooter.ObjectPoolSystem
+  networkPrefabs:
+  - {fileID: 6863151210658857517, guid: 7edc5a31ca9821244a7b48077607fdb4, type: 3}
+  objectPoolSize: 32
+  poolInSystemScene: 1
+  usePoolForSpawn: 1
+  dontDestroyOnSceneUnload: 0
+  extendedProperties: 0
+  useUnreliableDeltas: 1
+  debugHandlerDestroy: 0
+  enableTransformOverrides: 1
+  halfFloat: 0
+  quaternionSynchronization: 0
+  quaternionCompression: 0
+  interpolate: 1
+  forceRebuildPool: 0
+--- !u!4 &477896234
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 477896232}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &478468371
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18788,10 +18847,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Spawning.EnemySpawnDirector
   runManager: {fileID: 1651709036}
   enemyAffixState: {fileID: 1651709039}
-  meleeArchetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
+  fallbackArchetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
+  spawnCatalog: {fileID: 11400000, guid: 8b4c1f95eaff6f4458adefada95d1fc2, type: 2}
   softEnemyCap: 20
+  softSpawnBudget: 20
   spawnInterval: 1.5
   initialDelay: 1
+  runSeed: 1337
   minimumPlayerDistance: 12
   maximumPlayerDistance: 20
   groundMask:
@@ -25232,3 +25294,4 @@ SceneRoots:
   - {fileID: 929646216}
   - {fileID: 419367498}
   - {fileID: 870943959}
+  - {fileID: 477896234}
