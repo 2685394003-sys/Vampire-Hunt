@@ -32,7 +32,7 @@ MonoBehaviour:
   spawnMinDistance: 16
   spawnMaxDistance: 32
   staggerTriggerDistance: 6
-  staggerEffectDuration: 2.4
+  staggerEffectDuration: 3.2
   executionWindowDuration: 3
   staggerAbilityIds: d1070000d2070000d3070000
   phaseTransitionDuration: 2

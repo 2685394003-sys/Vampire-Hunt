@@ -84,6 +84,18 @@ namespace VampireHunt.Infrastructure.Integration
             return true;
         }
 
+        public bool CancelActiveCastServer(double serverTime)
+        {
+            if (!m_Initialized || m_Controller == null || !m_Controller.HasActiveCast) return false;
+            m_Controller.Cancel(serverTime);
+            return true;
+        }
+
+        public bool TryParryActiveCastServer(double serverTime)
+        {
+            return m_Initialized && m_Controller != null && m_Controller.TryParry(serverTime);
+        }
+
         public void ResetServer(double serverTime)
         {
             if (m_Controller != null)

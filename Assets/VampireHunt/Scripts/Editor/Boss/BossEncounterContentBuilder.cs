@@ -30,6 +30,20 @@ namespace VampireHunt.Editor.Boss
         private const string PresentationRoot = "Assets/VampireHunt/Presentation/Boss";
         private const string MaterialRoot = PresentationRoot + "/Materials";
         private const string AtlasPath = PresentationRoot + "/Textures/VH_Boss_BloodMagic_VFXAtlas.png";
+        private const string ChargeSlashTexturePath = PresentationRoot + "/Textures/VH_Boss_ChargeSlash_SwordQi.png";
+        private const string ChargeSlashWarningShaderPath = PresentationRoot + "/Shaders/VH_Boss_ChargeSlashTelegraph.shader";
+        private const string ChargeSlashDissolveShaderPath = PresentationRoot + "/Shaders/VH_Boss_SlashDissolveParticle.shader";
+        private const string ChargeSlashWarningPrefabPath = VfxRoot + "/VH_BossSkill_ChargeSlash_WarningBox_VFX.prefab";
+        private const string ChargeSlashSwordQiPrefabPath = VfxRoot + "/VH_BossSkill_ChargeSlash_SwordQiProjectile_VFX.prefab";
+        private const string SweepTexturePath = PresentationRoot + "/Textures/VH_Boss_Sweep_BloodArc.png";
+        private const string SweepWarningShaderPath = PresentationRoot + "/Shaders/VH_Boss_SweepWaveTelegraph.shader";
+        private const string SweepRevealShaderPath = PresentationRoot + "/Shaders/VH_Boss_SweepWaveRevealParticle.shader";
+        private const string SweepWarningPrefabPath = VfxRoot + "/VH_BossSkill_Sweep_WaveWarning_VFX.prefab";
+        private const string SweepAttackPrefabPath = VfxRoot + "/VH_BossSkill_Sweep_BloodArcReveal_VFX.prefab";
+        private const string LaserMarkerShaderPath = PresentationRoot + "/Shaders/VH_Boss_TrackingLaserTargetMarker.shader";
+        private const string LaserBeamShaderPath = PresentationRoot + "/Shaders/VH_Boss_TrackingLaserBeam.shader";
+        private const string LaserMarkerPrefabPath = VfxRoot + "/VH_BossSkill_Laser_TargetMarker_VFX.prefab";
+        private const string LaserBeamPrefabPath = VfxRoot + "/VH_BossSkill_Laser_TrackingBeam_VFX.prefab";
         private const string BossPrefabPath = PrefabRoot + "/VH_Boss.prefab";
         private const string HandPrefabPath = PrefabRoot + "/VH_BossHand.prefab";
         private const string ProjectilePrefabPath = PrefabRoot + "/VH_Boss_BloodProjectile.prefab";
@@ -58,17 +72,19 @@ namespace VampireHunt.Editor.Boss
             public readonly bool OneShot;
             public readonly float MinHealth;
             public readonly float MaxHealth;
+            public readonly bool EachLockedArea;
             public readonly Action<SerializedProperty> ConfigureTuning;
 
             public AbilitySpec(string fileName, string displayName, uint id, Type logicType,
                 int atlasCell, float cooldown, float telegraph, float resolve, float recover,
                 bool requiresTarget, bool oneShot, float minHealth, float maxHealth,
-                Action<SerializedProperty> configureTuning)
+                Action<SerializedProperty> configureTuning, bool eachLockedArea = false)
             {
                 FileName = fileName; DisplayName = displayName; Id = id; LogicType = logicType;
                 AtlasCell = atlasCell; Cooldown = cooldown; Telegraph = telegraph; Resolve = resolve;
                 Recover = recover; RequiresTarget = requiresTarget; OneShot = oneShot;
                 MinHealth = minHealth; MaxHealth = maxHealth; ConfigureTuning = configureTuning;
+                EachLockedArea = eachLockedArea;
             }
         }
 
@@ -95,10 +111,24 @@ namespace VampireHunt.Editor.Boss
             var vfxByCell = new Dictionary<int, GameObject>();
             for (int cell = 0; cell < 9; cell++)
                 vfxByCell[cell] = CreateOrUpdateVfx(cell, CellName(cell));
+            GameObject chargeSlashWarning = CreateOrUpdateChargeSlashWarningVfx();
+            GameObject chargeSlashSwordQi = CreateOrUpdateChargeSlashSwordQiVfx();
+            GameObject sweepWarning = CreateOrUpdateSweepWarningVfx();
+            GameObject sweepAttack = CreateOrUpdateSweepAttackVfx();
+            GameObject laserMarker = CreateOrUpdateLaserTargetMarkerVfx();
+            GameObject laserBeam = CreateOrUpdateLaserBeamVfx();
 
             var abilities = new Dictionary<uint, BossAbilityAsset>();
             foreach (AbilitySpec spec in CreateAbilitySpecs())
-                abilities[spec.Id] = CreateOrUpdateAbility(spec, vfxByCell[spec.AtlasCell]);
+                abilities[spec.Id] = CreateOrUpdateAbility(
+                    spec,
+                    vfxByCell[spec.AtlasCell],
+                    chargeSlashWarning,
+                    chargeSlashSwordQi,
+                    sweepWarning,
+                    sweepAttack,
+                    laserMarker,
+                    laserBeam);
 
             BossPhaseAsset phase1 = CreateOrUpdatePhase(1, "第一阶段",
                 new PhaseEntry(abilities[2010], 1f, initialCooldown: 0.4f),
@@ -106,8 +136,17 @@ namespace VampireHunt.Editor.Boss
                 new PhaseEntry(abilities[2040], 1f),
                 new PhaseEntry(abilities[2030], 0.8f));
             BossPhaseAsset phase2 = CreateOrUpdatePhase(2, "第二阶段",
+                new PhaseEntry(abilities[2010], 1f, initialCooldown: 0.4f),
+                new PhaseEntry(abilities[2020], 0.8f),
+                new PhaseEntry(abilities[2040], 1f),
+                new PhaseEntry(abilities[2030], 0.8f),
                 new PhaseEntry(abilities[2050], 1f, initialCooldown: 0.4f));
             BossPhaseAsset phase3 = CreateOrUpdatePhase(3, "第三阶段",
+                new PhaseEntry(abilities[2010], 1f, initialCooldown: 0.4f),
+                new PhaseEntry(abilities[2020], 0.8f),
+                new PhaseEntry(abilities[2040], 1f),
+                new PhaseEntry(abilities[2030], 0.8f),
+                new PhaseEntry(abilities[2050], 1f, initialCooldown: 0.4f),
                 new PhaseEntry(abilities[2070], 1f, initialCooldown: 0.35f),
                 new PhaseEntry(abilities[2060], 0f, maxUses: 1));
             BossPhaseAsset roaming = CreateOrUpdatePhase(4, "游走状态招式库",
@@ -138,35 +177,55 @@ namespace VampireHunt.Editor.Boss
 
         private static AbilitySpec[] CreateAbilitySpecs()
         {
-            Action<SerializedProperty> sweep = p => SetTuning(p, 24, 7, 0, 8, 5, 2, 2, .28f, 1, 1, 1, 0, 0, 0, 0, 2);
+            Action<SerializedProperty> sweep = p =>
+            {
+                SetTuning(p, 24, 7, 0, 8, 5, 2, 2, .45f, 1, 1, 1, 1, 0, 1, 0, 2);
+                p.FindPropertyRelative("TravelDuration").floatValue = .28f;
+                p.FindPropertyRelative("DissolveDuration").floatValue = .2f;
+                p.FindPropertyRelative("VfxHeight").floatValue = 1.4f;
+            };
             Action<SerializedProperty> volley = p => SetTuning(p, 12, 0, 0, 8, 1, 1, 1, .12f, 1, 28, 7, .7f, 45, 2, 0, 2);
-            Action<SerializedProperty> bomb = p => SetTuning(p, 32, 10, 3.2f, 1, 2, 1, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
-            Action<SerializedProperty> slash = p => SetTuning(p, 38, 9, 0, 10, 3, 2, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
+            Action<SerializedProperty> bomb = p => SetTuning(p, 32, 10, 3.2f, 100, 2, 1, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
+            Action<SerializedProperty> slash = p =>
+            {
+                SetTuning(p, 38, 9, 0, 10, 3, 2, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
+                p.FindPropertyRelative("TravelDuration").floatValue = .45f;
+                p.FindPropertyRelative("DissolveDuration").floatValue = .35f;
+                p.FindPropertyRelative("VfxHeight").floatValue = 1.2f;
+            };
             Action<SerializedProperty> grid = p => SetTuning(p, 26, 0, 0, 14, .65f, 2, 3, .42f, 1, 1, 1, 1, 0, 1.5f, 0, 2);
-            Action<SerializedProperty> laser = p => SetTuning(p, 17, 6, 0, 16, 1.2f, 2, 1, .35f, 1, 1, 1, 1, 18, 3, 0, 2);
-            Action<SerializedProperty> shock = p => SetTuning(p, 20, 8, 13, 1, 1, 2, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
+            Action<SerializedProperty> laser = p => SetTuning(p, 17, 6, 0, 16, 1.2f, 2, 1, .4f, 1, 1, 1, 1, 30, 3, 0, 2);
+            Action<SerializedProperty> shock = p => SetTuning(p, 20, 8, 13, 1, 1, 2, 5, .22f, 1, 1, 1, 1, 0, 1.1f, 0, 2);
             Action<SerializedProperty> frenzy = p => SetTuning(p, 0, 0, 0, 1, 1, 1, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
 
             return new[]
             {
-                new AbilitySpec("VH_Boss_StaggerFullScreenBarrage", "踉跄·全屏弹幕", 2001, typeof(BossRadialVolleyAbilityLogic), 1, 0, .5f, .2f, .5f, false, false, 0, 1,
+                new AbilitySpec("VH_Boss_StaggerFullScreenBarrage", "踉跄·全屏弹幕", 2001, typeof(BossRadialVolleyAbilityLogic), 1, 0, .5f, 2f, .5f, false, false, 0, 1,
                     p => SetTuning(p, 10, 0, 0, 8, 1, 1, 1, .08f, 1, 40, 6, .65f, 65, 2, 0, 2)),
-                new AbilitySpec("VH_Boss_StaggerStepShockwave", "踉跄·步进震波", 2002, typeof(BossRadialShockwaveAbilityLogic), 6, 0, .8f, .2f, .5f, false, false, 0, 1, shock),
+                new AbilitySpec("VH_Boss_StaggerStepShockwave", "踉跄·步进震波", 2002, typeof(BossRadialShockwaveAbilityLogic), 6, 0, .8f, 1.1f, .5f, false, false, 0, 1, shock),
                 new AbilitySpec("VH_Boss_StaggerTrackingLaser", "踉跄·跟踪激光", 2003, typeof(BossLaserSweepAbilityLogic), 5, 0, .7f, 1.5f, .3f, true, false, 0, 1, laser),
                 new AbilitySpec("VH_Boss_Sweep", "横扫", 2010, typeof(BossSweepAbilityLogic), 0, 1.5f, .45f, .65f, .7f, true, false, 0, 1, sweep),
-                new AbilitySpec("VH_Boss_RadialVolley", "弹幕", 2020, typeof(BossRadialVolleyAbilityLogic), 1, 2.5f, .8f, .2f, .8f, false, false, 0, 1, volley),
-                new AbilitySpec("VH_Boss_Bombardment", "轰炸", 2030, typeof(BossBombardmentAbilityLogic), 2, 2.5f, 1.2f, .12f, .6f, true, false, 0, 1, bomb),
+                new AbilitySpec("VH_Boss_RadialVolley", "弹幕", 2020, typeof(BossRadialVolleyAbilityLogic), 1, 2.5f, .8f, 2f, .8f, false, false, 0, 1, volley),
+                new AbilitySpec("VH_Boss_Bombardment", "轰炸", 2030, typeof(BossBombardmentAbilityLogic), 2, 2.5f, 1.2f, .12f, .6f, true, false, 0, 1, bomb, eachLockedArea: true),
                 new AbilitySpec("VH_Boss_ChargeSlash", "斩击", 2040, typeof(BossChargeSlashAbilityLogic), 3, 2.25f, 1f, .12f, .7f, true, false, 0, 1, slash),
                 new AbilitySpec("VH_Boss_GridCut", "网格", 2050, typeof(BossGridCutAbilityLogic), 4, 3f, 1.1f, 1.5f, .7f, false, false, 0, 1, grid),
                 new AbilitySpec("VH_Boss_Frenzy", "狂暴", 2060, typeof(BossFrenzyAbilityLogic), 7, 0, 1.5f, .1f, .6f, false, true, 0, .2f, frenzy),
                 new AbilitySpec("VH_Boss_LaserSweep", "激光", 2070, typeof(BossLaserSweepAbilityLogic), 5, 4f, .8f, 3f, .8f, true, false, 0, 1, laser),
                 new AbilitySpec("VH_Boss_PhaseTransitionAura", "阶段转换·黄金血辉", 2090, typeof(BossPhaseAuraAbilityLogic), 8, 0, 0, 1.2f, .4f, false, false, 0, 1, frenzy),
-                new AbilitySpec("VH_Boss_RoamingRadialVolley", "游走·弹幕", 2120, typeof(BossRadialVolleyAbilityLogic), 1, 4f, .8f, .2f, .8f, true, false, 0, 1, volley),
-                new AbilitySpec("VH_Boss_RoamingBombardment", "游走·轰炸", 2130, typeof(BossBombardmentAbilityLogic), 2, 4f, 1.2f, .12f, .6f, true, false, 0, 1, bomb)
+                new AbilitySpec("VH_Boss_RoamingRadialVolley", "游走·弹幕", 2120, typeof(BossRadialVolleyAbilityLogic), 1, 4f, .8f, 2f, .8f, true, false, 0, 1, volley),
+                new AbilitySpec("VH_Boss_RoamingBombardment", "游走·轰炸", 2130, typeof(BossBombardmentAbilityLogic), 2, 4f, 1.2f, .12f, .6f, true, false, 0, 1, bomb, eachLockedArea: true)
             };
         }
 
-        private static BossAbilityAsset CreateOrUpdateAbility(AbilitySpec spec, GameObject vfx)
+        private static BossAbilityAsset CreateOrUpdateAbility(
+            AbilitySpec spec,
+            GameObject vfx,
+            GameObject chargeSlashWarning,
+            GameObject chargeSlashSwordQi,
+            GameObject sweepWarning,
+            GameObject sweepAttack,
+            GameObject laserMarker,
+            GameObject laserBeam)
         {
             string path = $"{SkillRoot}/{spec.FileName}.asset";
             BossAbilityAsset asset = GetOrCreateAsset<BossAbilityAsset>(path);
@@ -177,11 +236,12 @@ namespace VampireHunt.Editor.Boss
             so.FindProperty("baseWeight").floatValue = 1f;
             so.FindProperty("cooldown").floatValue = spec.Cooldown;
             so.FindProperty("minDistance").floatValue = 0f;
-            so.FindProperty("maxDistance").floatValue = 100f;
+            so.FindProperty("maxDistance").floatValue = spec.Id == 2010 ? 8f : spec.Id == 2040 ? 10f : 100f;
             so.FindProperty("minNormalizedHealth").floatValue = spec.MinHealth;
             so.FindProperty("maxNormalizedHealth").floatValue = spec.MaxHealth;
             so.FindProperty("requiresTarget").boolValue = spec.RequiresTarget;
             so.FindProperty("oneShot").boolValue = spec.OneShot;
+            so.FindProperty("parryableDuringTelegraph").boolValue = spec.Id == 2040;
             so.FindProperty("telegraphDuration").floatValue = spec.Telegraph;
             so.FindProperty("resolveDuration").floatValue = spec.Resolve;
             so.FindProperty("recoverDuration").floatValue = spec.Recover;
@@ -191,11 +251,59 @@ namespace VampireHunt.Editor.Boss
             spec.ConfigureTuning?.Invoke(so.FindProperty("tuning"));
             SerializedProperty cues = so.FindProperty("presentationCues");
             cues.arraySize = 2;
+            if (spec.Id == 2010)
+            {
+                ConfigureCue(cues.GetArrayElementAtIndex(0), $"{spec.DisplayName}·方向波浪预警", 0f,
+                    BossAbilityAnchorId.Ground, sweepWarning, Vector3.one,
+                    spec.Telegraph + .02f, BossAbilityCueSpawnMode.SweepWaveWarning);
+                ConfigureCue(cues.GetArrayElementAtIndex(1), $"{spec.DisplayName}·血刃横向显现", spec.Telegraph,
+                    BossAbilityAnchorId.Ground, sweepAttack, Vector3.one,
+                    .42f, BossAbilityCueSpawnMode.SweepWaveAttack);
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+                return asset;
+            }
+            if (spec.Id == 2040)
+            {
+                ConfigureCue(cues.GetArrayElementAtIndex(0), $"{spec.DisplayName}·固定矩形预警", 0f,
+                    BossAbilityAnchorId.Ground, chargeSlashWarning, Vector3.one,
+                    spec.Telegraph + spec.Resolve, BossAbilityCueSpawnMode.EachLockedArea);
+                ConfigureCue(cues.GetArrayElementAtIndex(1), $"{spec.DisplayName}·移动剑气与终点消解", spec.Telegraph,
+                    BossAbilityAnchorId.Ground, chargeSlashSwordQi, Vector3.one * 1.25f,
+                    .8f, BossAbilityCueSpawnMode.DirectionalTravel);
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+                return asset;
+            }
+            if (spec.LogicType == typeof(BossLaserSweepAbilityLogic))
+            {
+                SerializedProperty markerCue = cues.GetArrayElementAtIndex(0);
+                ConfigureCue(markerCue, $"{spec.DisplayName}·锁定玩家三角", 0f,
+                    BossAbilityAnchorId.Head, laserMarker, Vector3.one,
+                    spec.Telegraph + spec.Resolve, BossAbilityCueSpawnMode.TrackingLaserTargetMarker);
+                markerCue.FindPropertyRelative("localPosition").vector3Value = Vector3.up * 2.5f;
+                markerCue.FindPropertyRelative("followAnchor").boolValue = false;
+
+                SerializedProperty beamCue = cues.GetArrayElementAtIndex(1);
+                ConfigureCue(beamCue, $"{spec.DisplayName}·追踪长方体激光", spec.Telegraph,
+                    BossAbilityAnchorId.Chest, laserBeam, Vector3.one,
+                    spec.Resolve, BossAbilityCueSpawnMode.TrackingLaserBeam);
+                beamCue.FindPropertyRelative("localPosition").vector3Value = Vector3.up;
+                beamCue.FindPropertyRelative("followAnchor").boolValue = false;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+                return asset;
+            }
+            BossAbilityCueSpawnMode spawnMode = spec.EachLockedArea
+                ? BossAbilityCueSpawnMode.EachLockedArea
+                : BossAbilityCueSpawnMode.SingleAnchor;
             ConfigureCue(cues.GetArrayElementAtIndex(0), $"{spec.DisplayName}·预警", 0f,
                 spec.AtlasCell == 0 ? BossAbilityAnchorId.Chest : BossAbilityAnchorId.Ground,
-                vfx, Vector3.one * .7f, spec.Telegraph + .2f);
+                vfx, Vector3.one * (spec.EachLockedArea ? 1f : .7f),
+                spec.EachLockedArea ? 0f : spec.Telegraph + .2f, spawnMode);
             ConfigureCue(cues.GetArrayElementAtIndex(1), $"{spec.DisplayName}·释放", spec.Telegraph,
-                BossAbilityAnchorId.Ground, vfx, Vector3.one * 1.25f, spec.Resolve + .35f);
+                BossAbilityAnchorId.Ground, vfx, Vector3.one * 1.25f,
+                spec.Resolve + .35f, spawnMode);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(asset);
             return asset;
@@ -222,6 +330,9 @@ namespace VampireHunt.Editor.Boss
             p.FindPropertyRelative("Duration").floatValue = duration;
             p.FindPropertyRelative("StatusId").uintValue = statusId;
             p.FindPropertyRelative("ClockDrainRate").floatValue = clockDrainRate;
+            p.FindPropertyRelative("TravelDuration").floatValue = .45f;
+            p.FindPropertyRelative("DissolveDuration").floatValue = .3f;
+            p.FindPropertyRelative("VfxHeight").floatValue = 1.2f;
         }
 
         private static BossPhaseAsset CreateOrUpdatePhase(int number, string name, params PhaseEntry[] rows)
@@ -267,6 +378,7 @@ namespace VampireHunt.Editor.Boss
             so.FindProperty("phaseAuraAbilityId").uintValue = 2090;
             so.FindProperty("frenzyAbilityId").uintValue = 2060;
             so.FindProperty("requiredFrenzyPactId").uintValue = 200;
+            so.FindProperty("staggerEffectDuration").floatValue = 3.2f;
             SerializedProperty stages = so.FindProperty("stages");
             stages.arraySize = 3;
             float[] guards = { 100f, 180f, 280f };
@@ -364,6 +476,94 @@ namespace VampireHunt.Editor.Boss
             finally { Object.DestroyImmediate(root); }
         }
 
+        private static GameObject CreateOrUpdateChargeSlashWarningVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_ChargeSlash_WarningBox_VFX");
+            try
+            {
+                BossChargeSlashWarningVfxPresenter presenter =
+                    root.AddComponent<BossChargeSlashWarningVfxPresenter>();
+                SetObject(presenter, "warningShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(ChargeSlashWarningShaderPath));
+                return PrefabUtility.SaveAsPrefabAsset(root, ChargeSlashWarningPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateChargeSlashSwordQiVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_ChargeSlash_SwordQiProjectile_VFX");
+            try
+            {
+                BossChargeSlashSwordQiVfxPresenter presenter =
+                    root.AddComponent<BossChargeSlashSwordQiVfxPresenter>();
+                SetObject(presenter, "dissolveShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(ChargeSlashDissolveShaderPath));
+                SetObject(presenter, "swordQiTexture",
+                    AssetDatabase.LoadAssetAtPath<Texture2D>(ChargeSlashTexturePath));
+                return PrefabUtility.SaveAsPrefabAsset(root, ChargeSlashSwordQiPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateSweepWarningVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_Sweep_WaveWarning_VFX");
+            try
+            {
+                BossSweepWaveWarningVfxPresenter presenter =
+                    root.AddComponent<BossSweepWaveWarningVfxPresenter>();
+                SetObject(presenter, "warningShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(SweepWarningShaderPath));
+                return PrefabUtility.SaveAsPrefabAsset(root, SweepWarningPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateSweepAttackVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_Sweep_BloodArcReveal_VFX");
+            try
+            {
+                BossSweepWaveAttackVfxPresenter presenter =
+                    root.AddComponent<BossSweepWaveAttackVfxPresenter>();
+                SetObject(presenter, "revealShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(SweepRevealShaderPath));
+                SetObject(presenter, "sweepTexture",
+                    AssetDatabase.LoadAssetAtPath<Texture2D>(SweepTexturePath));
+                return PrefabUtility.SaveAsPrefabAsset(root, SweepAttackPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateLaserTargetMarkerVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_Laser_TargetMarker_VFX");
+            try
+            {
+                BossTrackingLaserTargetMarkerVfxPresenter presenter =
+                    root.AddComponent<BossTrackingLaserTargetMarkerVfxPresenter>();
+                SetObject(presenter, "markerShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(LaserMarkerShaderPath));
+                return PrefabUtility.SaveAsPrefabAsset(root, LaserMarkerPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateLaserBeamVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_Laser_TrackingBeam_VFX");
+            try
+            {
+                BossTrackingLaserBeamVfxPresenter presenter =
+                    root.AddComponent<BossTrackingLaserBeamVfxPresenter>();
+                SetObject(presenter, "beamShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(LaserBeamShaderPath));
+                return PrefabUtility.SaveAsPrefabAsset(root, LaserBeamPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
         private static GameObject CreateOrUpdateProjectile(GameObject vfxPrefab)
         {
             GameObject root = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -407,7 +607,9 @@ namespace VampireHunt.Editor.Boss
                 PrefabUtility.UnpackPrefabInstance(visual, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
                 visual.name = "BossModel_HandVisual";
                 visual.transform.SetParent(root.transform, false);
-                visual.transform.localScale = Vector3.one * .32f;
+                visual.transform.localPosition = Vector3.zero;
+                visual.transform.localRotation = Quaternion.identity;
+                visual.transform.localScale = Vector3.one;
                 StripToVisualOnly(visual);
                 SetLayerRecursively(visual, 8);
                 return PrefabUtility.SaveAsPrefabAsset(root, HandPrefabPath);
@@ -444,6 +646,10 @@ namespace VampireHunt.Editor.Boss
                 ConfigureProjectileCatalog(spawner, projectilePrefab);
                 GetOrAdd<BossStatusEffectService>(root);
                 GetOrAdd<BossRunClockModifier>(root);
+                BossAreaTelegraphNetworkBridge areaTelegraph = GetOrAdd<BossAreaTelegraphNetworkBridge>(root);
+                BossSweepTelegraphNetworkBridge sweepTelegraph = GetOrAdd<BossSweepTelegraphNetworkBridge>(root);
+                BossTrackingLaserNetworkBridge laserPresentation = GetOrAdd<BossTrackingLaserNetworkBridge>(root);
+                GetOrAdd<BossFacingService>(root);
                 BossBodyStateHost body = GetOrAdd<BossBodyStateHost>(root);
                 BossAbilityServiceHost serviceHost = GetOrAdd<BossAbilityServiceHost>(root);
                 BossAbilityHost host = GetOrAdd<BossAbilityHost>(root); SetObject(host, "serviceHost", serviceHost);
@@ -462,6 +668,7 @@ namespace VampireHunt.Editor.Boss
                 SetObject(director, "bodyState", body);
                 BossVitalsReceiver vitals = GetOrAdd<BossVitalsReceiver>(root);
                 SetObject(vitals, "director", director); SetObject(vitals, "bodyState", body);
+                SetObject(vitals, "abilityDriver", driver);
                 BossHandCoordinator hands = GetOrAdd<BossHandCoordinator>(root);
                 SetObject(hands, "handPrefab", handPrefab.GetComponent<NetworkObject>());
                 SetObject(hands, "leftAnchor", left); SetObject(hands, "rightAnchor", right); SetObject(hands, "bodyState", body);
@@ -481,6 +688,12 @@ namespace VampireHunt.Editor.Boss
                 SetObject(presenter, "stateReplicator", abilityReplicator); SetObject(presenter, "phaseProvider", phaseProvider);
                 SetObject(presenter, "anchors", anchors);
                 BossAbilityVfxPresenter vfx = GetOrAdd<BossAbilityVfxPresenter>(root); SetObject(vfx, "cueSource", presenter);
+                BossAreaTelegraphVfxPresenter areaVfx = GetOrAdd<BossAreaTelegraphVfxPresenter>(root);
+                SetObject(areaVfx, "source", areaTelegraph); SetObject(areaVfx, "phaseProvider", phaseProvider);
+                BossSweepWaveVfxPresenter sweepVfx = GetOrAdd<BossSweepWaveVfxPresenter>(root);
+                SetObject(sweepVfx, "source", sweepTelegraph); SetObject(sweepVfx, "phaseProvider", phaseProvider);
+                BossTrackingLaserVfxPresenter laserVfx = GetOrAdd<BossTrackingLaserVfxPresenter>(root);
+                SetObject(laserVfx, "source", laserPresentation); SetObject(laserVfx, "phaseProvider", phaseProvider);
                 BossAbilityAnimatorPresenter animator = GetOrAdd<BossAbilityAnimatorPresenter>(root);
                 SetObject(animator, "cueSource", presenter); SetObject(animator, "animator", root.GetComponentInChildren<Animator>());
                 AudioSource audioSource = GetOrAdd<AudioSource>(root); audioSource.spatialBlend = 1f; audioSource.playOnAwake = false;
@@ -551,7 +764,8 @@ namespace VampireHunt.Editor.Boss
         }
 
         private static void ConfigureCue(SerializedProperty cue, string name, float time,
-            BossAbilityAnchorId anchor, GameObject vfx, Vector3 scale, float lifetime)
+            BossAbilityAnchorId anchor, GameObject vfx, Vector3 scale, float lifetime,
+            BossAbilityCueSpawnMode spawnMode = BossAbilityCueSpawnMode.SingleAnchor)
         {
             cue.FindPropertyRelative("timeFromCastStart").floatValue = time;
             cue.FindPropertyRelative("cueName").stringValue = name;
@@ -560,7 +774,8 @@ namespace VampireHunt.Editor.Boss
             cue.FindPropertyRelative("localEulerAngles").vector3Value = Vector3.zero;
             cue.FindPropertyRelative("localScale").vector3Value = scale;
             cue.FindPropertyRelative("followAnchor").boolValue = anchor != BossAbilityAnchorId.Ground;
-            cue.FindPropertyRelative("lifetime").floatValue = Mathf.Max(.1f, lifetime);
+            cue.FindPropertyRelative("spawnMode").enumValueIndex = (int)spawnMode;
+            cue.FindPropertyRelative("lifetime").floatValue = Mathf.Max(0f, lifetime);
             cue.FindPropertyRelative("vfxPrefab").objectReferenceValue = vfx;
             cue.FindPropertyRelative("animatorTrigger").stringValue = string.Empty;
             cue.FindPropertyRelative("audioClip").objectReferenceValue = null;

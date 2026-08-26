@@ -38,7 +38,11 @@ namespace VampireHunt.Infrastructure.Integration
                 Find<IBossProjectileSpawner>(behaviours),
                 Find<IBossStatusEffectService>(behaviours),
                 Find<IRunClockModifier>(behaviours),
-                Find<IBossBodyState>(behaviours));
+                Find<IBossBodyState>(behaviours),
+                Find<IBossAreaTelegraphService>(behaviours),
+                Find<IBossSweepTelegraphService>(behaviours),
+                Find<IBossTrackingLaserPresentationService>(behaviours),
+                Find<IBossFacingService>(behaviours));
 
             if (logMissing && !Services.IsComplete)
             {

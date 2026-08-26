@@ -38,38 +38,40 @@ MonoBehaviour:
     Width: 1.2
     Height: 2
     Repetitions: 1
-    Interval: 0.35
+    Interval: 0.4
     ProjectileId: 1
     ProjectileCount: 1
     ProjectileSpeed: 1
     ProjectileScale: 1
-    RotationSpeed: 18
+    RotationSpeed: 30
     Duration: 3
     StatusId: 0
     StatusDuration: 1
     ClockDrainRate: 2
   presentationCues:
   - timeFromCastStart: 0
-    cueName: "\u8E09\u8DC4\xB7\u8DDF\u8E2A\u6FC0\u5149\xB7\u9884\u8B66"
-    anchor: 5
-    localPosition: {x: 0, y: 0.05, z: 0}
+    cueName: "\u8E09\u8DC4\xB7\u8DDF\u8E2A\u6FC0\u5149\xB7\u9501\u5B9A\u73A9\u5BB6\u4E09\u89D2"
+    anchor: 2
+    localPosition: {x: 0, y: 2.5, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 0.7, y: 0.7, z: 0.7}
+    localScale: {x: 1, y: 1, z: 1}
     followAnchor: 0
-    lifetime: 0.9
+    spawnMode: 5
+    lifetime: 2.2
     animatorTrigger: 
-    vfxPrefab: {fileID: 2611956031527440413, guid: 3dbc3e56a6ce202438aab744736c0e7a, type: 3}
+    vfxPrefab: {fileID: 610000000000000001, guid: 4d85a0d844cd49a3b1cefb3d0dfe5107, type: 3}
     audioClip: {fileID: 0}
     audioVolume: 1
   - timeFromCastStart: 0.7
-    cueName: "\u8E09\u8DC4\xB7\u8DDF\u8E2A\u6FC0\u5149\xB7\u91CA\u653E"
-    anchor: 5
-    localPosition: {x: 0, y: 0.05, z: 0}
+    cueName: "\u8E09\u8DC4\xB7\u8DDF\u8E2A\u6FC0\u5149\xB7\u8FFD\u8E2A\u957F\u65B9\u4F53\u6FC0\u5149"
+    anchor: 1
+    localPosition: {x: 0, y: 1, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    localScale: {x: 1, y: 1, z: 1}
     followAnchor: 0
-    lifetime: 1.85
+    spawnMode: 6
+    lifetime: 1.5
     animatorTrigger: 
-    vfxPrefab: {fileID: 2611956031527440413, guid: 3dbc3e56a6ce202438aab744736c0e7a, type: 3}
+    vfxPrefab: {fileID: 620000000000000001, guid: 4d85a0d844cd49a3b1cefb3d0dfe5108, type: 3}
     audioClip: {fileID: 0}
     audioVolume: 1

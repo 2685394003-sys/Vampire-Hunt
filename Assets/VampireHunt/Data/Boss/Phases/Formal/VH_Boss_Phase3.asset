@@ -16,6 +16,31 @@ MonoBehaviour:
   displayName: "\u7B2C\u4E09\u9636\u6BB5"
   abilities:
   - enabled: 1
+    ability: {fileID: 11400000, guid: 7b031140dacbcd14f85a3e6c914b1c4a, type: 2}
+    weightMultiplier: 1
+    maxUses: 0
+    initialCooldown: 0.4
+  - enabled: 1
+    ability: {fileID: 11400000, guid: 91a48372f0e756e41b6247466cb88673, type: 2}
+    weightMultiplier: 0.8
+    maxUses: 0
+    initialCooldown: 0
+  - enabled: 1
+    ability: {fileID: 11400000, guid: d56d1fa0c9ac76b408953078d2887794, type: 2}
+    weightMultiplier: 1
+    maxUses: 0
+    initialCooldown: 0
+  - enabled: 1
+    ability: {fileID: 11400000, guid: eaec3d009bedca14aa98afb8342d94bc, type: 2}
+    weightMultiplier: 0.8
+    maxUses: 0
+    initialCooldown: 0
+  - enabled: 1
+    ability: {fileID: 11400000, guid: b67e88cbae4b0ea4aabc804e9557b5f2, type: 2}
+    weightMultiplier: 1
+    maxUses: 0
+    initialCooldown: 0.4
+  - enabled: 1
     ability: {fileID: 11400000, guid: c6b4890befeb590449f15cac3066107e, type: 2}
     weightMultiplier: 1
     maxUses: 0

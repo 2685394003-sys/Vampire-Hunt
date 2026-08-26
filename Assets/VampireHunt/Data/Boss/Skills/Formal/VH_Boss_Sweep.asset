@@ -19,7 +19,7 @@ MonoBehaviour:
   baseWeight: 1
   cooldown: 1.5
   minDistance: 0
-  maxDistance: 100
+  maxDistance: 8
   minNormalizedHealth: 0
   maxNormalizedHealth: 1
   requiresTarget: 1
@@ -38,7 +38,7 @@ MonoBehaviour:
     Width: 5
     Height: 2
     Repetitions: 2
-    Interval: 0.28
+    Interval: 0.45
     ProjectileId: 1
     ProjectileCount: 1
     ProjectileSpeed: 1
@@ -48,17 +48,21 @@ MonoBehaviour:
     StatusId: 0
     StatusDuration: 1
     ClockDrainRate: 2
+    TravelDuration: 0.28
+    DissolveDuration: 0.2
+    VfxHeight: 1.4
   presentationCues:
   - timeFromCastStart: 0
     cueName: "\u6A2A\u626B\xB7\u9884\u8B66"
-    anchor: 1
+    anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 0.7, y: 0.7, z: 0.7}
-    followAnchor: 1
-    lifetime: 0.65
+    localScale: {x: 1, y: 1, z: 1}
+    followAnchor: 0
+    spawnMode: 3
+    lifetime: 0.47
     animatorTrigger: 
-    vfxPrefab: {fileID: 5376010874650904032, guid: af34856c231498b47aa0d48575524b80, type: 3}
+    vfxPrefab: {fileID: 6478828412250354100, guid: 1fd41f55e88e4a338fe06080ddcd5091, type: 3}
     audioClip: {fileID: 0}
     audioVolume: 1
   - timeFromCastStart: 0.45
@@ -66,10 +70,11 @@ MonoBehaviour:
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    localScale: {x: 1, y: 1, z: 1}
     followAnchor: 0
-    lifetime: 1
+    spawnMode: 4
+    lifetime: 0.42
     animatorTrigger: 
-    vfxPrefab: {fileID: 5376010874650904032, guid: af34856c231498b47aa0d48575524b80, type: 3}
+    vfxPrefab: {fileID: 7489939523361465200, guid: a47b769d7c2f4ad1ac7726d97943c63f, type: 3}
     audioClip: {fileID: 0}
     audioVolume: 1

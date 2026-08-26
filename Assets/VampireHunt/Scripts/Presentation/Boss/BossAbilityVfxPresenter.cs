@@ -38,7 +38,7 @@ namespace VampireHunt.Presentation.Boss
         private void HandleCue(BossAbilityCueEvent cueEvent)
         {
             BossAbilityPresentationCue cue = cueEvent.Cue;
-            if (cue?.VfxPrefab == null) return;
+            if (cue?.VfxPrefab == null || cue.SpawnMode != BossAbilityCueSpawnMode.SingleAnchor) return;
 
             Transform anchor = cueEvent.Anchor != null ? cueEvent.Anchor : transform;
             Quaternion localRotation = Quaternion.Euler(cue.LocalEulerAngles);

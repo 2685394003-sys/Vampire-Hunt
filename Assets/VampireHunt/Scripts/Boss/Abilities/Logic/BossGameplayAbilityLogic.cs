@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using VampireHunt.Contracts;
 using VampireHunt.SharedKernel;
 
@@ -59,6 +60,51 @@ namespace VampireHunt.Boss.Abilities.Logic
                     (Context.CastSequence << 16) | ++m_HitOrdinal,
                     Tuning.Damage,
                     DamageTags.Melee);
+                Services.DamageService?.TryApply(new BossDamageApplication(request, impulse), out _);
+            }
+        }
+
+        protected void DamageHitsOnce(int count, ISet<ulong> damagedTargets, in Float3 forceDirection)
+        {
+            if (damagedTargets == null) return;
+            EntityId source = Services.BossBodyState?.EntityId ?? EntityId.None;
+            Float3 impulse = forceDirection.Normalized() * Tuning.Knockback;
+            for (int i = 0; i < count && i < m_Hits.Length; i++)
+            {
+                BossPlayerTarget target = m_Hits[i];
+                if (!damagedTargets.Add(target.EntityId.Value)) continue;
+                var request = new DamageRequest(source, target.EntityId, Context.AbilityId,
+                    (Context.CastSequence << 16) | ++m_HitOrdinal, Tuning.Damage, DamageTags.Melee);
+                Services.DamageService?.TryApply(new BossDamageApplication(request, impulse), out _);
+            }
+        }
+
+        /// <summary>
+        /// Applies damage to every queried target on its own cooldown. This is intended for
+        /// persistent volumes such as a laser: entering later still hits immediately, while
+        /// remaining inside cannot hit faster than the authored interval.
+        /// </summary>
+        protected void DamageHitsWithPerTargetCooldown(
+            int count,
+            IDictionary<ulong, double> nextAllowedTimes,
+            double serverTime,
+            float interval,
+            in Float3 forceDirection)
+        {
+            if (nextAllowedTimes == null) return;
+            EntityId source = Services.BossBodyState?.EntityId ?? EntityId.None;
+            Float3 impulse = forceDirection.Normalized() * Tuning.Knockback;
+            double cooldown = Math.Max(.01d, interval);
+            for (int i = 0; i < count && i < m_Hits.Length; i++)
+            {
+                BossPlayerTarget target = m_Hits[i];
+                ulong targetId = target.EntityId.Value;
+                if (nextAllowedTimes.TryGetValue(targetId, out double nextAllowed) &&
+                    serverTime + .000001d < nextAllowed) continue;
+
+                nextAllowedTimes[targetId] = serverTime + cooldown;
+                var request = new DamageRequest(source, target.EntityId, Context.AbilityId,
+                    (Context.CastSequence << 16) | ++m_HitOrdinal, Tuning.Damage, DamageTags.Melee);
                 Services.DamageService?.TryApply(new BossDamageApplication(request, impulse), out _);
             }
         }

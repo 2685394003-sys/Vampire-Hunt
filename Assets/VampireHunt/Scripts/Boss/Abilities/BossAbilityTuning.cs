@@ -27,6 +27,9 @@ namespace VampireHunt.Boss.Abilities
         public uint StatusId;
         public float StatusDuration = 1f;
         public float ClockDrainRate = 2f;
+        public float TravelDuration = 0.45f;
+        public float DissolveDuration = 0.3f;
+        public float VfxHeight = 1.2f;
 
         public BossAbilityTuning CloneValidated()
         {
@@ -48,7 +51,10 @@ namespace VampireHunt.Boss.Abilities
                 Duration = Math.Max(0.01f, Duration),
                 StatusId = StatusId,
                 StatusDuration = Math.Max(0.01f, StatusDuration),
-                ClockDrainRate = Math.Max(0.01f, ClockDrainRate)
+                ClockDrainRate = Math.Max(0.01f, ClockDrainRate),
+                TravelDuration = Math.Max(0.01f, TravelDuration),
+                DissolveDuration = Math.Max(0.01f, DissolveDuration),
+                VfxHeight = Math.Max(0f, VfxHeight)
             };
         }
     }

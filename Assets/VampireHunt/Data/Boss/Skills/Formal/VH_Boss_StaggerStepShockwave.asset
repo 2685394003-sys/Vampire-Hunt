@@ -25,7 +25,7 @@ MonoBehaviour:
   requiresTarget: 0
   oneShot: 0
   telegraphDuration: 0.8
-  resolveDuration: 0.2
+  resolveDuration: 1.1
   recoverDuration: 0.5
   logicScript: {fileID: 11500000, guid: 233c1e259a19c5d46861a41151c7741e, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossRadialShockwaveAbilityLogic,
@@ -37,14 +37,14 @@ MonoBehaviour:
     Range: 1
     Width: 1
     Height: 2
-    Repetitions: 1
-    Interval: 0.2
+    Repetitions: 5
+    Interval: 0.22
     ProjectileId: 1
     ProjectileCount: 1
     ProjectileSpeed: 1
     ProjectileScale: 1
     RotationSpeed: 0
-    Duration: 1
+    Duration: 1.1
     StatusId: 0
     StatusDuration: 1
     ClockDrainRate: 2
@@ -68,7 +68,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1.25, y: 1.25, z: 1.25}
     followAnchor: 0
-    lifetime: 0.55
+    lifetime: 1.45
     animatorTrigger: 
     vfxPrefab: {fileID: 4684694696145375352, guid: 41bd5214f7e3bdb4a87b454f9fdac52e, type: 3}
     audioClip: {fileID: 0}

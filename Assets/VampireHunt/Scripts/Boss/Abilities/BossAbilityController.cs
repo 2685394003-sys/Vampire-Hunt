@@ -102,6 +102,15 @@ namespace VampireHunt.Boss.Abilities
             if (wasCasting) IncrementRevision();
         }
 
+        public bool TryParry(double serverTime)
+        {
+            if (m_CurrentAbility == null ||
+                m_CastPhase != BossAbilityCastPhase.Telegraph ||
+                !m_CurrentAbility.ParryableDuringTelegraph) return false;
+            Cancel(serverTime);
+            return true;
+        }
+
         public bool TryStartAbility(
             BossAbilityDefinition ability,
             double serverTime,

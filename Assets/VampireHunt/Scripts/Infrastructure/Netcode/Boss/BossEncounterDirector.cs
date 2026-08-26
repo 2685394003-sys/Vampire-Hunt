@@ -181,6 +181,8 @@ namespace VampireHunt.Infrastructure.Netcode
             switch (current)
             {
                 case BossEncounterState.StaggerEffect:
+                    abilityDriver?.SetAutomaticCastsServer(false);
+                    abilityDriver?.TryCancelActiveCastServer();
                     bodyState?.TrySetStaggered(true);
                     m_PendingForcedAbility = config.GetStaggerAbilityId(NextRandom());
                     break;
@@ -193,6 +195,8 @@ namespace VampireHunt.Infrastructure.Netcode
                     m_CurrentAbilityPhase = 0;
                     break;
                 case BossEncounterState.PhaseTransition:
+                    abilityDriver?.SetAutomaticCastsServer(false);
+                    abilityDriver?.TryCancelActiveCastServer();
                     bodyState?.TrySetStaggered(false);
                     runManager?.TryBeginBossPhaseTransition();
                     m_PendingForcedAbility = config.PhaseAuraAbilityId;
@@ -203,6 +207,8 @@ namespace VampireHunt.Infrastructure.Netcode
                     m_CurrentAbilityPhase = 0;
                     break;
                 case BossEncounterState.Defeated:
+                    abilityDriver?.SetAutomaticCastsServer(false);
+                    abilityDriver?.TryCancelActiveCastServer();
                     bodyState?.TrySetNormalizedHealth(0f);
                     runManager?.TryCompleteRun();
                     break;

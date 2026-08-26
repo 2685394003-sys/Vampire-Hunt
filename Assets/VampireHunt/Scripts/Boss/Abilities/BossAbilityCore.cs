@@ -107,6 +107,7 @@ namespace VampireHunt.Boss.Abilities
         public float MaxNormalizedHealth { get; }
         public bool RequiresTarget { get; }
         public bool OneShot { get; }
+        public bool ParryableDuringTelegraph { get; }
         public double TelegraphDuration { get; }
         public double ResolveDuration { get; }
         public double RecoverDuration { get; }
@@ -126,7 +127,8 @@ namespace VampireHunt.Boss.Abilities
             double telegraphDuration,
             double resolveDuration,
             double recoverDuration,
-            Func<IBossAbilityLogicRuntime> createLogic)
+            Func<IBossAbilityLogicRuntime> createLogic,
+            bool parryableDuringTelegraph = false)
         {
             if (abilityId == 0) throw new ArgumentOutOfRangeException(nameof(abilityId));
             AbilityId = abilityId;
@@ -139,6 +141,7 @@ namespace VampireHunt.Boss.Abilities
             MaxNormalizedHealth = Math.Max(MinNormalizedHealth, Math.Min(1f, maxNormalizedHealth));
             RequiresTarget = requiresTarget;
             OneShot = oneShot;
+            ParryableDuringTelegraph = parryableDuringTelegraph;
             TelegraphDuration = Math.Max(0d, telegraphDuration);
             ResolveDuration = Math.Max(0.01d, resolveDuration);
             RecoverDuration = Math.Max(0d, recoverDuration);

@@ -656,25 +656,26 @@ Spawning
 
 ### 16.1 核心类型
 
-- `BossAggregate`。
-- `BossProgress`。
-- `BossEncounterService`。
-- `BossPhaseDefinition`。
-- `BossAttackScheduler`。
-- `BossAttackDefinition`。
-- `BossStateReplicator`。
-- `BossPresenter`。
+- `BossEncounterAggregate`：纯 C# 状态、格挡条、阶段血量与推进规则。
+- `BossEncounterRules` / `BossEncounterConfigAsset`：三阶段数值和行为配置。
+- `BossEncounterDirector`：只在 Server 编排状态、移动、阶段技能和 Run 状态。
+- `BossEncounterStateReplicator`：向所有客户端复制紧凑 Boss 读模型。
+- `BossAbilityController` / `BossPhaseDefinition`：纯 C# 技能生命周期与阶段招式库。
+- `BossHudBinder` / `BossAbilityPresenter`：只消费网络读模型和表现 Cue。
 
 ### 16.2 状态机
 
 ```text
-Roaming
-→ Pursuit
-→ Encounter
-→ PhaseTransition
-→ Retreat / Roaming
-→ Dead
+Dormant
+→ RoamingIdle / RoamingEvade
+→ StaggerEffect
+→ ExecutionWindow
+→ Battle
+→ PhaseTransition → RoamingIdle（阶段 1/2）
+→ Defeated（阶段 3）
 ```
+
+游走阶段只削减当前阶段的数值格挡条；格挡条清零且玩家进入配置距离后才进入踉跄。Boss 战阶段只削减真实血量。格挡条、真实血量和状态都由 Server 维护，客户端 HUD 只读。
 
 ### 16.3 阶段推进
 
@@ -738,7 +739,9 @@ BossAbilityPhaseProvider（阶段配置的唯一引用点）
 
 Boss 预制体采用与 Player 相同的组件组合原则，但不照搬 Player 的技能组件膨胀：每个宿主组件只负责一种系统职责，具体技能仍由阶段数据资产装配，技能规则脚本不会逐个作为 MonoBehaviour 堆到 Boss 身上。表现 Cue 的时间调度、动画、VFX 与音频分别由独立组件消费；任何表现组件都不能反向修改技能、阶段或网络状态。
 
-当前已完成技能系统骨架、多人状态复制、Boss 相对表现挂点和演示技能 `Demo Blood Pulse`。演示技能直接引用 `Scripts/Boss/Abilities/Logic/BossNoOpAbilityLogic.cs`，该脚本只验证装配、时间轴和表现链路；横扫、弹幕、网格、轰炸、斩击、激光、狂暴等正式伤害/判定逻辑仍属于后续内容实现。
+当前已完成横扫、旋转弹幕、轰炸、蓄力斩击、三连网格、持续激光、踉跄全屏弹幕、踉跄震波、踉跄跟踪激光、阶段金色血辉和契约狂暴的正式配置与独立逻辑脚本。演示资源仍保留在 Demo 目录，只用于验证内容制作流程，不进入正式 `BossPhaseSetAsset`。
+
+轰炸在施法开始时由服务器查询攻击范围内的全部存活玩家，并保存每人的世界坐标快照。`BossAreaTelegraphNetworkBridge` 把同一组固定坐标广播给所有客户端，`BossAreaTelegraphVfxPresenter` 根据技能资源里的 `EachLockedArea` 表现节点为每个坐标生成红圈与爆炸；玩家之后移动不会带动红圈。预警结束时，技能逻辑分别查询每个圆形区域并结算伤害，最后一个爆炸表现结束时才清除红圈。
 
 ### 16.6 Ability Gameplay Services（当前实现）
 
@@ -750,6 +753,7 @@ BossAbilityServiceHost（只组装，不执行玩法）
 ├─ BossPhysicsHitQuery        → Sphere / Box 空间判定
 ├─ BossDamageService          → IDamageReceiver 权威伤害入口
 ├─ BossProjectileSpawner      → 服务端 NetworkObject 弹道生成
+├─ BossAreaTelegraphNetworkBridge → 固定世界坐标范围预警同步
 ├─ BossStatusEffectService    → IStatusEffectTarget 权威状态入口
 ├─ BossRunClockModifier       → VampireHuntGameManager 倒计时入口
 └─ BossBodyStateHost          → 血量、踉跄、左右手状态网络读模型
@@ -757,7 +761,24 @@ BossAbilityServiceHost（只组装，不执行玩法）
 
 `BossAbilityHost` 在初始化时取得一个不可变 `BossAbilityServices` 并交给纯 C# Controller；只有实现 `IBossAbilityServiceConsumer` 的技能逻辑会收到该集合，而且保证在 `OnCastStarted` 之前注入。它不是全局单例，也不允许技能自己通过 `FindObjectOfType` 寻找依赖。
 
-多人规则：所有查询、伤害、状态、弹道和倒计时写入只在服务器成功；客户端仅消费 `BossAbilityStateReplicator` 的技能时间轴和 `BossBodyStateHost` 的身体读模型。Projectile 配置表初始为空，正式弹幕预制体制作完成后再以 `ProjectileId` 注册，同时加入 NetworkManager 的 Network Prefabs。
+多人规则：所有查询、伤害、状态、弹道和倒计时写入只在服务器成功；客户端仅消费 `BossAbilityStateReplicator` 的技能时间轴和 `BossBodyStateHost` 的身体读模型。正式血弹、Boss 本体和通用左右手预制体均已加入 NetworkManager 的 Network Prefabs；弹幕只由 Server 生成、移动、判定伤害和销毁。
+
+### 16.7 Encounter、双手与 HUD（当前实现）
+
+```text
+Boss_Encounter（SampleScene 中 VH_Boss.prefab 的实例）
+├─ BossEncounterDirector          → Server 状态编排
+├─ BossEncounterStateReplicator   → 阶段/格挡/生命/HUD 状态复制
+├─ BossRoamingMovement            → 随机环形出生、待机、镜像速度远离、阶段传送
+├─ BossVitalsReceiver             → 玩家命中进入 Server 权威结算
+├─ BossHandCoordinator            → 生成并管理左/右 VH_BossHand
+├─ BossBodyStateHost              → 踉跄、血量和左右手状态读模型
+└─ BossHudBinder                  → 格挡条在上、真实血条在下，未接战时隐藏
+```
+
+`VH_BossHand` 是左右手共用的唯一预制体类型。Server 生成两个实例并复制 Side、生命与 Independent 状态；默认跟随左右手挂点，后续技能可以通过 `BossHandCoordinator.SetIndependentServer` 将某一只手切换成独立行动。横扫逻辑读取 `BossBodyStateHost`，手失效后不会执行对应方向的攻击。
+
+正式内容可通过 `Tools/Vampire Hunt/Boss/Build Complete Boss Encounter` 幂等重建。构建器会更新技能/阶段/表现/网络预制体，并把 `SampleScene` 中的旧 `Boss_BloodLord` 迁移成正式 `Boss_Encounter`，避免旧控制器与新 Server 权威逻辑同时运行。
 
 ## 17. Projectile 模块
 

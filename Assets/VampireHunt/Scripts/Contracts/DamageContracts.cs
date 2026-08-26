@@ -13,7 +13,9 @@ namespace VampireHunt.Contracts
         Critical = 1 << 3,
         Status = 1 << 4,
         Pact = 1 << 5,
-        Periodic = 1 << 6
+        Periodic = 1 << 6,
+        /// <summary>Explicit player parry signal. It is not inferred from ordinary damage.</summary>
+        Parry = 1 << 7
     }
 
     /// <summary>Pure combat input. Unity hit data stays in the adapter layer.</summary>

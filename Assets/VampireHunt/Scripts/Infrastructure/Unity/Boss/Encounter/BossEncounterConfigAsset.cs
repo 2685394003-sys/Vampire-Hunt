@@ -38,7 +38,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
 
         [Header("Stagger / Execution")]
         [Min(0.1f)] [SerializeField] private float staggerTriggerDistance = 6f;
-        [Min(0.1f)] [SerializeField] private float staggerEffectDuration = 2.4f;
+        [Min(0.1f)] [SerializeField] private float staggerEffectDuration = 3.2f;
         [Min(0.1f)] [SerializeField] private float executionWindowDuration = 3f;
         [SerializeField] private uint[] staggerAbilityIds = { 2001u, 2002u, 2003u };
 

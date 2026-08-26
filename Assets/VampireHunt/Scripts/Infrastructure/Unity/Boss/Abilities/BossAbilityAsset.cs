@@ -23,6 +23,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [Range(0f, 1f)] [SerializeField] private float maxNormalizedHealth = 1f;
         [SerializeField] private bool requiresTarget;
         [SerializeField] private bool oneShot;
+        [Tooltip("Only an explicit Parry-tagged player hit can cancel this ability, and only during Telegraph.")]
+        [SerializeField] private bool parryableDuringTelegraph;
 
         [Header("Server Timeline")]
         [Min(0f)] [SerializeField] private float telegraphDuration = 0.5f;
@@ -48,6 +50,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public UnityEngine.Object LogicScript => logicScript;
         public string LogicTypeName => logicTypeName;
         public BossAbilityTuning Tuning => tuning;
+        public float TelegraphDuration => telegraphDuration;
         public float TotalDuration => telegraphDuration + resolveDuration + recoverDuration;
         public IReadOnlyList<BossAbilityPresentationCue> PresentationCues => presentationCues;
 
@@ -67,7 +70,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
                 telegraphDuration,
                 resolveDuration,
                 recoverDuration,
-                BossAbilityLogicTypeResolver.CreateFactory(logicTypeName, tuning));
+                BossAbilityLogicTypeResolver.CreateFactory(logicTypeName, tuning),
+                parryableDuringTelegraph);
         }
 
         private void OnValidate()

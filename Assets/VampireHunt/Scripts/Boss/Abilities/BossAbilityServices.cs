@@ -15,6 +15,10 @@ namespace VampireHunt.Boss.Abilities
         public IBossHitQuery HitQuery { get; }
         public IBossDamageService DamageService { get; }
         public IBossProjectileSpawner ProjectileSpawner { get; }
+        public IBossAreaTelegraphService AreaTelegraphService { get; }
+        public IBossSweepTelegraphService SweepTelegraphService { get; }
+        public IBossTrackingLaserPresentationService TrackingLaserPresentationService { get; }
+        public IBossFacingService FacingService { get; }
         public IBossStatusEffectService StatusEffectService { get; }
         public IRunClockModifier RunClockModifier { get; }
         public IBossBodyState BossBodyState { get; }
@@ -37,12 +41,20 @@ namespace VampireHunt.Boss.Abilities
             IBossProjectileSpawner projectileSpawner,
             IBossStatusEffectService statusEffectService,
             IRunClockModifier runClockModifier,
-            IBossBodyState bossBodyState)
+            IBossBodyState bossBodyState,
+            IBossAreaTelegraphService areaTelegraphService = null,
+            IBossSweepTelegraphService sweepTelegraphService = null,
+            IBossTrackingLaserPresentationService trackingLaserPresentationService = null,
+            IBossFacingService facingService = null)
         {
             PlayerTargetQuery = playerTargetQuery;
             HitQuery = hitQuery;
             DamageService = damageService;
             ProjectileSpawner = projectileSpawner;
+            AreaTelegraphService = areaTelegraphService;
+            SweepTelegraphService = sweepTelegraphService;
+            TrackingLaserPresentationService = trackingLaserPresentationService;
+            FacingService = facingService;
             StatusEffectService = statusEffectService;
             RunClockModifier = runClockModifier;
             BossBodyState = bossBodyState;

@@ -3,6 +3,17 @@ using UnityEngine;
 
 namespace VampireHunt.Infrastructure.Unity.Boss
 {
+    public enum BossAbilityCueSpawnMode : byte
+    {
+        SingleAnchor = 0,
+        EachLockedArea = 1,
+        DirectionalTravel = 2,
+        SweepWaveWarning = 3,
+        SweepWaveAttack = 4,
+        TrackingLaserTargetMarker = 5,
+        TrackingLaserBeam = 6
+    }
+
     [Serializable]
     public sealed class BossAbilityPresentationCue
     {
@@ -13,6 +24,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [SerializeField] private Vector3 localEulerAngles;
         [SerializeField] private Vector3 localScale = Vector3.one;
         [SerializeField] private bool followAnchor = true;
+        [SerializeField] private BossAbilityCueSpawnMode spawnMode = BossAbilityCueSpawnMode.SingleAnchor;
         [Min(0f)] [SerializeField] private float lifetime = 1f;
 
         [Header("Presentation")]
@@ -28,6 +40,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public Vector3 LocalEulerAngles => localEulerAngles;
         public Vector3 LocalScale => localScale;
         public bool FollowAnchor => followAnchor;
+        public BossAbilityCueSpawnMode SpawnMode => spawnMode;
         public float Lifetime => lifetime;
         public string AnimatorTrigger => animatorTrigger;
         public GameObject VfxPrefab => vfxPrefab;

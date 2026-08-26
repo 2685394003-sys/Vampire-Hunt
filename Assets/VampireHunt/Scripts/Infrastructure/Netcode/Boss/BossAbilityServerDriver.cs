@@ -106,6 +106,26 @@ namespace VampireHunt.Infrastructure.Netcode
             return true;
         }
 
+        public bool TryCancelActiveCastServer()
+        {
+            if (!IsServer || host == null || !host.IsInitialized || stateReplicator == null) return false;
+
+            double serverTime = NetworkManager.ServerTime.Time;
+            if (!host.CancelActiveCastServer(serverTime)) return false;
+            stateReplicator.PublishServer(host.Snapshot, force: true);
+            return true;
+        }
+
+        public bool TryParryActiveAbilityServer()
+        {
+            if (!IsServer || host == null || !host.IsInitialized || stateReplicator == null) return false;
+
+            double serverTime = NetworkManager.ServerTime.Time;
+            if (!host.TryParryActiveCastServer(serverTime)) return false;
+            stateReplicator.PublishServer(host.Snapshot, force: true);
+            return true;
+        }
+
         public bool TryForceAbilityServer(uint abilityId)
         {
             if (abilityId == 0 || !IsServer || host == null || !host.IsInitialized ||

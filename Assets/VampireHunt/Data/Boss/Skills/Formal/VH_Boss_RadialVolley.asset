@@ -25,7 +25,7 @@ MonoBehaviour:
   requiresTarget: 0
   oneShot: 0
   telegraphDuration: 0.8
-  resolveDuration: 0.2
+  resolveDuration: 2
   recoverDuration: 0.8
   logicScript: {fileID: 11500000, guid: 3412d470642d6f043ab611c241e353b9, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossRadialVolleyAbilityLogic, Assembly-CSharp,
@@ -68,7 +68,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1.25, y: 1.25, z: 1.25}
     followAnchor: 0
-    lifetime: 0.55
+    lifetime: 2.35
     animatorTrigger: 
     vfxPrefab: {fileID: 2189668589748153124, guid: 327d8d6bc9a678741b6a48f9926473e6, type: 3}
     audioClip: {fileID: 0}

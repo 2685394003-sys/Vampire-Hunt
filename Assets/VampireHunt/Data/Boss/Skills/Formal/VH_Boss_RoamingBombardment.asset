@@ -34,7 +34,7 @@ MonoBehaviour:
     Damage: 32
     Knockback: 10
     Radius: 3.2
-    Range: 1
+    Range: 100
     Width: 2
     Height: 1
     Repetitions: 1
@@ -54,9 +54,10 @@ MonoBehaviour:
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 0.7, y: 0.7, z: 0.7}
+    localScale: {x: 1, y: 1, z: 1}
     followAnchor: 0
-    lifetime: 1.4000001
+    spawnMode: 1
+    lifetime: 0
     animatorTrigger: 
     vfxPrefab: {fileID: 4275767527653488639, guid: 7e90a88f4384ebc4493fed07bfa1cded, type: 3}
     audioClip: {fileID: 0}
@@ -68,6 +69,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1.25, y: 1.25, z: 1.25}
     followAnchor: 0
+    spawnMode: 1
     lifetime: 0.47
     animatorTrigger: 
     vfxPrefab: {fileID: 4275767527653488639, guid: 7e90a88f4384ebc4493fed07bfa1cded, type: 3}

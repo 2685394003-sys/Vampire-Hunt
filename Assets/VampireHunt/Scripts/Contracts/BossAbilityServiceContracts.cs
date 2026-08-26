@@ -141,6 +141,203 @@ namespace VampireHunt.Contracts
         void ConfigureBossProjectile(in BossProjectileSpawnRequest request);
     }
 
+    public enum BossAreaTelegraphShape : byte
+    {
+        Sphere = 0,
+        Box = 1
+    }
+
+    /// <summary>
+    /// Immutable, server-authored snapshot of world-space area warnings for one cast.
+    /// Centers are captured once and deliberately never follow their original targets.
+    /// </summary>
+    public readonly struct BossAreaTelegraphRequest
+    {
+        public uint AbilityId { get; }
+        public ulong CastSequence { get; }
+        public double StartServerTime { get; }
+        public BossAreaTelegraphShape Shape { get; }
+        public float Radius { get; }
+        public Float3 Forward { get; }
+        public Float3 Size { get; }
+        public Float3[] Centers { get; }
+
+        public BossAreaTelegraphRequest(
+            uint abilityId,
+            ulong castSequence,
+            double startServerTime,
+            float radius,
+            Float3[] centers)
+        {
+            AbilityId = abilityId;
+            CastSequence = castSequence;
+            StartServerTime = startServerTime;
+            Shape = BossAreaTelegraphShape.Sphere;
+            Radius = Math.Max(0f, radius);
+            Forward = Float3.Zero;
+            Size = Float3.Zero;
+            Centers = centers ?? Array.Empty<Float3>();
+        }
+
+        private BossAreaTelegraphRequest(
+            uint abilityId,
+            ulong castSequence,
+            double startServerTime,
+            BossAreaTelegraphShape shape,
+            float radius,
+            in Float3 forward,
+            in Float3 size,
+            Float3[] centers)
+        {
+            AbilityId = abilityId;
+            CastSequence = castSequence;
+            StartServerTime = startServerTime;
+            Shape = shape;
+            Radius = Math.Max(0f, radius);
+            Forward = forward.Normalized();
+            Size = new Float3(Math.Max(.01f, size.X), Math.Max(.01f, size.Y), Math.Max(.01f, size.Z));
+            Centers = centers ?? Array.Empty<Float3>();
+        }
+
+        public static BossAreaTelegraphRequest Box(
+            uint abilityId,
+            ulong castSequence,
+            double startServerTime,
+            in Float3 center,
+            in Float3 forward,
+            in Float3 size) =>
+            new BossAreaTelegraphRequest(
+                abilityId,
+                castSequence,
+                startServerTime,
+                BossAreaTelegraphShape.Box,
+                0f,
+                forward,
+                size,
+                new[] { center });
+    }
+
+    /// <summary>
+    /// Server-to-client presentation port for abilities that create several fixed world areas.
+    /// Damage remains in ability logic; this service only replicates presentation snapshots.
+    /// </summary>
+    public interface IBossAreaTelegraphService
+    {
+        bool TryPublish(in BossAreaTelegraphRequest request);
+        bool TryCancel(uint abilityId, ulong castSequence);
+    }
+
+    public enum BossSweepDirection : byte
+    {
+        LeftToRight = 0,
+        RightToLeft = 1
+    }
+
+    /// <summary>One server-authored sweep pass. Its position and direction never follow a player.</summary>
+    public readonly struct BossSweepTelegraphPass
+    {
+        public uint PassIndex { get; }
+        public double StartServerTime { get; }
+        public Float3 Center { get; }
+        public Float3 Forward { get; }
+        public Float3 Size { get; }
+        public BossSweepDirection Direction { get; }
+
+        public BossSweepTelegraphPass(
+            uint passIndex,
+            double startServerTime,
+            in Float3 center,
+            in Float3 forward,
+            in Float3 size,
+            BossSweepDirection direction)
+        {
+            PassIndex = passIndex;
+            StartServerTime = startServerTime;
+            Center = center;
+            Forward = forward.Normalized();
+            Size = new Float3(
+                Math.Max(.01f, size.X),
+                Math.Max(.01f, size.Y),
+                Math.Max(.01f, size.Z));
+            Direction = direction;
+        }
+    }
+
+    public readonly struct BossSweepTelegraphRequest
+    {
+        public uint AbilityId { get; }
+        public ulong CastSequence { get; }
+        public BossSweepTelegraphPass[] Passes { get; }
+
+        public BossSweepTelegraphRequest(
+            uint abilityId,
+            ulong castSequence,
+            BossSweepTelegraphPass[] passes)
+        {
+            AbilityId = abilityId;
+            CastSequence = castSequence;
+            Passes = passes ?? Array.Empty<BossSweepTelegraphPass>();
+        }
+    }
+
+    /// <summary>Network presentation port dedicated to multi-pass hand sweeps.</summary>
+    public interface IBossSweepTelegraphService
+    {
+        bool TryPublish(in BossSweepTelegraphRequest request);
+        bool TryCancelPass(uint abilityId, ulong castSequence, uint passIndex);
+        bool TryCancel(uint abilityId, ulong castSequence);
+    }
+
+    /// <summary>
+    /// Immutable start snapshot for a tracking laser. The server owns targeting and damage;
+    /// clients only use this data to render the same locked target and beam dimensions.
+    /// </summary>
+    public readonly struct BossTrackingLaserPresentationRequest
+    {
+        public uint AbilityId { get; }
+        public ulong CastSequence { get; }
+        public double StartServerTime { get; }
+        public EntityId TargetEntityId { get; }
+        public Float3 InitialDirection { get; }
+        public Float3 Size { get; }
+        public float RotationSpeed { get; }
+
+        public BossTrackingLaserPresentationRequest(
+            uint abilityId,
+            ulong castSequence,
+            double startServerTime,
+            EntityId targetEntityId,
+            in Float3 initialDirection,
+            in Float3 size,
+            float rotationSpeed)
+        {
+            AbilityId = abilityId;
+            CastSequence = castSequence;
+            StartServerTime = startServerTime;
+            TargetEntityId = targetEntityId;
+            InitialDirection = initialDirection.Normalized();
+            Size = new Float3(
+                Math.Max(.01f, size.X),
+                Math.Max(.01f, size.Y),
+                Math.Max(.01f, size.Z));
+            RotationSpeed = Math.Max(0f, rotationSpeed);
+        }
+    }
+
+    /// <summary>Server-to-client presentation port for one locked, tracking laser cast.</summary>
+    public interface IBossTrackingLaserPresentationService
+    {
+        bool TryPublish(in BossTrackingLaserPresentationRequest request);
+        bool TryCancel(uint abilityId, ulong castSequence);
+    }
+
+    /// <summary>Server-only adapter that applies an authored planar facing to the Boss body.</summary>
+    public interface IBossFacingService
+    {
+        Float3 CurrentFacing { get; }
+        bool TrySetFacing(in Float3 forward);
+    }
+
     /// <summary>Boss-facing adapter over the player's authoritative status host.</summary>
     public interface IBossStatusEffectService
     {

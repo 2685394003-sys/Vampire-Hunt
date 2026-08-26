@@ -14,8 +14,14 @@ namespace VampireHunt.Presentation.Boss
 
         private void Awake()
         {
-            m_BaseScale = transform.localScale;
             if (faceGround) transform.Rotate(90f, 0f, 0f, Space.Self);
+        }
+
+        private void Start()
+        {
+            // Presenters apply the authored world-area scale immediately after Instantiate.
+            // Start runs afterwards, so the pulse preserves that final configured size.
+            m_BaseScale = transform.localScale;
         }
 
         private void Update()

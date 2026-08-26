@@ -17,6 +17,7 @@ namespace VampireHunt.Infrastructure.Netcode
     {
         [SerializeField] private BossEncounterDirector director;
         [SerializeField] private BossBodyStateHost bodyState;
+        [SerializeField] private BossAbilityServerDriver abilityDriver;
 
         private readonly Dictionary<ulong, ulong> m_LastSequenceByClientAttack =
             new Dictionary<ulong, ulong>();
@@ -27,6 +28,7 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             if (director == null) director = GetComponent<BossEncounterDirector>();
             if (bodyState == null) bodyState = GetComponent<BossBodyStateHost>();
+            if (abilityDriver == null) abilityDriver = GetComponent<BossAbilityServerDriver>();
         }
 
         public override void OnNetworkDespawn()
@@ -69,9 +71,18 @@ namespace VampireHunt.Infrastructure.Netcode
             out ResolvedDamage result)
         {
             result = default;
-            if (!IsServer || director == null || incoming.BaseDamage <= 0f) return false;
+            if (!IsServer || director == null) return false;
             var validated = new DamageRequest(incoming.Source, CombatEntityId, incoming.AttackId,
                 incoming.Sequence, incoming.BaseDamage, incoming.Tags);
+
+            if ((validated.Tags & DamageTags.Parry) != 0)
+            {
+                bool cancelled = abilityDriver != null && abilityDriver.TryParryActiveAbilityServer();
+                result = new ResolvedDamage(validated, 0f, validated.Tags, cancelled);
+                return cancelled;
+            }
+
+            if (validated.BaseDamage <= 0f) return false;
             if (!director.TryApplyPlayerDamageServer(validated.Source, validated.BaseDamage,
                     attackerPosition, out BossDamageOutcome outcome)) return false;
             result = new ResolvedDamage(validated, validated.BaseDamage, validated.Tags, false);
