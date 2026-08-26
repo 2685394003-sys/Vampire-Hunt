@@ -40,6 +40,12 @@ namespace VampireHunt.Infrastructure.Netcode
         [SerializeField] private EnemyLootDropper lootDropper;
         [SerializeField] private DamagePresentationEvent onDamagePresented;
 
+        [Header("Attack Adapter")]
+        [Tooltip("Component implementing IEnemyAttackExecutor. Existing melee prefabs fall back to a runtime melee adapter.")]
+        [SerializeField] private MonoBehaviour attackExecutorBehaviour;
+        [SerializeField] private Transform attackOrigin;
+        [SerializeField] private LayerMask attackBlockingMask = 1 << 0;
+
         [Header("Lifecycle")]
         [Min(0f)] [SerializeField] private float deathDespawnDelay = 1.25f;
 
@@ -66,9 +72,15 @@ namespace VampireHunt.Infrastructure.Netcode
         private bool m_RewardGranted;
         private bool m_WasMovementBlocked;
         private double m_BlockStartedTime;
+        private IEnemyAttackExecutor m_AttackExecutor;
+        private EnemyMovementIntent m_MovementIntent;
+        private Vector3 m_AttackAimDirection;
+        private bool m_MissingAttackExecutorReported;
 
         public EnemyNetworkState ReplicatedState => m_ReplicatedState.Value;
         public bool IsDead => m_ReplicatedState.Value.State == EnemyState.Dead;
+        public string ArchetypeStableId => archetype != null ? archetype.StableId : string.Empty;
+        public int SpawnCost => archetype != null ? archetype.SpawnCost : 1;
         public GameplayEntityId CombatEntityId => m_Aggregate != null
             ? m_Aggregate.Id
             : new GameplayEntityId(m_ReplicatedState.Value.EntityId);
@@ -82,6 +94,7 @@ namespace VampireHunt.Infrastructure.Netcode
             if (statusHost == null) statusHost = GetComponent<CombatStatusHost>();
             if (effectHost == null) effectHost = GetComponent<GameplayEffectHost>();
             if (lootDropper == null) lootDropper = GetComponent<EnemyLootDropper>();
+            ResolveSerializedAttackExecutor();
             if (affixCatalog == null)
             {
                 EnemyAffixRunState runState = FindAnyObjectByType<EnemyAffixRunState>();
@@ -126,6 +139,8 @@ namespace VampireHunt.Infrastructure.Netcode
             m_PreparedAffixes = EnemyAffixSpawnSnapshot.Empty;
             m_KnockbackVelocity = Vector3.zero;
             m_VerticalVelocity = 0f;
+            m_MovementIntent = EnemyMovementIntent.None;
+            m_AttackAimDirection = Vector3.zero;
             navigationAgent?.SetServerActive(false);
             base.OnNetworkDespawn();
         }
@@ -334,6 +349,9 @@ namespace VampireHunt.Infrastructure.Netcode
             m_DeathDespawnTime = float.PositiveInfinity;
             m_WasMovementBlocked = false;
             m_BlockStartedTime = 0d;
+            m_MovementIntent = EnemyMovementIntent.None;
+            m_AttackAimDirection = Vector3.zero;
+            EnsureAttackExecutor(definition);
             navigationAgent?.ResetRuntime();
             PublishState();
         }
@@ -346,6 +364,7 @@ namespace VampireHunt.Infrastructure.Netcode
             {
                 m_WasMovementBlocked = true;
                 m_BlockStartedTime = serverTime;
+                m_MovementIntent = EnemyMovementIntent.None;
                 navigationAgent?.Stop();
             }
             else if (!blocked && m_WasMovementBlocked)
@@ -360,11 +379,13 @@ namespace VampireHunt.Infrastructure.Netcode
         private void TickBrain()
         {
             uint revisionBeforeTick = m_Aggregate.Revision;
+            EnemyState stateBeforeTick = m_Aggregate.State;
             bool hasTarget = IsTargetValid(m_TargetPlayer);
             float distance = hasTarget
                 ? Vector3.Distance(transform.position, m_TargetPlayer.transform.position)
                 : float.MaxValue;
             double serverTime = NetworkManager.ServerTime.Time;
+            bool hasLineOfSight = hasTarget && HasLineOfSight(m_TargetPlayer);
 
             if (hasTarget)
             {
@@ -377,11 +398,15 @@ namespace VampireHunt.Infrastructure.Netcode
 
             EnemyTickResult tick = m_Application.Tick(
                 m_Aggregate,
-                new EnemyTickInput(hasTarget, distance, serverTime));
+                new EnemyTickInput(hasTarget, distance, serverTime, hasLineOfSight));
+
+            m_MovementIntent = tick.MovementIntent;
+            if (stateBeforeTick != m_Aggregate.State && m_Aggregate.State == EnemyState.Telegraphing)
+                CaptureAttackAimDirection();
 
             if (tick.ShouldCommitAttack && m_Aggregate.TryCommitAttack())
             {
-                CommitMeleeAttack();
+                CommitAttack();
             }
 
             // SetTarget/ClearTarget can transition before Aggregate.Tick captures
@@ -411,14 +436,15 @@ namespace VampireHunt.Infrastructure.Netcode
                 if (directDirection.sqrMagnitude > 0.0001f)
                     directDirection.Normalize();
 
-                if (m_Aggregate.State == EnemyState.Approaching)
+                if (m_MovementIntent != EnemyMovementIntent.None)
                 {
+                    Vector3 destination = ResolveMovementDestination(m_MovementIntent, directDirection);
                     Vector3 navigationVelocity;
                     if (navigationAgent != null)
                     {
-                        float stoppingDistance = Mathf.Max(0.1f, m_Aggregate.RuntimeStats.AttackRange * 0.85f);
+                        float stoppingDistance = ResolveStoppingDistance(m_MovementIntent);
                         if (navigationAgent.TryGetDesiredVelocity(
-                                m_TargetPlayer.transform.position,
+                                destination,
                                 m_Aggregate.RuntimeStats.MoveSpeed,
                                 stoppingDistance,
                                 out navigationVelocity))
@@ -431,10 +457,14 @@ namespace VampireHunt.Infrastructure.Netcode
                     }
                     else
                     {
-                        // Compatibility for older enemy prefabs which do not yet
-                        // carry the navigation adapter.
-                        movement += directDirection * m_Aggregate.RuntimeStats.MoveSpeed;
-                        facingDirection = directDirection;
+                        Vector3 fallbackDirection = destination - transform.position;
+                        fallbackDirection.y = 0f;
+                        if (fallbackDirection.sqrMagnitude > 0.0001f)
+                            fallbackDirection.Normalize();
+                        movement += fallbackDirection * m_Aggregate.RuntimeStats.MoveSpeed;
+                        facingDirection = fallbackDirection.sqrMagnitude > 0.0001f
+                            ? fallbackDirection
+                            : directDirection;
                     }
                 }
                 else
@@ -443,7 +473,10 @@ namespace VampireHunt.Infrastructure.Netcode
                     if (m_Aggregate.State == EnemyState.Telegraphing ||
                         m_Aggregate.State == EnemyState.Attacking)
                     {
-                        facingDirection = directDirection;
+                        facingDirection = m_Aggregate.Definition.CombatStyle == EnemyCombatStyle.RangedOrbit &&
+                                          m_AttackAimDirection.sqrMagnitude > 0.0001f
+                            ? m_AttackAimDirection
+                            : directDirection;
                     }
                 }
             }
@@ -470,8 +503,51 @@ namespace VampireHunt.Infrastructure.Netcode
             }
         }
 
+        private Vector3 ResolveMovementDestination(
+            EnemyMovementIntent intent,
+            Vector3 directDirection)
+        {
+            if (intent == EnemyMovementIntent.Approach ||
+                m_Aggregate.Definition.CombatStyle != EnemyCombatStyle.RangedOrbit)
+                return m_TargetPlayer.transform.position;
+
+            Vector3 targetPosition = m_TargetPlayer.transform.position;
+            Vector3 outward = transform.position - targetPosition;
+            outward.y = 0f;
+            if (outward.sqrMagnitude <= 0.0001f) outward = -directDirection;
+            if (outward.sqrMagnitude <= 0.0001f) outward = transform.right;
+            outward.Normalize();
+
+            float orbitSign = (m_Aggregate.Id.Value & 1UL) == 0UL ? 1f : -1f;
+            Vector3 tangent = Vector3.Cross(Vector3.up, outward) * orbitSign;
+            float preferredDistance = (m_Aggregate.Definition.PreferredRangeMin +
+                                       m_Aggregate.Definition.PreferredRangeMax) * 0.5f;
+            if (intent == EnemyMovementIntent.Retreat)
+            {
+                return targetPosition + outward * m_Aggregate.Definition.PreferredRangeMax + tangent * 0.75f;
+            }
+
+            return targetPosition + outward * preferredDistance + tangent * 3f;
+        }
+
+        private float ResolveStoppingDistance(EnemyMovementIntent intent)
+        {
+            if (m_Aggregate.Definition.CombatStyle == EnemyCombatStyle.RangedOrbit)
+            {
+                return intent == EnemyMovementIntent.Approach
+                    ? Mathf.Max(0.1f, m_Aggregate.Definition.PreferredRangeMax * 0.9f)
+                    : 0.2f;
+            }
+            return Mathf.Max(0.1f, m_Aggregate.RuntimeStats.AttackRange * 0.85f);
+        }
+
         private void RefreshTarget()
         {
+            if (IsTargetValid(m_TargetPlayer) && m_Aggregate != null &&
+                (m_Aggregate.State == EnemyState.Telegraphing ||
+                 m_Aggregate.State == EnemyState.Attacking))
+                return;
+
             NetworkObject bestTarget = null;
             float bestSqrDistance = float.MaxValue;
             float maxSqrDistance =
@@ -498,32 +574,103 @@ namespace VampireHunt.Infrastructure.Netcode
             return !player.TryGetComponent<CorePlayerState>(out var state) || state.IsActive;
         }
 
-        private void CommitMeleeAttack()
+        private void CommitAttack()
         {
             if (!IsTargetValid(m_TargetPlayer)) return;
-
-            float distance = Vector3.Distance(transform.position, m_TargetPlayer.transform.position);
-            if (distance > m_Aggregate.RuntimeStats.AttackBreakRange) return;
-
-            Vector3 direction = m_TargetPlayer.transform.position - transform.position;
-            direction.y = 0f;
-            direction = direction.sqrMagnitude > 0f ? direction.normalized : transform.forward;
-            var hitInfo = new HitInfo
+            if (m_AttackExecutor == null)
             {
-                amount = m_Aggregate.RuntimeStats.AttackDamage,
-                hitPoint = m_TargetPlayer.transform.position + Vector3.up,
-                hitNormal = -direction,
-                attackerId = m_Aggregate.Id.Value,
-                impactForce = direction * m_Aggregate.RuntimeStats.AttackKnockback
-            };
-
-            var behaviours = m_TargetPlayer.GetComponents<MonoBehaviour>();
-            for (int i = 0; i < behaviours.Length; i++)
-            {
-                if (!(behaviours[i] is IHittable hittable)) continue;
-                hittable.OnHit(hitInfo);
+                ReportMissingAttackExecutor();
                 return;
             }
+
+            Vector3 direction;
+            if (m_Aggregate.Definition.CombatStyle == EnemyCombatStyle.RangedOrbit &&
+                m_AttackAimDirection.sqrMagnitude > 0.0001f)
+            {
+                direction = m_AttackAimDirection;
+            }
+            else
+            {
+                direction = m_TargetPlayer.transform.position - transform.position;
+                direction.y = 0f;
+                direction = direction.sqrMagnitude > 0.0001f ? direction.normalized : transform.forward;
+            }
+
+            Vector3 origin = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up;
+            var context = new EnemyAttackExecutionContext(
+                m_Aggregate.Id,
+                m_Aggregate.Definition.AttackId,
+                m_Aggregate.AttackSequence,
+                m_Aggregate.RuntimeStats.AttackDamage,
+                m_Aggregate.RuntimeStats.AttackKnockback,
+                m_Aggregate.RuntimeStats.AttackBreakRange,
+                origin,
+                direction,
+                m_TargetPlayer);
+            m_AttackExecutor.TryExecute(context);
+        }
+
+        private void CaptureAttackAimDirection()
+        {
+            if (!IsTargetValid(m_TargetPlayer))
+            {
+                m_AttackAimDirection = transform.forward;
+                return;
+            }
+            Vector3 direction = m_TargetPlayer.transform.position + Vector3.up -
+                                (attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up);
+            direction.y = 0f;
+            m_AttackAimDirection = direction.sqrMagnitude > 0.0001f
+                ? direction.normalized
+                : transform.forward;
+        }
+
+        private bool HasLineOfSight(NetworkObject target)
+        {
+            if (!IsTargetValid(target) || attackBlockingMask.value == 0) return IsTargetValid(target);
+            Vector3 origin = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up;
+            Vector3 destination = target.transform.position + Vector3.up;
+            return !Physics.Linecast(
+                origin,
+                destination,
+                attackBlockingMask,
+                QueryTriggerInteraction.Ignore);
+        }
+
+        private void ResolveSerializedAttackExecutor()
+        {
+            m_AttackExecutor = attackExecutorBehaviour as IEnemyAttackExecutor;
+            if (m_AttackExecutor != null) return;
+            MonoBehaviour[] behaviours = GetComponents<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                if (!(behaviours[i] is IEnemyAttackExecutor executor)) continue;
+                m_AttackExecutor = executor;
+                attackExecutorBehaviour = behaviours[i];
+                return;
+            }
+        }
+
+        private void EnsureAttackExecutor(EnemyArchetypeDefinition definition)
+        {
+            ResolveSerializedAttackExecutor();
+            if (m_AttackExecutor != null || definition == null) return;
+            if (definition.CombatStyle == EnemyCombatStyle.MeleeChase)
+            {
+                EnemyMeleeAttackExecutor fallback = GetComponent<EnemyMeleeAttackExecutor>();
+                if (fallback == null) fallback = gameObject.AddComponent<EnemyMeleeAttackExecutor>();
+                attackExecutorBehaviour = fallback;
+                m_AttackExecutor = fallback;
+                return;
+            }
+            ReportMissingAttackExecutor();
+        }
+
+        private void ReportMissingAttackExecutor()
+        {
+            if (m_MissingAttackExecutorReported) return;
+            m_MissingAttackExecutorReported = true;
+            Debug.LogError("[EnemyNetworkActor] No IEnemyAttackExecutor is configured for this archetype.", this);
         }
 
         private void GrantDeathReward(ulong attackerClientId)
@@ -552,7 +699,9 @@ namespace VampireHunt.Infrastructure.Netcode
         private void PublishState()
         {
             if (!IsServer || m_Aggregate == null) return;
-            m_ReplicatedState.Value = EnemyNetworkState.FromSnapshot(m_Aggregate.CaptureSnapshot());
+            m_ReplicatedState.Value = EnemyNetworkState.FromSnapshot(
+                m_Aggregate.CaptureSnapshot(),
+                m_AttackAimDirection);
         }
 
         private void HandleReplicatedStateChanged(EnemyNetworkState previous, EnemyNetworkState current)

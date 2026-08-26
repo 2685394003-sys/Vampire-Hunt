@@ -4,15 +4,29 @@ using VampireHunt.SharedKernel;
 
 namespace VampireHunt.Enemies
 {
+    public enum EnemyMovementIntent : byte
+    {
+        None = 0,
+        Approach = 1,
+        Orbit = 2,
+        Retreat = 3
+    }
+
     public readonly struct EnemyTickInput
     {
         public bool HasValidTarget { get; }
+        public bool HasLineOfSight { get; }
         public float TargetDistance { get; }
         public double Time { get; }
 
-        public EnemyTickInput(bool hasValidTarget, float targetDistance, double time)
+        public EnemyTickInput(
+            bool hasValidTarget,
+            float targetDistance,
+            double time,
+            bool hasLineOfSight = true)
         {
             HasValidTarget = hasValidTarget;
+            HasLineOfSight = hasLineOfSight;
             TargetDistance = Math.Max(0f, targetDistance);
             Time = time;
         }
@@ -21,14 +35,19 @@ namespace VampireHunt.Enemies
     public readonly struct EnemyTickResult
     {
         public bool StateChanged { get; }
-        public bool ShouldMove { get; }
+        public EnemyMovementIntent MovementIntent { get; }
+        public bool ShouldMove => MovementIntent != EnemyMovementIntent.None;
         public bool ShouldFaceTarget { get; }
         public bool ShouldCommitAttack { get; }
 
-        public EnemyTickResult(bool stateChanged, bool shouldMove, bool shouldFaceTarget, bool shouldCommitAttack)
+        public EnemyTickResult(
+            bool stateChanged,
+            EnemyMovementIntent movementIntent,
+            bool shouldFaceTarget,
+            bool shouldCommitAttack)
         {
             StateChanged = stateChanged;
-            ShouldMove = shouldMove;
+            MovementIntent = movementIntent;
             ShouldFaceTarget = shouldFaceTarget;
             ShouldCommitAttack = shouldCommitAttack;
         }
@@ -119,6 +138,7 @@ namespace VampireHunt.Enemies
 
             EnemyState previous = State;
             bool shouldCommit = false;
+            bool usesRangedTactics = Definition.CombatStyle == EnemyCombatStyle.RangedOrbit;
 
             if (State == EnemyState.Spawning)
             {
@@ -137,12 +157,37 @@ namespace VampireHunt.Enemies
                         TransitionTo(EnemyState.Approaching, input.Time, 0d);
                         break;
                     case EnemyState.Approaching:
-                        if (input.TargetDistance <= RuntimeStats.AttackRange)
+                        if (usesRangedTactics && input.HasLineOfSight &&
+                            input.TargetDistance <= Definition.PreferredRangeMax)
+                        {
+                            TransitionTo(EnemyState.Orbiting, input.Time, 0d);
+                        }
+                        else if (!usesRangedTactics && input.TargetDistance <= RuntimeStats.AttackRange)
+                        {
                             TransitionTo(EnemyState.Telegraphing, input.Time, RuntimeStats.TelegraphDuration);
+                        }
+                        break;
+                    case EnemyState.Orbiting:
+                        if (!usesRangedTactics)
+                        {
+                            TransitionTo(EnemyState.Approaching, input.Time, 0d);
+                        }
+                        else if (!input.HasLineOfSight || input.TargetDistance > RuntimeStats.AttackBreakRange)
+                        {
+                            TransitionTo(EnemyState.Approaching, input.Time, 0d);
+                        }
+                        else if (input.TargetDistance >= Definition.PreferredRangeMin &&
+                                 input.TargetDistance <= RuntimeStats.AttackRange)
+                        {
+                            TransitionTo(EnemyState.Telegraphing, input.Time, RuntimeStats.TelegraphDuration);
+                        }
                         break;
                     case EnemyState.Telegraphing:
-                        if (input.TargetDistance > RuntimeStats.AttackBreakRange)
+                        if (input.TargetDistance > RuntimeStats.AttackBreakRange ||
+                            (usesRangedTactics && !input.HasLineOfSight))
+                        {
                             TransitionTo(EnemyState.Approaching, input.Time, 0d);
+                        }
                         else if (input.Time >= StateEndTime)
                         {
                             AttackSequence++;
@@ -158,7 +203,10 @@ namespace VampireHunt.Enemies
                         break;
                     case EnemyState.Recovering:
                         if (input.Time >= StateEndTime)
-                            TransitionTo(EnemyState.Approaching, input.Time, 0d);
+                            TransitionTo(
+                                usesRangedTactics ? EnemyState.Orbiting : EnemyState.Approaching,
+                                input.Time,
+                                0d);
                         break;
                     case EnemyState.Stunned:
                         if (input.Time >= StateEndTime)
@@ -167,11 +215,12 @@ namespace VampireHunt.Enemies
                 }
             }
 
-            return new EnemyTickResult(
-                State != previous,
-                State == EnemyState.Approaching,
-                State == EnemyState.Approaching || State == EnemyState.Telegraphing || State == EnemyState.Attacking,
-                shouldCommit);
+            EnemyMovementIntent movementIntent = ResolveMovementIntent(input, usesRangedTactics);
+            bool shouldFaceTarget = movementIntent != EnemyMovementIntent.None ||
+                                    State == EnemyState.Telegraphing ||
+                                    State == EnemyState.Attacking ||
+                                    (usesRangedTactics && State == EnemyState.Recovering);
+            return new EnemyTickResult(State != previous, movementIntent, shouldFaceTarget, shouldCommit);
         }
 
         public bool TryCommitAttack()
@@ -221,6 +270,23 @@ namespace VampireHunt.Enemies
             State = next;
             StateEndTime = duration > 0d ? time + duration : time;
             Revision++;
+        }
+
+        private EnemyMovementIntent ResolveMovementIntent(
+            in EnemyTickInput input,
+            bool usesRangedTactics)
+        {
+            if (!input.HasValidTarget) return EnemyMovementIntent.None;
+            if (State == EnemyState.Approaching) return EnemyMovementIntent.Approach;
+            if (!usesRangedTactics ||
+                (State != EnemyState.Orbiting && State != EnemyState.Recovering))
+                return EnemyMovementIntent.None;
+
+            if (!input.HasLineOfSight || input.TargetDistance > Definition.PreferredRangeMax)
+                return EnemyMovementIntent.Approach;
+            if (input.TargetDistance < Definition.RetreatRange)
+                return EnemyMovementIntent.Retreat;
+            return EnemyMovementIntent.Orbit;
         }
     }
 }

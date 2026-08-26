@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Serialization;
 using VampireHunt.Bootstrap;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
@@ -19,12 +20,16 @@ namespace VampireHunt.Spawning
         [Header("Dependencies")]
         [SerializeField] private VampireHuntGameManager runManager;
         [SerializeField] private EnemyAffixRunState enemyAffixState;
-        [SerializeField] private EnemyArchetypeAsset meleeArchetype;
+        [FormerlySerializedAs("meleeArchetype")]
+        [SerializeField] private EnemyArchetypeAsset fallbackArchetype;
+        [SerializeField] private EnemySpawnCatalogAsset spawnCatalog;
 
         [Header("Budget")]
         [Min(1)] [SerializeField] private int softEnemyCap = 20;
+        [Min(1)] [SerializeField] private int softSpawnBudget = 20;
         [Min(0.1f)] [SerializeField] private float spawnInterval = 1.5f;
         [Min(0f)] [SerializeField] private float initialDelay = 1f;
+        [SerializeField] private int runSeed = 1337;
 
         [Header("Spawn Ring")]
         [Min(1f)] [SerializeField] private float minimumPlayerDistance = 12f;
@@ -34,11 +39,21 @@ namespace VampireHunt.Spawning
         [Min(0.1f)] [SerializeField] private float navMeshSampleRadius = 2f;
         [SerializeField] private int navMeshAreaMask = NavMesh.AllAreas;
 
-        private readonly List<EnemyNetworkActor> m_ActiveEnemies = new List<EnemyNetworkActor>();
+        private sealed class ActiveEnemyRecord
+        {
+            public EnemyNetworkActor Actor;
+            public EnemyArchetypeAsset Archetype;
+        }
+
+        private readonly List<ActiveEnemyRecord> m_ActiveEnemies = new List<ActiveEnemyRecord>();
+        private readonly List<EnemySpawnEntryAsset> m_EligibleEntries = new List<EnemySpawnEntryAsset>();
         private NavMeshPath m_SpawnPath;
         private float m_NextSpawnTime;
+        private float m_ExplorationStartedTime;
         private ulong m_NextEntityId = 1UL << 32;
+        private uint m_SpawnSequence;
         private bool m_MissingConfigurationReported;
+        private bool m_WasExploring;
 
         private void Awake()
         {
@@ -48,6 +63,7 @@ namespace VampireHunt.Spawning
             if (enemyAffixState == null) enemyAffixState = GetComponent<EnemyAffixRunState>();
             if (enemyAffixState == null) enemyAffixState = FindAnyObjectByType<EnemyAffixRunState>();
             maximumPlayerDistance = Mathf.Max(minimumPlayerDistance, maximumPlayerDistance);
+            softSpawnBudget = Mathf.Max(1, softSpawnBudget);
         }
 
         private void OnEnable()
@@ -59,10 +75,23 @@ namespace VampireHunt.Spawning
         {
             NetworkManager manager = NetworkManager.Singleton;
             if (manager == null || !manager.IsListening || !manager.IsServer) return;
-            if (runManager == null || runManager.CurrentSnapshot.Phase != RunPhase.Exploring) return;
+            bool isExploring = runManager != null && runManager.CurrentSnapshot.Phase == RunPhase.Exploring;
+            if (!isExploring)
+            {
+                m_WasExploring = false;
+                return;
+            }
+            if (!m_WasExploring)
+            {
+                m_WasExploring = true;
+                m_ExplorationStartedTime = Time.unscaledTime;
+                m_SpawnSequence = 0;
+            }
 
             RemoveDespawnedEnemies();
-            if (m_ActiveEnemies.Count >= softEnemyCap || Time.unscaledTime < m_NextSpawnTime) return;
+            if (m_ActiveEnemies.Count >= softEnemyCap ||
+                GetActiveSpawnCost() >= softSpawnBudget ||
+                Time.unscaledTime < m_NextSpawnTime) return;
             m_NextSpawnTime = Time.unscaledTime + spawnInterval;
 
             TrySpawnEnemy(manager);
@@ -70,12 +99,15 @@ namespace VampireHunt.Spawning
 
         private void TrySpawnEnemy(NetworkManager manager)
         {
-            if (meleeArchetype == null || meleeArchetype.NetworkPrefab == null)
+            int remainingBudget = Mathf.Max(0, softSpawnBudget - GetActiveSpawnCost());
+            float elapsedSeconds = Mathf.Max(0f, Time.unscaledTime - m_ExplorationStartedTime);
+            if (!TrySelectArchetype(elapsedSeconds, remainingBudget, out EnemyArchetypeAsset archetype) ||
+                archetype == null || archetype.NetworkPrefab == null)
             {
                 if (!m_MissingConfigurationReported)
                 {
                     m_MissingConfigurationReported = true;
-                    Debug.LogError("[EnemySpawnDirector] Melee archetype or its network prefab is missing.", this);
+                    Debug.LogError("[EnemySpawnDirector] No eligible enemy archetype or network prefab is configured.", this);
                 }
                 return;
             }
@@ -83,7 +115,7 @@ namespace VampireHunt.Spawning
             if (!TryGetPlayerCentroid(manager, out Vector3 center)) return;
             if (!TryFindSpawnPosition(center, out Vector3 spawnPosition)) return;
 
-            NetworkObject instance = Instantiate(meleeArchetype.NetworkPrefab, spawnPosition, Quaternion.identity);
+            NetworkObject instance = Instantiate(archetype.NetworkPrefab, spawnPosition, Quaternion.identity);
             if (!instance.TryGetComponent<EnemyNetworkActor>(out var actor))
             {
                 Debug.LogError("[EnemySpawnDirector] Enemy prefab has no EnemyNetworkActor.", instance);
@@ -97,7 +129,87 @@ namespace VampireHunt.Spawning
                     ? enemyAffixState.CaptureSpawnSnapshot()
                     : EnemyAffixSpawnSnapshot.Empty);
             instance.Spawn();
-            m_ActiveEnemies.Add(actor);
+            m_ActiveEnemies.Add(new ActiveEnemyRecord { Actor = actor, Archetype = archetype });
+        }
+
+        private bool TrySelectArchetype(
+            float elapsedSeconds,
+            int remainingBudget,
+            out EnemyArchetypeAsset archetype)
+        {
+            archetype = null;
+            m_EligibleEntries.Clear();
+            float totalWeight = 0f;
+            EnemySpawnEntryAsset[] entries = spawnCatalog != null
+                ? spawnCatalog.Entries
+                : System.Array.Empty<EnemySpawnEntryAsset>();
+            for (int i = 0; i < entries.Length; i++)
+            {
+                EnemySpawnEntryAsset entry = entries[i];
+                EnemyArchetypeAsset candidate = entry?.Archetype;
+                if (candidate == null || candidate.NetworkPrefab == null ||
+                    entry.Weight <= 0f || entry.MinimumElapsedSeconds > elapsedSeconds ||
+                    candidate.SpawnCost > remainingBudget ||
+                    CountActive(candidate) >= entry.MaximumConcurrent)
+                    continue;
+                m_EligibleEntries.Add(entry);
+                totalWeight += entry.Weight;
+            }
+
+            if (m_EligibleEntries.Count == 0)
+            {
+                if (fallbackArchetype == null || fallbackArchetype.NetworkPrefab == null ||
+                    fallbackArchetype.SpawnCost > remainingBudget)
+                    return false;
+                archetype = fallbackArchetype;
+                return true;
+            }
+
+            float roll = HashToUnitInterval(runSeed, ++m_SpawnSequence) * totalWeight;
+            for (int i = 0; i < m_EligibleEntries.Count; i++)
+            {
+                EnemySpawnEntryAsset entry = m_EligibleEntries[i];
+                roll -= entry.Weight;
+                if (roll > 0f) continue;
+                archetype = entry.Archetype;
+                return true;
+            }
+            archetype = m_EligibleEntries[m_EligibleEntries.Count - 1].Archetype;
+            return true;
+        }
+
+        private int GetActiveSpawnCost()
+        {
+            int total = 0;
+            for (int i = 0; i < m_ActiveEnemies.Count; i++)
+            {
+                EnemyArchetypeAsset archetype = m_ActiveEnemies[i].Archetype;
+                if (archetype != null) total += archetype.SpawnCost;
+            }
+            return total;
+        }
+
+        private int CountActive(EnemyArchetypeAsset archetype)
+        {
+            int count = 0;
+            for (int i = 0; i < m_ActiveEnemies.Count; i++)
+                if (m_ActiveEnemies[i].Archetype == archetype) count++;
+            return count;
+        }
+
+        private static float HashToUnitInterval(int seed, uint sequence)
+        {
+            unchecked
+            {
+                uint value = (uint)seed;
+                value ^= sequence + 0x9e3779b9u + (value << 6) + (value >> 2);
+                value ^= value >> 16;
+                value *= 0x7feb352du;
+                value ^= value >> 15;
+                value *= 0x846ca68bu;
+                value ^= value >> 16;
+                return (value & 0x00ffffffu) / 16777216f;
+            }
         }
 
         private bool TryGetPlayerCentroid(NetworkManager manager, out Vector3 center)
@@ -161,7 +273,7 @@ namespace VampireHunt.Spawning
         {
             for (int i = m_ActiveEnemies.Count - 1; i >= 0; i--)
             {
-                EnemyNetworkActor enemy = m_ActiveEnemies[i];
+                EnemyNetworkActor enemy = m_ActiveEnemies[i].Actor;
                 if (enemy == null || !enemy.IsSpawned)
                 {
                     m_ActiveEnemies.RemoveAt(i);
