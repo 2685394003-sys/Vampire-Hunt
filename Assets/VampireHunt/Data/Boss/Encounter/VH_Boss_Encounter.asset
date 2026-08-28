@@ -29,14 +29,28 @@ MonoBehaviour:
   desiredPlayerDistance: 7
   normalMoveSpeed: 5
   maxMirrorSpeed: 14
+  accelerationSeconds: 0.2
+  decelerationSeconds: 5
+  bossMoveProximityRadius: 15
+  bossMoveProximityMaxMultiplier: 1.4
   spawnMinDistance: 16
   spawnMaxDistance: 32
+  battleOrbitSwitchInterval: 3
+  battleDesiredDistanceMin: 5
+  battleDesiredDistanceMax: 9
+  battleDistanceDriftInterval: 2
+  battleDistanceSpring: 3
+  bossHudShowDistance: 30
   staggerTriggerDistance: 6
   staggerEffectDuration: 3.2
   executionWindowDuration: 3
   staggerAbilityIds: d1070000d2070000d3070000
   phaseTransitionDuration: 2
   phaseAuraAbilityId: 2090
+  stageClearBonusSeconds:
+  - 360
+  - 480
+  - 0
   frenzyAbilityId: 2060
   requiredFrenzyPactId: 200
   frenzyHealthThreshold: 0.2

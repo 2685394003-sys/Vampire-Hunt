@@ -31,11 +31,28 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public bool IsAlive { get; private set; } = true;
 
+        /// <summary>体力(Stamina)恢复速率倍率。默认 1f；玩家侧组件可设为 2f 等实现"脱战高速回体力"。</summary>
+        public float StaminaRegenRateMultiplier { get; set; } = 1f;
+
+        [Header("Regeneration")]
+        [Tooltip("冲刺(dash)一次性消耗体力后，恢复的延迟秒数。独立于 StatDefinition 的 regenDelay，用于「冲刺后 0.2s 才恢复」。")]
+        [SerializeField] private float dashStaminaRegenDelay = 0.2f;
+
+        /// <summary>冲刺(dash)消耗体力后的恢复延迟（秒）。可运行时调整。</summary>
+        public float DashStaminaRegenDelay
+        {
+            get => dashStaminaRegenDelay;
+            set => dashStaminaRegenDelay = Mathf.Max(0f, value);
+        }
+
         // Networked list that synchronizes stat values across all clients
         private NetworkList<RuntimeStat> m_RuntimeStats;
 
         // Tracks the last time each stat was consumed to enforce regeneration delays
         private readonly Dictionary<int, float> m_LastStatUseTime = new Dictionary<int, float>();
+
+        // 冲刺(dash)最近一次消耗体力的时间戳（服务器权威），用于独立于 regenDelay 的冲刺后恢复延迟
+        private float m_DashStaminaUseTime = float.NegativeInfinity;
 
         // Caches stat definitions by hash for fast lookup without config access
         private readonly Dictionary<int, StatDefinition> m_StatDefinitions = new Dictionary<int, StatDefinition>();
@@ -206,6 +223,54 @@ namespace Blocks.Gameplay.Core
             return false;
         }
 
+        /// <summary>
+        /// 疾跑(sprint)持续消耗体力：不打断体力恢复，实现「疾跑时体力也能回」。
+        /// 与 TryConsumeStat 的区别是它不记录 use time，因此不会重置 regenDelay。
+        /// </summary>
+        public bool TryConsumeSprintStamina(float amount, ulong sourcePlayerId = 0)
+        {
+            if (amount <= 0f) return true;
+
+            if (HasStatAuthority)
+            {
+                return TryConsumeStaminaOnAuthority(amount, sourcePlayerId, recordUseTime: false);
+            }
+
+            if (!m_UseServerAuthority || !IsOwner || !IsSpawned) return false;
+
+            int statIndex = FindStatIndex(StatKeys.Stamina);
+            if (statIndex == -1)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] TryConsumeSprintStamina failed: Stamina not found on {gameObject.name}", this);
+                return false;
+            }
+
+            if (m_RuntimeStats[statIndex].CurrentValue >= amount)
+            {
+                RequestConsumeSprintStaminaRpc(amount, sourcePlayerId);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 冲刺(dash)一次性消耗体力：打断体力恢复，冲刺后 DashStaminaRegenDelay 秒才恢复。
+        /// </summary>
+        public void ConsumeDashStamina(float amount, ulong sourcePlayerId = 0)
+        {
+            if (amount <= 0f) return;
+
+            if (HasStatAuthority)
+            {
+                ConsumeDashStaminaOnAuthority(amount, sourcePlayerId);
+                return;
+            }
+
+            if (!m_UseServerAuthority || !IsOwner || !IsSpawned) return;
+            RequestConsumeDashStaminaRpc(amount, sourcePlayerId);
+        }
+
         private bool TryConsumeStatOnAuthority(int statHash, float amount, ulong sourcePlayerId)
         {
             if (!HasStatAuthority || amount <= 0f) return amount <= 0f;
@@ -237,6 +302,47 @@ namespace Blocks.Gameplay.Core
         private void RequestConsumeStatRpc(int statHash, float amount, ulong sourcePlayerId)
         {
             TryConsumeStatOnAuthority(statHash, amount, sourcePlayerId);
+        }
+
+        private bool TryConsumeStaminaOnAuthority(float amount, ulong sourcePlayerId, bool recordUseTime)
+        {
+            if (!HasStatAuthority || amount <= 0f) return amount <= 0f;
+
+            int statIndex = FindStatIndex(StatKeys.Stamina);
+            if (statIndex == -1)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] TryConsumeStaminaOnAuthority failed: Stamina not found on {gameObject.name}", this);
+                return false;
+            }
+
+            if (m_RuntimeStats[statIndex].CurrentValue < amount) return false;
+
+            ModifyStat(statIndex, -amount, recordUseTime, sourcePlayerId, ModificationSource.Consumption);
+            return true;
+        }
+
+        private void ConsumeDashStaminaOnAuthority(float amount, ulong sourcePlayerId)
+        {
+            if (!HasStatAuthority || amount <= 0f) return;
+
+            int statIndex = FindStatIndex(StatKeys.Stamina);
+            if (statIndex == -1) return;
+
+            // 记录冲刺时间戳（独立于通用 regenDelay），不写入 m_LastStatUseTime，避免触发 0.4s 的通用延迟
+            m_DashStaminaUseTime = Time.time;
+            ModifyStat(statIndex, -amount, false, sourcePlayerId, ModificationSource.Consumption);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void RequestConsumeSprintStaminaRpc(float amount, ulong sourcePlayerId)
+        {
+            TryConsumeStaminaOnAuthority(amount, sourcePlayerId, recordUseTime: false);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void RequestConsumeDashStaminaRpc(float amount, ulong sourcePlayerId)
+        {
+            ConsumeDashStaminaOnAuthority(amount, sourcePlayerId);
         }
 
         /// <summary>
@@ -367,11 +473,19 @@ namespace Blocks.Gameplay.Core
                     if (def.regenRate > 0 && stat.CurrentValue < stat.MaxValue)
                     {
                         // Only regenerate if the stat has never been used or enough time has passed since last consumption
-                        if (!m_LastStatUseTime.ContainsKey(stat.StatHash) ||
-                            Time.time - m_LastStatUseTime[stat.StatHash] > def.regenDelay)
+                        bool ready = !m_LastStatUseTime.ContainsKey(stat.StatHash) ||
+                                     Time.time - m_LastStatUseTime[stat.StatHash] > def.regenDelay;
+                        // 体力额外受「冲刺后延迟」约束：冲刺后 DashStaminaRegenDelay 秒内不恢复
+                        if (ready && stat.StatHash == StatKeys.Stamina)
                         {
+                            ready = Time.time - m_DashStaminaUseTime > dashStaminaRegenDelay;
+                        }
+                        if (ready)
+                        {
+                            float regenRate = def.regenRate;
+                            if (stat.StatHash == StatKeys.Stamina) regenRate *= StaminaRegenRateMultiplier;
                             // Don't record use time for regeneration to avoid resetting the delay
-                            ModifyStat(i, def.regenRate * Time.deltaTime, false, 0, ModificationSource.Regeneration);
+                            ModifyStat(i, regenRate * Time.deltaTime, false, 0, ModificationSource.Regeneration);
                         }
                     }
                 }

@@ -13,6 +13,8 @@ namespace VampireHunt.Infrastructure.Netcode
         ITrustedCombatHitTarget, ICombatEntityIdentity
     {
         [Min(1f)] [SerializeField] private float defaultMaxHealth = 100f;
+        [Tooltip("手被击破后多少秒自动恢复。")]
+        [Min(0f)] [SerializeField] private float handRestoreDelaySeconds = 20f;
 
         private readonly NetworkVariable<float> m_Health = new NetworkVariable<float>(0f,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -22,6 +24,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private Transform m_BossRoot;
         private Vector3 m_LocalOffset;
         private float m_MaxHealth;
+        private float m_BrokenTime = -1f;
 
         public BossHandSide Side => (m_Flags.Value & 1) != 0 ? BossHandSide.Right : BossHandSide.Left;
         public bool IsIndependent => (m_Flags.Value & 2) != 0;
@@ -50,7 +53,31 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private void Update()
         {
-            if (!IsSpawned || !IsServer || !IsFunctional || IsIndependent || m_BossRoot == null) return;
+            if (!IsSpawned || !IsServer || m_BossRoot == null) return;
+
+            // 被击破后 handRestoreDelaySeconds 秒自动恢复
+            if (!IsFunctional && m_BrokenTime >= 0f &&
+                Time.unscaledTime - m_BrokenTime >= handRestoreDelaySeconds)
+            {
+                m_Health.Value = m_MaxHealth;
+                m_BrokenTime = -1f;
+            }
+
+            if (!IsFunctional || IsIndependent) return;
+            transform.position = m_BossRoot.TransformPoint(m_LocalOffset);
+            transform.rotation = m_BossRoot.rotation;
+        }
+
+        public void RestoreServer()
+        {
+            if (!IsServer) return;
+            m_Health.Value = m_MaxHealth;
+            m_BrokenTime = -1f;
+        }
+
+        public void TeleportToBossServer()
+        {
+            if (!IsServer || m_BossRoot == null) return;
             transform.position = m_BossRoot.TransformPoint(m_LocalOffset);
             transform.rotation = m_BossRoot.rotation;
         }
@@ -79,6 +106,7 @@ namespace VampireHunt.Infrastructure.Netcode
             var validated = new DamageRequest(request.Source, CombatEntityId, request.AttackId,
                 request.Sequence, request.BaseDamage, request.Tags);
             m_Health.Value = Mathf.Max(0f, m_Health.Value - validated.BaseDamage);
+            if (m_Health.Value <= 0f) m_BrokenTime = Time.unscaledTime;
             result = new ResolvedDamage(validated, validated.BaseDamage, validated.Tags, false);
             return true;
         }

@@ -24,6 +24,8 @@ namespace Blocks.Gameplay.Core
         public static readonly int Damage = Animator.StringToHash("Damage");
         /// <summary>Hash for 'DashStaminaCost' (from Assets/VampireHunt/Data/VH_PlayerStats.asset)</summary>
         public static readonly int DashStaminaCost = Animator.StringToHash("DashStaminaCost");
+        /// <summary>Hash for 'SprintStaminaCost' (from Assets/VampireHunt/Data/VH_PlayerStats.asset)</summary>
+        public static readonly int SprintStaminaCost = Animator.StringToHash("SprintStaminaCost");
         /// <summary>Hash for 'Scarlet' (from Assets/VampireHunt/Data/VH_PlayerStats.asset)</summary>
         public static readonly int Scarlet = Animator.StringToHash("Scarlet");
         /// <summary>Hash for 'KnockbackForce' (from Assets/VampireHunt/Data/VH_PlayerStats.asset)</summary>

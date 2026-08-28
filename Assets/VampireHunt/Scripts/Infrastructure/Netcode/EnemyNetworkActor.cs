@@ -9,6 +9,7 @@ using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Navigation;
 using VampireHunt.Presentation.Enemies;
 using VampireHunt.Progression;
+using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -48,6 +49,8 @@ namespace VampireHunt.Infrastructure.Netcode
 
         [Header("Lifecycle")]
         [Min(0f)] [SerializeField] private float deathDespawnDelay = 1.25f;
+        [Tooltip("索敌范围内没有玩家超过该秒数后，怪物自行消失（防止远离 Boss 后残留小怪）。")]
+        [Min(0.5f)] [SerializeField] private float noTargetDespawnDelay = 3f;
 
         private readonly NetworkVariable<EnemyNetworkState> m_ReplicatedState =
             new NetworkVariable<EnemyNetworkState>(
@@ -67,6 +70,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private float m_NextBrainTime;
         private float m_NextTargetRefreshTime;
         private float m_DeathDespawnTime = float.PositiveInfinity;
+        private float m_NoTargetSinceTime = float.PositiveInfinity;
         private Vector3 m_KnockbackVelocity;
         private float m_VerticalVelocity;
         private bool m_RewardGranted;
@@ -148,6 +152,8 @@ namespace VampireHunt.Infrastructure.Netcode
         private void Update()
         {
             if (!IsSpawned || !IsServer || m_Aggregate == null) return;
+            // 单人模式菜单暂停时冻结敌人 AI（Brain 用 Time.unscaledTime，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
 
             if (m_Aggregate.IsDead)
             {
@@ -160,6 +166,22 @@ namespace VampireHunt.Infrastructure.Netcode
             }
 
             if (HandleMovementBlock()) return;
+
+            // 索敌范围内无玩家持续超时 → 自行消失
+            if (!IsTargetValid(m_TargetPlayer))
+            {
+                if (float.IsPositiveInfinity(m_NoTargetSinceTime))
+                    m_NoTargetSinceTime = Time.unscaledTime;
+                else if (Time.unscaledTime - m_NoTargetSinceTime >= noTargetDespawnDelay)
+                {
+                    if (NetworkObject.IsSpawned) NetworkObject.Despawn();
+                    return;
+                }
+            }
+            else
+            {
+                m_NoTargetSinceTime = float.PositiveInfinity;
+            }
 
             if (Time.unscaledTime >= m_NextTargetRefreshTime)
             {
@@ -347,6 +369,7 @@ namespace VampireHunt.Infrastructure.Netcode
             m_NextTargetRefreshTime = Time.unscaledTime;
             m_RewardGranted = false;
             m_DeathDespawnTime = float.PositiveInfinity;
+            m_NoTargetSinceTime = float.PositiveInfinity;
             m_WasMovementBlocked = false;
             m_BlockStartedTime = 0d;
             m_MovementIntent = EnemyMovementIntent.None;

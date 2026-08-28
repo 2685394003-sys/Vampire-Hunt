@@ -8,6 +8,7 @@ using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Progression;
 using VampireHunt.Run;
+using VampireHunt.Systems;
 
 namespace VampireHunt.Spawning
 {
@@ -30,6 +31,16 @@ namespace VampireHunt.Spawning
         [Min(0.1f)] [SerializeField] private float spawnInterval = 1.5f;
         [Min(0f)] [SerializeField] private float initialDelay = 1f;
         [SerializeField] private int runSeed = 1337;
+
+        [Header("Spawn Rate Modifiers")]
+        [Tooltip("Boss 战期间刷怪速率倍率（相对探索期 1.0）。0.4 = 探索期的 40%。")]
+        [Range(0f, 2f)] [SerializeField] private float bossPhaseSpawnRateMultiplier = 0.4f;
+        [Tooltip("玩家越靠近 Boss 刷怪越快，最近时达到的最高倍率（≥1）。")]
+        [Min(1f)] [SerializeField] private float proximityMaxSpawnRateMultiplier = 1.5f;
+        [Tooltip("距离 Boss 超过该半径后，距离加成失效（倍率回到 1.0）。")]
+        [Min(1f)] [SerializeField] private float proximityBoostRadius = 15f;
+        [Tooltip("玩家距离 Boss 超过该距离后完全停止刷怪。")]
+        [Min(1f)] [SerializeField] private float spawnMaxBossDistance = 45f;
 
         [Header("Spawn Ring")]
         [Min(1f)] [SerializeField] private float minimumPlayerDistance = 12f;
@@ -54,6 +65,7 @@ namespace VampireHunt.Spawning
         private uint m_SpawnSequence;
         private bool m_MissingConfigurationReported;
         private bool m_WasExploring;
+        private BossEncounterDirector m_BossDirector;
 
         private void Awake()
         {
@@ -75,8 +87,11 @@ namespace VampireHunt.Spawning
         {
             NetworkManager manager = NetworkManager.Singleton;
             if (manager == null || !manager.IsListening || !manager.IsServer) return;
-            bool isExploring = runManager != null && runManager.CurrentSnapshot.Phase == RunPhase.Exploring;
-            if (!isExploring)
+            // 单人模式菜单暂停时不刷新怪（Spawn 计时用 Time.unscaledTime，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
+            RunPhase phase = runManager != null ? runManager.CurrentSnapshot.Phase : RunPhase.Lobby;
+            bool shouldSpawn = phase == RunPhase.Exploring || phase == RunPhase.BossEncounter || phase == RunPhase.BossPhaseTransition;
+            if (!shouldSpawn)
             {
                 m_WasExploring = false;
                 return;
@@ -92,9 +107,32 @@ namespace VampireHunt.Spawning
             if (m_ActiveEnemies.Count >= softEnemyCap ||
                 GetActiveSpawnCost() >= softSpawnBudget ||
                 Time.unscaledTime < m_NextSpawnTime) return;
-            m_NextSpawnTime = Time.unscaledTime + spawnInterval;
+
+            // 刷怪速率倍率 = Boss 战衰减 × 距离 Boss 加成；实际间隔 = 基础间隔 ÷ 倍率
+            float phaseMultiplier = phase == RunPhase.Exploring ? 1f : bossPhaseSpawnRateMultiplier;
+            float rateMultiplier = phaseMultiplier * GetProximityMultiplier(manager);
+            if (rateMultiplier <= 0f) return;  // 远离 Boss（>spawnMaxBossDistance）不刷怪
+            float effectiveInterval = spawnInterval / Mathf.Max(0.001f, rateMultiplier);
+            m_NextSpawnTime = Time.unscaledTime + effectiveInterval;
 
             TrySpawnEnemy(manager);
+        }
+
+        private float GetProximityMultiplier(NetworkManager manager)
+        {
+            if (m_BossDirector == null) m_BossDirector = FindAnyObjectByType<BossEncounterDirector>();
+            if (m_BossDirector == null) return 1f;
+            if (!TryGetPlayerCentroid(manager, out Vector3 center)) return 1f;
+
+            float distance = Vector3.Distance(center, m_BossDirector.transform.position);
+
+            // 距离 Boss 超过 spawnMaxBossDistance → 返回 0（不再刷怪）
+            if (distance > spawnMaxBossDistance) return 0f;
+
+            // 距离加成：越靠近 Boss 倍率越高（proximityBoostRadius 内从 1.0 升到 max）
+            if (proximityBoostRadius <= 0f || proximityMaxSpawnRateMultiplier <= 1f) return 1f;
+            float t = Mathf.Clamp01(distance / proximityBoostRadius);
+            return Mathf.Lerp(proximityMaxSpawnRateMultiplier, 1f, t);
         }
 
         private void TrySpawnEnemy(NetworkManager manager)

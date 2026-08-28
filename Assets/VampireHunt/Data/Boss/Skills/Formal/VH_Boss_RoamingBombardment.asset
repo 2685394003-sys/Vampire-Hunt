@@ -19,11 +19,12 @@ MonoBehaviour:
   baseWeight: 1
   cooldown: 4
   minDistance: 0
-  maxDistance: 100
+  maxDistance: 40
   minNormalizedHealth: 0
   maxNormalizedHealth: 1
   requiresTarget: 1
   oneShot: 0
+  parryableDuringTelegraph: 0
   telegraphDuration: 1.2
   resolveDuration: 0.12
   recoverDuration: 0.6
@@ -48,6 +49,9 @@ MonoBehaviour:
     StatusId: 0
     StatusDuration: 1
     ClockDrainRate: 2
+    TravelDuration: 0.45
+    DissolveDuration: 0.3
+    VfxHeight: 1.2
   presentationCues:
   - timeFromCastStart: 0
     cueName: "\u6E38\u8D70\xB7\u8F70\u70B8\xB7\u9884\u8B66"

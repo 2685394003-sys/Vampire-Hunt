@@ -7,6 +7,7 @@ using UnityEngine.UIElements;
 using VampireHunt.Economy;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Systems;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -34,6 +35,7 @@ namespace VampireHunt.Presentation.HUD
         private bool m_Bound;
         private bool m_CursorCaptured;
         private int m_LastKnownCoin;
+        private bool m_ShopPausedByUs;
         private CursorLockMode m_PreviousLockMode;
         private bool m_PreviousCursorVisible;
 
@@ -66,6 +68,11 @@ namespace VampireHunt.Presentation.HUD
             }
             UnbindUi();
             SetCursorForShop(false);
+            if (m_ShopPausedByUs)
+            {
+                m_ShopPausedByUs = false;
+                MenuPauseController.ReleaseShopPause();
+            }
             base.OnNetworkDespawn();
         }
 
@@ -127,6 +134,12 @@ namespace VampireHunt.Presentation.HUD
             if (m_Result != null) m_Result.text = string.Empty;
             SetVisible(true);
             SetCursorForShop(true);
+            // 单人模式下，打开商店菜单时暂停游戏
+            if (!m_ShopPausedByUs)
+            {
+                m_ShopPausedByUs = true;
+                MenuPauseController.RequestShopPause();
+            }
             Render(session);
         }
 
@@ -134,6 +147,11 @@ namespace VampireHunt.Presentation.HUD
         {
             SetVisible(false);
             SetCursorForShop(false);
+            if (m_ShopPausedByUs)
+            {
+                m_ShopPausedByUs = false;
+                MenuPauseController.ReleaseShopPause();
+            }
         }
 
         private void Render(ShopSession session)

@@ -54,6 +54,7 @@ GameObject:
   - component: {fileID: 435459713146104146}
   - component: {fileID: 2467075975766133047}
   - component: {fileID: 4550663314123374883}
+  - component: {fileID: 1807576333572006399}
   m_Layer: 3
   m_Name: VH_Player
   m_TagString: Player
@@ -252,7 +253,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a4c0e7c33e5b4d6ab12167e9f1c9a843, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.InteractionInputHandler
   ShowTopMostFoldoutHeaderGroup: 1
   onInteractPressed: {fileID: 11400000, guid: b3d84a1f7c2645b0a9e2f6c4d8b1e703, type: 2}
@@ -399,7 +400,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b7a12c84d5e64f0a91b23c45d67e890f, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.HUD.RunHudBinder
   ShowTopMostFoldoutHeaderGroup: 1
   hud: {fileID: 8754785922802519086}
@@ -527,9 +528,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6440bd6adbaf014098ccf5fc40f5add, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DashAbility
-  dashForce: 50
+  dashDistance: 4
   dashDuration: 0.2
-  dashCooldown: 1
+  dashCooldown: 0.2
   staminaCost: 15
   requireGrounded: 0
   allowAirDash: 1
@@ -916,6 +917,22 @@ MonoBehaviour:
   uiDocument: {fileID: 7994092233411356452}
   shopBridge: {fileID: 2467075975766133047}
   catalog: {fileID: 11400000, guid: 1ab5076a2266b364b8f1bdcdb88718f9, type: 2}
+--- !u!114 &1807576333572006399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64654f947cb7a3d468bc84c9b81d03c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.StaminaRegenBoost
+  ShowTopMostFoldoutHeaderGroup: 1
+  noEnemyRadius: 25
+  noEnemyRegenMultiplier: 2
+  scanInterval: 0.25
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

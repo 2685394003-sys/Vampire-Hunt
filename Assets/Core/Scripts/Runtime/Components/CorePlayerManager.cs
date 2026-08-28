@@ -441,8 +441,9 @@ namespace Blocks.Gameplay.Core
 
             if (!coreMovement.IsSprinting || coreMovement.CurrentSpeed <= 0.1f || !coreMovement.IsGrounded) return;
 
-            float staminaToConsume = CoreMovement.GetAbilityStaminaCost<WalkAbility>() * Time.deltaTime;
-            if (!coreStats.TryConsumeStat(StatKeys.Stamina, staminaToConsume, OwnerClientId))
+            float staminaToConsume = coreStats.GetCurrentValue(StatKeys.SprintStaminaCost) * Time.deltaTime;
+            // 疾跑消耗用不打断恢复的入口：恢复照常进行，实现「疾跑时体力也能回」
+            if (!coreStats.TryConsumeSprintStamina(staminaToConsume, OwnerClientId))
             {
                 coreMovement.SetSprintState(false);
             }

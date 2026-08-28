@@ -80,13 +80,8 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
         // Attempt Dash
         if (dashAbility.TryActivate())
         {
-            // Consume Stamina
-            m_StatsHandler.ModifyStat(
-                StatKeys.Stamina,
-                -staminaCost,
-                m_PlayerManager.OwnerClientId,
-                ModificationSource.Consumption
-            );
+            // 冲刺消耗体力：打断恢复，冲刺后 0.2s（DashStaminaRegenDelay）才恢复
+            m_StatsHandler.ConsumeDashStamina(staminaCost, m_PlayerManager.OwnerClientId);
         }
     }
 

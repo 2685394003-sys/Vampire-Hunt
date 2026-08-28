@@ -3,6 +3,7 @@ using UnityEngine;
 using VampireHunt.Boss.Abilities;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity.Boss;
+using VampireHunt.Systems;
 
 namespace VampireHunt.Infrastructure.Netcode
 {
@@ -66,6 +67,9 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private void Update()
         {
+            // 单人模式菜单暂停时冻结 Boss 能力调度（ServerTime 是墙钟，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
+
             if (IsSpawned)
             {
                 if (!IsServer || host == null || !host.IsInitialized) return;

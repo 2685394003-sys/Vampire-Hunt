@@ -44,9 +44,11 @@ namespace VampireHunt.Infrastructure.Integration
             if (stats != null && !stats.IsAlive) return false;
 
             Vector3 position = player.transform.position;
+            float normalSpeed = player.TryGetComponent(out CoreMovement movement) ? movement.moveSpeed : 0f;
             target = new BossPlayerTarget(
                 ResolveEntityId(player),
-                new Float3(position.x, position.y, position.z));
+                new Float3(position.x, position.y, position.z),
+                normalSpeed);
             return !target.EntityId.IsNone;
         }
 

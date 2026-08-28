@@ -148,6 +148,27 @@ namespace VampireHunt.Boss.Encounter
             return true;
         }
 
+        /// <summary>玩家死亡导致 Boss 战斗中断：退回漫游，格挡条恢复满（本体血保留）。</summary>
+        public bool ResetToRoaming()
+        {
+            if (State != BossEncounterState.Battle &&
+                State != BossEncounterState.StaggerEffect &&
+                State != BossEncounterState.ExecutionWindow) return false;
+            GuardHealth = MaxGuardHealth;
+            HudVisible = false;
+            SetState(BossEncounterState.RoamingIdle);
+            return true;
+        }
+
+        /// <summary>格挡条持续恢复（脱战回盾）。仅在漫游状态有效。</summary>
+        public bool RegenerateGuard(float amount)
+        {
+            if (amount <= 0f || GuardHealth >= MaxGuardHealth) return false;
+            GuardHealth = Math.Min(MaxGuardHealth, GuardHealth + amount);
+            IncrementRevision();
+            return true;
+        }
+
         public BossEncounterSnapshot CaptureSnapshot() =>
             new BossEncounterSnapshot(State, StageNumber, GuardHealth, MaxGuardHealth,
                 Health, MaxHealth, HudVisible, Revision);

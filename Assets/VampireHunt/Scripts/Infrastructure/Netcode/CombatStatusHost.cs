@@ -7,6 +7,7 @@ using VampireHunt.Contracts;
 using VampireHunt.Effects;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -108,6 +109,8 @@ namespace VampireHunt.Infrastructure.Netcode
         private void Update()
         {
             if (!IsSpawned || !IsServer) return;
+            // 单人模式菜单暂停时冻结状态 DoT 结算（ServerTime 是墙钟，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
             ProcessCommands();
             m_Statuses.RemoveExpired(NetworkManager.ServerTime.Time, m_Expired);
             for (int i = 0; i < m_Expired.Count; i++) RemoveRuntime(m_Expired[i].StatusId);

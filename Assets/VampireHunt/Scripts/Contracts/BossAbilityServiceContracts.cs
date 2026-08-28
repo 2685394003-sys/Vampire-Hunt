@@ -8,11 +8,14 @@ namespace VampireHunt.Contracts
     {
         public EntityId EntityId { get; }
         public Float3 Position { get; }
+        /// <summary>玩家普通（走路）移动速度，米/秒。Boss 用它决定移动速度，好让玩家疾跑/冲刺时能追上。</summary>
+        public float NormalMoveSpeed { get; }
 
-        public BossPlayerTarget(EntityId entityId, in Float3 position)
+        public BossPlayerTarget(EntityId entityId, in Float3 position, float normalMoveSpeed)
         {
             EntityId = entityId;
             Position = position;
+            NormalMoveSpeed = normalMoveSpeed;
         }
     }
 
