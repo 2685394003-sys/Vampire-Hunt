@@ -86,18 +86,7 @@ namespace Blocks.Gameplay.Core
         /// <param name="filterCutoffOffset"></param>
         public void OnFootstep(AnimationEvent animationEvent, float walkRunPitchCents, float walkRunVolumeScale, float filterCutoffOffset)
         {
-            var overrideData = new SoundEmitter.SoundDefOverrideData
-            {
-                BasePitchInCents = walkRunPitchCents,
-                VolumeScale = walkRunVolumeScale,
-                BaseLowPassCutoff = filterCutoffOffset
-            };
-
-            CoreDirector.RequestAudio(soundDefFootstep)
-                .AttachedTo(transform)
-                .WithOverrides(overrideData)
-                .AsReserved(SoundEmitter.ReservedInfo.ReservedEmitterAndAudioSources)
-                .Play();
+            WwiseAudioBridge.PostEvent("Play_Player_Move", gameObject);
         }
 
         /// <summary>
@@ -107,10 +96,7 @@ namespace Blocks.Gameplay.Core
         /// <param name="animationEvent">Data from the animation event.</param>
         public void OnLand(AnimationEvent animationEvent)
         {
-            CoreDirector.RequestAudio(soundDefFootstep)
-                .AttachedTo(transform)
-                .AsReserved(SoundEmitter.ReservedInfo.ReservedEmitterAndAudioSources)
-                .Play();
+            WwiseAudioBridge.PostEvent("Play_Player_Move", gameObject);
         }
 
         #endregion

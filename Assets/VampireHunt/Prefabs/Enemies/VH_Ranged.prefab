@@ -84,6 +84,7 @@ GameObject:
   - component: {fileID: 4347485923117671345}
   - component: {fileID: 2928057320886987452}
   - component: {fileID: 4308755639961819023}
+  - component: {fileID: 6275116970385037119}
   m_Layer: 8
   m_Name: VH_Ranged
   m_TagString: Untagged
@@ -145,13 +146,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4132997839
+  GlobalObjectIdHash: 2126964860
   InScenePlacedSourceGlobalObjectIdHash: 3189949122
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
-  m_InScenePlaced: 1
+  m_InScenePlaced: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
@@ -367,6 +368,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1
   deathDespawnDelay: 1.25
+  noTargetDespawnDelay: 3
 --- !u!114 &4308755639961819023
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -386,6 +388,20 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 73
   useShooterPool: 1
+--- !u!114 &6275116970385037119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890589751619523626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a7070ee38b186849b005f420c780b8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Audio.EntityDamageAudio
+  onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  damageEventName: Play_Enemy_Hurt
 --- !u!1 &1031668596334053683
 GameObject:
   m_ObjectHideFlags: 0

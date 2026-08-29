@@ -215,12 +215,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void PlayEliminatedVFX()
         {
-            if (soundDefPlayerEliminated != null)
-            {
-                CoreDirector.RequestAudio(soundDefPlayerEliminated)
-                    .WithPosition(transform.position)
-                    .Play();
-            }
+            WwiseAudioBridge.PostEvent("Play_Player_Death", gameObject);
 
             if (eliminatedVFX != null)
             {

@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Audio;
 using Unity.Cinemachine;
 
 namespace Blocks.Gameplay.Core
@@ -9,23 +8,14 @@ namespace Blocks.Gameplay.Core
         private static CoreDirector s_Instance;
         public static CoreDirector GetInstance() => s_Instance;
 
-        [Header("Audio Settings")]
-        [Tooltip("The Unity Audio Mixer for managing audio groups and effects.")]
-        [SerializeField] private AudioMixer unityAudioMixer;
-        [Tooltip("Prefab with AudioSource and audio filter components pre-attached. Leave empty to create at runtime (slower).")]
-        [SerializeField] private GameObject soundGameObjectPrefab;
-        [Tooltip("Maximum number of pooled sound GameObjects.")]
-        [SerializeField] private int maxSoundGameObjects = 100;
-        [Tooltip("Maximum number of concurrent sound emitters.")]
-        [SerializeField] private int maxSoundEmitters = 20;
-
         [Header("Camera Shake Settings")]
         [Tooltip("The Cinemachine Impulse Source component for camera shake effects.")]
         [SerializeField] private CinemachineImpulseSource impulseSource;
 
-        private bool m_SoundMute;
-        private SoundSystem m_SoundSystem;
-        private SoundGameObjectPool m_SoundGameObjects;
+        // 声音系统已弃用（2026-08-29）：项目声音统一走 Wwise。
+        // CoreDirector.RequestAudio 现为静默空操作，游戏代码中的调用点由 haohao 后续接 Wwise PostEvent。
+        // 相关旧字段（unityAudioMixer/soundGameObjectPrefab/maxSoundGameObjects/maxSoundEmitters）与 SoundSystem 类保留未删，
+        // 仅在本类不再初始化。
 
         private void Awake()
         {
@@ -38,19 +28,6 @@ namespace Blocks.Gameplay.Core
             s_Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            m_SoundSystem = new SoundSystem();
-            m_SoundMute = false;
-            var audioListener = FindAnyObjectByType<AudioListener>();
-            if (audioListener != null)
-            {
-                m_SoundGameObjects = new SoundGameObjectPool("SoundSystemSources", maxSoundGameObjects, soundGameObjectPrefab);
-                m_SoundSystem.Init(audioListener.transform, maxSoundEmitters, m_SoundGameObjects, unityAudioMixer);
-            }
-            else
-            {
-                Debug.LogWarning("[CoreDirector] No AudioListener found in scene. Sound system will not be initialized.");
-            }
-
             if (impulseSource == null)
             {
                 impulseSource = GetComponent<CinemachineImpulseSource>();
@@ -61,37 +38,19 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        private void Update()
-        {
-            if (m_SoundSystem != null)
-            {
-                m_SoundSystem.UpdateSoundSystem(m_SoundMute);
-            }
-        }
-
-        /// <summary>
-        /// Mutes or unmutes the sound system.
-        /// </summary>
-        public void SetMute(bool mute)
-        {
-            m_SoundMute = mute;
-        }
-
         /// <summary>
         /// Begins a new sound request using a fluent builder pattern.
         /// </summary>
         /// <param name="soundDef">The SoundDef to play.</param>
         /// <returns>A SoundRequestBuilder to configure and play the sound.</returns>
+        /// <remarks>
+        /// 声音系统已弃用（2026-08-29，声音统一走 Wwise）。
+        /// 本方法始终返回空操作的 builder，调用点不会报错也不会发声；
+        /// 各调用点后续由 haohao 接成 Wwise PostEvent。
+        /// </remarks>
         public static SoundRequestBuilder RequestAudio(SoundDef soundDef)
         {
-            var instance = GetInstance();
-            if (instance == null || instance.m_SoundSystem == null)
-            {
-                Debug.LogError("[CoreDirector] SoundSystem is not initialized. Ensure CoreDirector exists in the scene and an AudioListener is present.");
-                // Return a dummy builder that does nothing to prevent null reference exceptions
-                return new SoundRequestBuilder(null, null);
-            }
-            return new SoundRequestBuilder(instance.m_SoundSystem, soundDef);
+            return new SoundRequestBuilder(null, null);
         }
 
         /// <summary>

@@ -62,6 +62,7 @@ namespace VampireHunt.Infrastructure.Integration
             if (interactorNetworkObject == null || !interactorNetworkObject.IsOwner)
                 yield break;
 
+            WwiseAudioBridge.PostEvent("Play_UI_ItemPickup", gameObject);
             RequestGrantItemRpc();
         }
 

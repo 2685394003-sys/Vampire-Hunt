@@ -46,6 +46,7 @@ namespace VampireHunt.Presentation.HUD
         private readonly Label[] m_ItemFallbacks = new Label[ItemSlotCount];
         private readonly Label[] m_ItemNames = new Label[ItemSlotCount];
         private readonly Label[] m_ItemQuantities = new Label[ItemSlotCount];
+        private bool m_ScarletWasFull;
 
         [Header("Inventory HUD")]
         [SerializeField] private PlayerInventoryNetworkState inventory;
@@ -137,6 +138,12 @@ namespace VampireHunt.Presentation.HUD
             if (IsStat(payload, ScarletStatName))
             {
                 SetVital(m_ScarletBar, m_ScarletValue, payload.currentValue, payload.maxValue);
+                bool isFull = payload.maxValue > 0f && payload.currentValue >= payload.maxValue;
+                if (isFull && !m_ScarletWasFull)
+                {
+                    WwiseAudioBridge.PostEvent("Play_UI_BloodFull", gameObject);
+                }
+                m_ScarletWasFull = isFull;
             }
         }
 

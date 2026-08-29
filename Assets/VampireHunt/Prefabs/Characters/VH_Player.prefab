@@ -55,6 +55,7 @@ GameObject:
   - component: {fileID: 2467075975766133047}
   - component: {fileID: 4550663314123374883}
   - component: {fileID: 1807576333572006399}
+  - component: {fileID: 5715040062473686256}
   m_Layer: 3
   m_Name: VH_Player
   m_TagString: Player
@@ -336,6 +337,7 @@ MonoBehaviour:
   statsConfig: {fileID: 11400000, guid: 94565d492faf05d4ca051369cf36504f, type: 2}
   onStatChangedEvent: {fileID: 11400000, guid: 3c76cce5664154d7fadbc8eaf8987962, type: 2}
   onStatDepletedEvent: {fileID: 11400000, guid: aced99a6f7f354e5c87c8fab171c4c31, type: 2}
+  dashStaminaRegenDelay: 0.2
 --- !u!114 &1738836199841815264
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -535,6 +537,9 @@ MonoBehaviour:
   requireGrounded: 0
   allowAirDash: 1
   maxAirDashes: 1
+  noClipDash: 1
+  resolveLandingPoint: 1
+  landingSampleDistance: 2
   dashStartEffect: {fileID: 1784979674055767841, guid: 97442867c93b8496c826100a3164b476, type: 3}
   dashStartSound: {fileID: 0}
 --- !u!114 &-700000000000000001
@@ -933,6 +938,20 @@ MonoBehaviour:
   noEnemyRadius: 25
   noEnemyRegenMultiplier: 2
   scanInterval: 0.25
+--- !u!114 &5715040062473686256
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a7070ee38b186849b005f420c780b8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Audio.EntityDamageAudio
+  onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  damageEventName: Play_Player_Hurt
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

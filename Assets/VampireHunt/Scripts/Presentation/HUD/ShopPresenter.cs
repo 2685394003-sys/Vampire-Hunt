@@ -129,6 +129,7 @@ namespace VampireHunt.Presentation.HUD
 
         private void HandleShopOpened(ShopSession session)
         {
+            WwiseAudioBridge.PostEvent("Play_UI_ShopOpen", gameObject);
             BindUi();
             m_LastKnownCoin = shopBridge != null ? shopBridge.CoinBalance : 0;
             if (m_Result != null) m_Result.text = string.Empty;

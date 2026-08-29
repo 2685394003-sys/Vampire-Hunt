@@ -5112,7 +5112,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ecdda20ad7cc418cbd21ade48e900af, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Shooter::Blocks.Gameplay.Shooter.ObjectPoolSystem
   networkPrefabs:
   - {fileID: 6863151210658857517, guid: 7edc5a31ca9821244a7b48077607fdb4, type: 3}
@@ -18854,6 +18854,10 @@ MonoBehaviour:
   spawnInterval: 1.5
   initialDelay: 1
   runSeed: 1337
+  bossPhaseSpawnRateMultiplier: 0.4
+  proximityMaxSpawnRateMultiplier: 1.5
+  proximityBoostRadius: 15
+  spawnMaxBossDistance: 45
   minimumPlayerDistance: 12
   maximumPlayerDistance: 20
   groundMask:
@@ -18893,7 +18897,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.GameManager
   isUsingMultiplayerServices: 0
   sessionSettings: {fileID: 11400000, guid: 0bf4e1684added44da254017c7fc41b2, type: 2}
-  sessionUI: {fileID: 0}
+  sessionUI: {fileID: 109008441}
   fadeDuration: 0.5
   respawnDelay: 5
   autoRespawn: 1

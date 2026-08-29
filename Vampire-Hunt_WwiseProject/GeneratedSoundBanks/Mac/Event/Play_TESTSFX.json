@@ -8,9 +8,9 @@
    {
     "Id": "2013398331",
     "Type": "Event",
-    "GUID": "{21ACE4C8-5BFE-4D82-95B8-507CA771FCA4}",
+    "GUID": "{37675D81-DD85-4B60-B8F2-A0DB2D46C722}",
     "Language": "SFX",
-    "Hash": "{B38C11A7-7326-A325-194C-A2DA599F55E8}",
+    "Hash": "{41EDA4F4-426A-D6B6-033A-CE5C4C43ED74}",
     "ObjectPath": "Play_TESTSFX",
     "ShortName": "Play_TESTSFX",
     "Path": "Event/Play_TESTSFX.bnk",
@@ -30,7 +30,7 @@
       "Id": "2013398331",
       "Name": "Play_TESTSFX",
       "ObjectPath": "\\Events\\Default Work Unit\\Play_TESTSFX",
-      "GUID": "{21ACE4C8-5BFE-4D82-95B8-507CA771FCA4}",
+      "GUID": "{37675D81-DD85-4B60-B8F2-A0DB2D46C722}",
       "DurationType": "OneShot",
       "DurationMin": "1.308254",
       "DurationMax": "1.308254",
@@ -43,6 +43,6 @@
     ]
    }
   ],
-  "FileHash": "{00B1F723-FB4F-4E96-31F9-074D9EC31B8F}"
+  "FileHash": "{4E9832A4-02FE-A6CA-8FAD-90AD3FECEDE2}"
  }
 }

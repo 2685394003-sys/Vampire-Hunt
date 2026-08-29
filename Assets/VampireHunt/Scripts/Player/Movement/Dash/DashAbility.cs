@@ -178,12 +178,7 @@ public class DashAbility : MonoBehaviour, IMovementAbility
                 .Create();
         }
 
-        if (dashStartSound != null)
-        {
-            CoreDirector.RequestAudio(dashStartSound)
-                .AttachedTo(m_Motor.transform)
-                .Play();
-        }
+        WwiseAudioBridge.PostEvent("Play_Player_Dash", m_Motor.gameObject);
     }
 
     private void EndDash()

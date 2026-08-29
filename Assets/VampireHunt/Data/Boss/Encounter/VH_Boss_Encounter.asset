@@ -33,14 +33,16 @@ MonoBehaviour:
   decelerationSeconds: 5
   bossMoveProximityRadius: 15
   bossMoveProximityMaxMultiplier: 1.4
-  spawnMinDistance: 16
-  spawnMaxDistance: 32
+  spawnMinDistance: 50
+  spawnMaxDistance: 60
   battleOrbitSwitchInterval: 3
   battleDesiredDistanceMin: 5
   battleDesiredDistanceMax: 9
   battleDistanceDriftInterval: 2
   battleDistanceSpring: 3
   bossHudShowDistance: 30
+  guardRegenDelaySeconds: 10
+  guardRegenPerSecond: 5
   staggerTriggerDistance: 6
   staggerEffectDuration: 3.2
   executionWindowDuration: 3
