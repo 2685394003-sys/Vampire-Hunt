@@ -42,6 +42,10 @@ namespace VampireHunt.Spawning
         [Tooltip("玩家距离 Boss 超过该距离后完全停止刷怪。")]
         [Min(1f)] [SerializeField] private float spawnMaxBossDistance = 45f;
 
+        [Header("Runtime Spawn Rate Multiplier (Debug)")]
+        [Tooltip("运行时刷怪倍率（监控面板滑条实时设置）。默认 1 = 不变；范围 0.1 ~ 20（上限 20 倍）。")]
+        [Range(0.1f, 20f)] public float runtimeSpawnRateMultiplier = 1f;
+
         [Header("Spawn Ring")]
         [Min(1f)] [SerializeField] private float minimumPlayerDistance = 12f;
         [Min(1f)] [SerializeField] private float maximumPlayerDistance = 20f;
@@ -108,9 +112,9 @@ namespace VampireHunt.Spawning
                 GetActiveSpawnCost() >= softSpawnBudget ||
                 Time.unscaledTime < m_NextSpawnTime) return;
 
-            // 刷怪速率倍率 = Boss 战衰减 × 距离 Boss 加成；实际间隔 = 基础间隔 ÷ 倍率
+            // 刷怪速率倍率 = Boss 战衰减 × 距离 Boss 加成 × 运行时倍率(滑条)；实际间隔 = 基础间隔 ÷ 倍率
             float phaseMultiplier = phase == RunPhase.Exploring ? 1f : bossPhaseSpawnRateMultiplier;
-            float rateMultiplier = phaseMultiplier * GetProximityMultiplier(manager);
+            float rateMultiplier = phaseMultiplier * GetProximityMultiplier(manager) * Mathf.Clamp(runtimeSpawnRateMultiplier, 0.1f, 20f);
             if (rateMultiplier <= 0f) return;  // 远离 Boss（>spawnMaxBossDistance）不刷怪
             float effectiveInterval = spawnInterval / Mathf.Max(0.001f, rateMultiplier);
             m_NextSpawnTime = Time.unscaledTime + effectiveInterval;

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc806d7881dc9754fa9c1c3e8b29c706, type: 3}
+  m_Name: AutoRifleAbility
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.ProjectileWeaponAbilityAsset
+  abilityId: 120
+  slot: 0
+  weaponTag: 512
+  damageMultiplier: 0.75
+  baseCooldown: 0.2
+  travelDistance: 15
+  projectileSpeed: 15
+  projectileSize: 0.8
+  projectileCount: 1
+  pierceCount: 7
+  spreadAngle: 4
+  spawnForwardOffset: 0.8
+  spawnHeight: 1
+  knockbackMultiplier: 0.5
+  element: 0
+  onHitStatuses: []

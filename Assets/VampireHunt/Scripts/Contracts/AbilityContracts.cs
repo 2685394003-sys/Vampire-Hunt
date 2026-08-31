@@ -54,6 +54,8 @@ namespace VampireHunt.Contracts
         public double Time { get; }
         public Float3 Origin { get; }
         public Float3 Forward { get; }
+        /// <summary>Mouse/aim ground point (world-space). Optional; abilities that lob projectiles use it as the target landing point.</summary>
+        public Float3 AimPoint { get; }
         public float Damage { get; }
         public float CooldownMultiplier { get; }
         public float RangeMultiplier { get; }
@@ -74,13 +76,15 @@ namespace VampireHunt.Contracts
             float criticalChance,
             float criticalDamageMultiplier,
             float knockback,
-            float random01)
+            float random01,
+            Float3 aimPoint = default)
         {
             Caster = caster;
             Sequence = sequence;
             Time = time;
             Origin = origin;
             Forward = forward;
+            AimPoint = aimPoint;
             Damage = Math.Max(0f, damage);
             CooldownMultiplier = Math.Max(0.05f, cooldownMultiplier);
             RangeMultiplier = Math.Max(0.1f, rangeMultiplier);

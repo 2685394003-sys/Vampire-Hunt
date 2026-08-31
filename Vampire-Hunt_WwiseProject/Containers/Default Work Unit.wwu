@@ -25,6 +25,28 @@
 						<ActiveSource Name="佐助大叫" ID="{C0D0944F-83CB-4A99-AA3B-0FD5EBCBBEA0}" Platform="Linked"/>
 					</ActiveSourceList>
 				</Sound>
+				<Sound Name="SFX_Enemy_Hurt" ID="{40CAF205-1266-49FB-AB49-F2C239876871}" ShortID="248045094">
+					<ReferenceList>
+						<Reference Name="Conversion">
+							<ObjectRef Name="Default Conversion Settings" ID="{6D1B890C-9826-4384-BF07-C15223E9FB56}" WorkUnitID="{34137E06-6A64-44DE-B332-BF0BE82D0D78}"/>
+						</Reference>
+						<Reference Name="OutputBus">
+							<ObjectRef Name="Main Audio Bus" ID="{1514A4D8-1DA6-412A-A17E-75CA0C2149F3}" WorkUnitID="{31222DEB-E65D-4E89-B730-AE2611A27FEF}"/>
+						</Reference>
+					</ReferenceList>
+					<ChildrenList>
+						<AudioFileSource Name="佐助大叫" ID="{D99BB2CB-0C6D-458F-BA51-E220D400E86F}">
+							<Language>SFX</Language>
+							<AudioFile>佐助大叫.wav</AudioFile>
+							<MediaIDList>
+								<MediaID ID="974171657"/>
+							</MediaIDList>
+						</AudioFileSource>
+					</ChildrenList>
+					<ActiveSourceList>
+						<ActiveSource Name="佐助大叫" ID="{D99BB2CB-0C6D-458F-BA51-E220D400E86F}" Platform="Linked"/>
+					</ActiveSourceList>
+				</Sound>
 			</ChildrenList>
 		</WorkUnit>
 	</Containers>

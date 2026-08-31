@@ -13,10 +13,12 @@ namespace VampireHunt.Player
     {
         [SerializeField] private AbilitySlot slot = AbilitySlot.Primary;
         [SerializeField] private GameEvent onActionPressed;
+        [SerializeField] private GameEvent onActionReleased;
         [SerializeField] private CombatAbilityHost abilityHost;
 
         private CorePlayerManager m_PlayerManager;
         private bool m_CombatEnabled = true;
+        private bool m_ActionHeld;
 
         public void Initialize(CorePlayerManager playerManager)
         {
@@ -36,15 +38,18 @@ namespace VampireHunt.Player
                 return;
             }
 
-            onActionPressed.RegisterListener(HandleAction);
+            onActionPressed.RegisterListener(HandleActionPressed);
+            if (onActionReleased != null) onActionReleased.RegisterListener(HandleActionReleased);
         }
 
         public void OnPlayerDespawn()
         {
-            if (m_PlayerManager != null && m_PlayerManager.IsOwner && onActionPressed != null)
+            if (m_PlayerManager != null && m_PlayerManager.IsOwner)
             {
-                onActionPressed.UnregisterListener(HandleAction);
+                if (onActionPressed != null) onActionPressed.UnregisterListener(HandleActionPressed);
+                if (onActionReleased != null) onActionReleased.UnregisterListener(HandleActionReleased);
             }
+            m_ActionHeld = false;
         }
 
         public void OnLifeStateChanged(PlayerLifeState previousState, PlayerLifeState newState)
@@ -52,10 +57,24 @@ namespace VampireHunt.Player
             m_CombatEnabled = newState != PlayerLifeState.Eliminated;
         }
 
-        private void HandleAction()
+        private void Update()
         {
+            // Hold-to-fire: while the action is held, keep requesting activation each frame.
+            // The ability's cooldown gates the actual fire rate (auto-rifle fires fast, sniper slow).
+            if (!m_ActionHeld || !IsSpawned || !IsOwner || !m_CombatEnabled) return;
+            abilityHost?.TryActivate(slot);
+        }
+
+        private void HandleActionPressed()
+        {
+            m_ActionHeld = true;
             if (!IsSpawned || !IsOwner || !m_CombatEnabled) return;
             abilityHost?.TryActivate(slot);
+        }
+
+        private void HandleActionReleased()
+        {
+            m_ActionHeld = false;
         }
     }
 }

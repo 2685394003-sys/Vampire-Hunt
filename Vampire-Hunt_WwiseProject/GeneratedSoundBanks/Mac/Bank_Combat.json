@@ -10,38 +10,24 @@
     "Type": "User",
     "GUID": "{59654FF1-33DF-459A-B654-F7DAC3131980}",
     "Language": "SFX",
-    "Hash": "{0F142602-5AD2-503D-B0F5-9D52A13E0D77}",
+    "Hash": "{6691D12D-C20C-3766-C78A-A707960D6E8C}",
     "ObjectPath": "\\SoundBanks\\Default Work Unit\\Bank_Combat",
     "ShortName": "Bank_Combat",
     "Path": "Bank_Combat.bnk",
-    "Media": [
-     {
-      "Id": "974171657",
-      "Language": "SFX",
-      "Streaming": "false",
-      "Location": "Memory",
-      "ShortName": "佐助大叫.wav",
-      "CachePath": "F1/{F1CA1CA6-2B53-0458-0B97-C2A75A25804C}.wem"
-     }
-    ],
     "Events": [
      {
       "Id": "2960920018",
       "Name": "Play_Enemy_Hurt",
       "ObjectPath": "\\Events\\Default Work Unit\\Play_Enemy_Hurt",
       "GUID": "{A97F90B7-0A18-4B57-B5B9-70E265A1088B}",
+      "MaxAttenuation": "0",
       "DurationType": "OneShot",
-      "DurationMin": "1.308254",
-      "DurationMax": "1.308254",
-      "MediaRefs": [
-       {
-        "Id": "974171657"
-       }
-      ]
+      "DurationMin": "0",
+      "DurationMax": "0"
      }
     ]
    }
   ],
-  "FileHash": "{336A37DF-A7E7-7B03-FFBF-F1B99AE13C8A}"
+  "FileHash": "{7AAB3060-6F9D-891B-8537-E7AE65943EF7}"
  }
 }

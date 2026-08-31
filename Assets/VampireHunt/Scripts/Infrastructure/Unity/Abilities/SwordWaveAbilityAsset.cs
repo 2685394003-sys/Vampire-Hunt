@@ -36,6 +36,10 @@ namespace VampireHunt.Infrastructure.Unity
         [Min(0f)] [SerializeField] private float spawnForwardOffset = 0.8f;
         [SerializeField] private float spawnHeight = 1f;
 
+        [Header("Knockback")]
+        [Tooltip("击退力倍率：最终击退力 = 全局击退力(KnockbackForce) × 此倍率，1 = 继承全局。")]
+        [Min(0f)] [SerializeField] private float knockbackMultiplier = 1f;
+
         [Header("Element and on-hit effects")]
         [SerializeField] private ElementId element;
         [SerializeField] private StatusEntry[] onHitStatuses = Array.Empty<StatusEntry>();
@@ -49,7 +53,7 @@ namespace VampireHunt.Infrastructure.Unity
             return new SwordWaveAbilityRuntime(new SwordWaveAbilityDefinition(
                 abilityId, slot, baseCooldown, travelDistance, projectileSpeed, projectileSize,
                 projectileCount, pierceCount, spreadAngle, spawnForwardOffset, spawnHeight,
-                element, specs));
+                knockbackMultiplier, element, specs));
         }
     }
 }

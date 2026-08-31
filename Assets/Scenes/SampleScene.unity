@@ -10269,7 +10269,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 629.80597
+      value: 600.1
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.y
@@ -10277,7 +10277,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 562.0287
+      value: 502.4
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalRotation.w
@@ -18849,8 +18849,8 @@ MonoBehaviour:
   enemyAffixState: {fileID: 1651709039}
   fallbackArchetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
   spawnCatalog: {fileID: 11400000, guid: 8b4c1f95eaff6f4458adefada95d1fc2, type: 2}
-  softEnemyCap: 20
-  softSpawnBudget: 20
+  softEnemyCap: 200
+  softSpawnBudget: 200
   spawnInterval: 1.5
   initialDelay: 1
   runSeed: 1337
@@ -18858,6 +18858,7 @@ MonoBehaviour:
   proximityMaxSpawnRateMultiplier: 1.5
   proximityBoostRadius: 15
   spawnMaxBossDistance: 45
+  runtimeSpawnRateMultiplier: 1
   minimumPlayerDistance: 12
   maximumPlayerDistance: 20
   groundMask:

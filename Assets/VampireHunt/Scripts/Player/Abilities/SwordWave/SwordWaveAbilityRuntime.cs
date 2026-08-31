@@ -16,6 +16,7 @@ namespace VampireHunt.Player.Abilities.SwordWave
         public float SpreadAngle { get; }
         public float SpawnForwardOffset { get; }
         public float SpawnHeight { get; }
+        public float KnockbackMultiplier { get; }
         public ElementId Element { get; }
         public StatusEffectSpec[] OnHitStatuses { get; }
 
@@ -31,6 +32,7 @@ namespace VampireHunt.Player.Abilities.SwordWave
             float spreadAngle,
             float spawnForwardOffset,
             float spawnHeight,
+            float knockbackMultiplier,
             ElementId element,
             StatusEffectSpec[] onHitStatuses)
         {
@@ -45,6 +47,7 @@ namespace VampireHunt.Player.Abilities.SwordWave
             SpreadAngle = Math.Max(0f, spreadAngle);
             SpawnForwardOffset = Math.Max(0f, spawnForwardOffset);
             SpawnHeight = spawnHeight;
+            KnockbackMultiplier = Math.Max(0f, knockbackMultiplier);
             Element = element;
             OnHitStatuses = onHitStatuses ?? Array.Empty<StatusEffectSpec>();
         }
@@ -95,7 +98,7 @@ namespace VampireHunt.Player.Abilities.SwordWave
                 Cooldown = cooldown,
                 TravelDistance = m_Definition.BaseTravelDistance * context.RangeMultiplier,
                 ProjectileSpeed = m_Definition.ProjectileSpeed,
-                Knockback = context.Knockback,
+                Knockback = context.Knockback * m_Definition.KnockbackMultiplier,
                 ProjectileSize = m_Definition.ProjectileSize,
                 ProjectileCount = m_Definition.ProjectileCount,
                 PierceCount = m_Definition.PierceCount,

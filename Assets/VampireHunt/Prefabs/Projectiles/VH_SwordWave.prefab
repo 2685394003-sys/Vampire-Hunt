@@ -208,12 +208,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.SwordWaveEffect
   ShowTopMostFoldoutHeaderGroup: 1
-  hitRadius: 0.65
+  hitRadius: 1.8
+  buildFanVisual: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
   defaultMaximumDistance: 12
   maximumLifetime: 2
+  pierceCost: {fileID: 11400000, guid: e07329a85e124839902c4d413fecdbe9, type: 2}
 --- !u!1 &820000000000000010
 GameObject:
   m_ObjectHideFlags: 0
@@ -242,7 +244,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2.2, y: 0.15, z: 0.45}
+  m_LocalScale: {x: 1, y: 0.15, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 820000000000000002}

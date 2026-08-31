@@ -70,8 +70,8 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
         // Get current stamina from stats system
         float currentStamina = m_StatsHandler.GetCurrentValue(StatKeys.Stamina);
 
-        // Check Stamina
-        if (currentStamina < staminaCost)
+        // Check Stamina（开发者控制台开启无限体力时跳过检查）
+        if (currentStamina < staminaCost && !m_StatsHandler.InfiniteStamina)
         {
             HandleInsufficientStamina();
             return;

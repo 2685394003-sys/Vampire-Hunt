@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 869ce5bcb0d4446f85f7f9123396028a, type: 3}
+  m_Name: CircleFieldAbility
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.CircleFieldAbilityAsset
+  abilityId: 160
+  slot: 2
+  weaponTag: 8192
+  baseDamageInheritRatio: 1
+  tickDamageMultiplier: 1
+  tickInterval: 0.5
+  radius: 4
+  heightOffset: 0.9
+  knockbackMultiplier: 0
+  buffTriggerCountMultiplier: 1
+  element: 0
+  onHitStatuses: []

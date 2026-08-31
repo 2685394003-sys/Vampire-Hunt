@@ -45,6 +45,12 @@ namespace VampireHunt.Infrastructure.Netcode
         public BossEncounterState State => m_Aggregate?.State ?? BossEncounterState.Dormant;
         public int StageNumber => m_Aggregate?.StageNumber ?? 1;
 
+        // 诊断/数值测试只读口：格挡条当前值与上限（直接映射服务器权威 aggregate，不提供任何写入路径）。
+        // 用途：玩家对 Boss 的伤害不走 ServerCombatResolutionRouter（见 BossVitalsReceiver），
+        // 监控插件只能靠"格挡条下降量"反推玩家对 Boss 的实打输出，用于武器单体 DPS 木桩测试。
+        public float GuardHealth => m_Aggregate?.GuardHealth ?? 0f;
+        public float MaxGuardHealth => m_Aggregate?.MaxGuardHealth ?? 0f;
+
         private void Awake()
         {
             if (stateReplicator == null) stateReplicator = GetComponent<BossEncounterStateReplicator>();

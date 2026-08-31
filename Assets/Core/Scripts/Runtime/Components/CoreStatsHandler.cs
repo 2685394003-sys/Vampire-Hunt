@@ -34,6 +34,12 @@ namespace Blocks.Gameplay.Core
         /// <summary>体力(Stamina)恢复速率倍率。默认 1f；玩家侧组件可设为 2f 等实现"脱战高速回体力"。</summary>
         public float StaminaRegenRateMultiplier { get; set; } = 1f;
 
+        /// <summary>开发者控制台：无限生命。开启后忽略一切 Health 扣减（受伤不掉血）。服务器权威端生效。</summary>
+        public bool InfiniteHealth { get; set; }
+
+        /// <summary>开发者控制台：无限体力。开启后体力消耗不再扣减（疾跑/冲刺无限用）。服务器权威端生效。</summary>
+        public bool InfiniteStamina { get; set; }
+
         [Header("Regeneration")]
         [Tooltip("冲刺(dash)一次性消耗体力后，恢复的延迟秒数。独立于 StatDefinition 的 regenDelay，用于「冲刺后 0.2s 才恢复」。")]
         [SerializeField] private float dashStaminaRegenDelay = 0.2f;
@@ -275,6 +281,9 @@ namespace Blocks.Gameplay.Core
         {
             if (!HasStatAuthority || amount <= 0f) return amount <= 0f;
 
+            // 开发者控制台：无限体力 —— 体力视为无限，消耗直接成功
+            if (InfiniteStamina && statHash == StatKeys.Stamina) return true;
+
             int statIndex = FindStatIndex(statHash);
             if (statIndex == -1)
             {
@@ -308,6 +317,9 @@ namespace Blocks.Gameplay.Core
         {
             if (!HasStatAuthority || amount <= 0f) return amount <= 0f;
 
+            // 开发者控制台：无限体力 —— 疾跑持续消耗视为成功（不扣减、不打断恢复）
+            if (InfiniteStamina) return true;
+
             int statIndex = FindStatIndex(StatKeys.Stamina);
             if (statIndex == -1)
             {
@@ -324,6 +336,9 @@ namespace Blocks.Gameplay.Core
         private void ConsumeDashStaminaOnAuthority(float amount, ulong sourcePlayerId)
         {
             if (!HasStatAuthority || amount <= 0f) return;
+
+            // 开发者控制台：无限体力 —— 冲刺不扣体力（也不记录恢复延迟）
+            if (InfiniteStamina) return;
 
             int statIndex = FindStatIndex(StatKeys.Stamina);
             if (statIndex == -1) return;
@@ -572,6 +587,14 @@ namespace Blocks.Gameplay.Core
             var stat = m_RuntimeStats[index];
             if (m_StatDefinitions.TryGetValue(stat.StatHash, out var def))
             {
+                // 开发者控制台：无限生命/无限体力 —— 忽略一切扣减（正向修改照常）
+                if (amount < 0f &&
+                    ((InfiniteHealth && stat.StatHash == StatKeys.Health) ||
+                     (InfiniteStamina && stat.StatHash == StatKeys.Stamina)))
+                {
+                    return;
+                }
+
                 stat.CurrentValue = Mathf.Clamp(stat.CurrentValue + amount, def.minValue, stat.MaxValue);
                 stat.SourcePlayerId = sourcePlayerId;
                 stat.SourceType = sourceType;

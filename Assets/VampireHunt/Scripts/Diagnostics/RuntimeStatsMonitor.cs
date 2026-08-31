@@ -12,6 +12,7 @@ using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Systems;
 using VampireHunt.Boss.Encounter;
+using VampireHunt.Spawning;
 
 namespace VampireHunt.Diagnostics
 {
@@ -42,6 +43,9 @@ namespace VampireHunt.Diagnostics
     ///     副契状态为场景级服务器权威，Host/单机模式可正常接收；纯客户端（非 Host）收不到副契快照，属已知限制。
     ///   - 对「菜单暂停」感知：打开血契/商店菜单时（MenuPauseController 冻结模拟），本插件不推进本局计时与滚动窗口，
     ///     导出的每分钟速率仅统计纯游戏内时间，不会被暂停思考/阅读菜单的时间稀释。
+    ///   - 刷怪倍率滑条：面板顶部滑条实时乘到 EnemySpawnDirector 刷怪速率上（0.1 ~ 20 倍），并把每次调整（时间点+倍率）写入 CSV 第 6 段。
+    ///   - 武器切换记录：每帧轮询玩家 CombatAbilityHost.ActiveWeaponId，切换时记录（时间点+武器），写入 CSV 第 5 段。
+    ///   - 导出文件命名：日期+时间精确到分钟（yyyyMMdd_HHmm）。
     /// </summary>
     public sealed class RuntimeStatsMonitor : MonoBehaviour, IServerCombatResolutionListener
     {
@@ -59,6 +63,8 @@ namespace VampireHunt.Diagnostics
         private readonly int[] m_KillBuckets = new int[BucketCount];
         private readonly float[] m_ScarletBuckets = new float[BucketCount];
         private readonly float[] m_CoinBuckets = new float[BucketCount];
+        // 对 Boss 输出（格挡条下降量）滚动窗口：Boss 伤害不走结算路由，需单独采样统计
+        private readonly float[] m_BossDamageBuckets = new float[BucketCount];
         private int m_BucketHead;
         private float m_BucketTimer;
 
@@ -67,6 +73,8 @@ namespace VampireHunt.Diagnostics
         private int m_TotalKills;
         private float m_TotalScarlet;
         private float m_TotalCoin;
+        // 对 Boss 累计输出（由格挡条下降量反推；不含破防后打本体血的部分）
+        private float m_TotalBossDamage;
         // 本局「游戏内」已流逝时间（秒），暂停期间不推进 → 速率统计不含菜单暂停时间
         private float m_SessionElapsed;
         private bool m_SessionStarted;
@@ -88,6 +96,7 @@ namespace VampireHunt.Diagnostics
         private float m_SnapScarlet;
         private float m_SnapDamage;
         private float m_SnapCoin;
+        private float m_SnapBossDamage;
         private string m_LastExportMsg = "";
         private Vector2 m_Scroll; // 监控信息区滚动状态，避免信息过多把按钮顶出可视区
 
@@ -115,8 +124,38 @@ namespace VampireHunt.Diagnostics
         private float m_BossStageStartTime;       // 该阶段战开始时间（游戏内秒）
         private readonly List<BossStageFight> m_BossStageFights = new List<BossStageFight>();
 
+        // Boss 格挡条采样（对 Boss 输出 = 格挡条下降量；上升=回盾/重载，忽略）
+        private float m_BossGuardLast;            // 上一帧格挡条值
+        private bool m_BossGuardPrimed;           // 是否已建立基线（首次采样/换阶段时需重置基线）
+        private int m_BossGuardStage;             // 建立基线时的阶段号（换阶段时格挡条会重载，需重置基线）
+        private float m_BossGuardCurrent;         // 当前格挡条值（面板/CSV 显示用）
+        private float m_BossGuardMax;             // 当前阶段格挡条上限
+
+        // 武器切换记录（每次玩家切换主武器；timeSec=游戏内秒，与血契/副契同一时间轴）
+        private CombatAbilityHost m_AbilityHost;
+        private uint m_LastWeaponId;
+        private uint m_InitialWeaponId;   // 开局时手上那把武器（用于 CSV「各武器生效段效率」段 0 的命名）
+        private bool m_WeaponInitialized;
+        private readonly List<WeaponSwitch> m_WeaponSwitches = new List<WeaponSwitch>();
+
+        // 刷怪倍率调整记录（监控面板滑条实时调；multiplier=调整后倍率，1=默认）
+        private EnemySpawnDirector m_SpawnDirector;
+        private float m_SpawnRateMultiplier = 1f;
+        private readonly List<SpawnRateChange> m_SpawnRateChanges = new List<SpawnRateChange>();
+
         // 缓存的粗体样式（默认 GUISkin 没有 boldLabel 字段，运行时构造一次复用）
         private static GUIStyle s_BoldLabel;
+
+        // 武器 id → 显示名（与速查表 6.1 一致；新增武器时需在此补充）
+        private static readonly Dictionary<uint, string> s_WeaponNames = new Dictionary<uint, string>
+        {
+            { 1, "扇形剑气" },
+            { 110, "狙击枪" },
+            { 120, "自动步枪" },
+            { 130, "导弹" },
+            { 140, "激光" },
+            { 150, "火焰喷射器" },
+        };
 
         // 单次血契选择：selectionIndex=第几次；timeSec=游戏开始后秒；stacksAfter=选完后层数
         private struct PactChoice
@@ -148,7 +187,23 @@ namespace VampireHunt.Diagnostics
             public string result;   // "defeated"=阶段清空进入下一场 / "final"=最终击败(通关) / "aborted"=异常中断(如 boss 物体卸载) / "ongoing"=导出时仍在进行
         }
 
+        // 单次武器切换：timeSec=游戏开始后秒；weaponId=切换到的武器id；weaponName=武器名
+        private struct WeaponSwitch
+        {
+            public int timeSec;
+            public uint weaponId;
+            public string weaponName;
+        }
+
+        // 单次刷怪倍率调整：timeSec=游戏开始后秒；multiplier=调整后倍率（1=默认不变）
+        private struct SpawnRateChange
+        {
+            public int timeSec;
+            public float multiplier;
+        }
+
         // 逐秒样本：second = 游戏开始后经过的整秒；*Cum = 累计值；*Delta = 该秒增量
+        // bossGuard = 该秒末 Boss 格挡条当前值（木桩测试看剩余量）；bossDmg* = 对 Boss 输出（格挡条下降量）
         private struct SessionSample
         {
             public int second;
@@ -160,6 +215,9 @@ namespace VampireHunt.Diagnostics
             public float scarletDelta;
             public float damageDelta;
             public float coinDelta;
+            public float bossGuard;
+            public float bossDmgCum;
+            public float bossDmgDelta;
         }
 
         #region IServerCombatResolutionListener
@@ -205,6 +263,9 @@ namespace VampireHunt.Diagnostics
             // 每帧轮询其 State / StageNumber，记录每阶段从进入 Battle 到清空（PhaseTransition 或 Defeated）的用时。
             TryWireBoss();
             PollBoss();
+            // 刷怪倍率滑条对应的 EnemySpawnDirector 绑定 + 当前主武器轮询（武器切换 / 刷怪倍率调整记录）
+            TryWireSpawnDirector();
+            PollWeapon();
 
             // 滚动窗口推进：用真实时间，但「菜单暂停」期间冻结（不推进计时与滚动桶），
             // 这样导出的每分钟速率不会被暂停思考/阅读菜单的时间稀释。
@@ -244,6 +305,8 @@ namespace VampireHunt.Diagnostics
             {
                 if (m_ResolutionHost != null) m_ResolutionHost.UnregisterCombatResolutionListener(this);
                 if (m_PactState != null) m_PactState.PactChanged -= OnPactChanged;
+                m_AbilityHost = null;
+                m_WeaponInitialized = false;
                 m_Wired = false;
             }
 
@@ -253,6 +316,8 @@ namespace VampireHunt.Diagnostics
                 m_CoreStats = stats;
                 m_PactState = pactState;
                 m_PlayerObject = player;
+                m_AbilityHost = player.GetComponent<CombatAbilityHost>();
+                m_WeaponInitialized = false;
                 m_LastScarlet = stats.GetCurrentValue(StatKeys.Scarlet);
                 m_LastCoin = stats.GetCurrentValue(StatKeys.Coin);
                 if (m_PactCatalog == null)
@@ -326,6 +391,54 @@ namespace VampireHunt.Diagnostics
             }
         }
 
+        // 绑定 EnemySpawnDirector（场景组件，服务器权威刷怪入口）。可能晚于监控生成，每帧尝试绑定；
+        // 首次绑定时把监控面板当前滑条倍率同步进去，避免滑条在 director 生成前调了却未生效。
+        private void TryWireSpawnDirector()
+        {
+            if (m_SpawnDirector != null) return;
+            m_SpawnDirector = FindAnyObjectByType<EnemySpawnDirector>();
+            if (m_SpawnDirector != null)
+            {
+                m_SpawnDirector.runtimeSpawnRateMultiplier = m_SpawnRateMultiplier;
+            }
+        }
+
+        // 每帧轮询当前主武器 id，检测到变化则记录一次「武器切换」（与血契/副契同一游戏内时间轴）。
+        private void PollWeapon()
+        {
+            if (!m_Wired || m_AbilityHost == null) return;
+            uint current = m_AbilityHost.ActiveWeaponId;
+            if (!m_WeaponInitialized)
+            {
+                m_LastWeaponId = current;
+                m_InitialWeaponId = current;
+                m_WeaponInitialized = true;
+                return;
+            }
+            if (current == m_LastWeaponId) return;
+            m_LastWeaponId = current;
+            int sec = m_SessionStarted ? (int)m_SessionElapsed : 0;
+            string name = GetWeaponName(current);
+            m_WeaponSwitches.Add(new WeaponSwitch { timeSec = sec, weaponId = current, weaponName = name });
+            Debug.Log($"[StatsMonitor] 切换武器: {name} (id={current}) @ {sec}s");
+        }
+
+        // 滑条调整刷怪倍率：立即同步到 EnemySpawnDirector 并记录一次调整（供 CSV 分析）。
+        private void ApplySpawnRateMultiplier(float multiplier)
+        {
+            multiplier = Mathf.Clamp(multiplier, 0.1f, 20f);
+            if (m_SpawnDirector != null) m_SpawnDirector.runtimeSpawnRateMultiplier = multiplier;
+            int sec = m_SessionStarted ? (int)m_SessionElapsed : 0;
+            m_SpawnRateChanges.Add(new SpawnRateChange { timeSec = sec, multiplier = multiplier });
+            Debug.Log($"[StatsMonitor] 刷怪倍率调整为 x{multiplier:F1} @ {sec}s");
+        }
+
+        // 武器 id → 显示名（未知 id 回退到数字）
+        private static string GetWeaponName(uint weaponId)
+        {
+            return s_WeaponNames.TryGetValue(weaponId, out string name) ? name : $"武器 {weaponId}";
+        }
+
         // 绑定 BossEncounterDirector（服务器权威；整局一个实例，3 阶段共用同一物体）。可能晚于监控生成，每帧尝试绑定。
         private void TryWireBoss()
         {
@@ -345,11 +458,16 @@ namespace VampireHunt.Diagnostics
                 // boss 物体已卸载：若正在计时则记为异常中断
                 if (m_BossStageBattleActive) FinalizeBossStage("aborted");
                 m_BossDirector = null;
+                m_BossGuardPrimed = false;
+                m_BossGuardCurrent = 0f;
                 return;
             }
 
             BossEncounterState state = m_BossDirector.State;
             int stage = m_BossDirector.StageNumber;
+
+            // 采样格挡条 → 反推本帧玩家对 Boss 的输出（必须在下面的状态判断 return 之前执行）
+            SampleBossGuard(stage);
 
             if (!m_BossStageBattleActive)
             {
@@ -371,6 +489,36 @@ namespace VampireHunt.Diagnostics
             {
                 FinalizeBossStage(state == BossEncounterState.Defeated ? "final" : "defeated");
             }
+        }
+
+        // 每帧采样 Boss 格挡条：把「下降量」计为玩家对 Boss 的有效输出。
+        // 只认下降、不认上升 —— 格挡条上升有 3 种来源（脱战回盾 GuardRegenPerSecond / 换阶段重载 LoadStage /
+        // 玩家死亡重置 ResetToRoaming），都不是玩家伤害，若按差值直接累加会出现负伤害。
+        // 换阶段时格挡条整条重载，必须重置基线，否则会把"上限变化"误算成巨额伤害。
+        private void SampleBossGuard(int stage)
+        {
+            if (m_BossDirector == null) return;
+            float guard = m_BossDirector.GuardHealth;
+            m_BossGuardMax = m_BossDirector.MaxGuardHealth;
+
+            if (!m_BossGuardPrimed || stage != m_BossGuardStage)
+            {
+                // 首次采样 / 换阶段：建立新基线，本帧不计伤害
+                m_BossGuardLast = guard;
+                m_BossGuardPrimed = true;
+                m_BossGuardStage = stage;
+                m_BossGuardCurrent = guard;
+                return;
+            }
+
+            float loss = m_BossGuardLast - guard;
+            if (loss > 0f)
+            {
+                m_TotalBossDamage += loss;
+                m_BossDamageBuckets[m_BucketHead] += loss;
+            }
+            m_BossGuardLast = guard;
+            m_BossGuardCurrent = guard;
         }
 
         private void FinalizeBossStage(string result)
@@ -397,6 +545,8 @@ namespace VampireHunt.Diagnostics
             m_DamageBuckets[m_BucketHead] = 0f;
             m_KillBuckets[m_BucketHead] = 0;
             m_ScarletBuckets[m_BucketHead] = 0f;
+            m_CoinBuckets[m_BucketHead] = 0f;      // 修复：原先漏清魔币桶，导致"每分钟魔币"实际是累计魔币
+            m_BossDamageBuckets[m_BucketHead] = 0f;
 
             // 在桶切换时采样猩红增量（只计正向流入 = 获取量）
             if (m_Wired && m_CoreStats != null)
@@ -441,11 +591,15 @@ namespace VampireHunt.Diagnostics
                         scarletDelta = m_TotalScarlet - m_SnapScarlet,
                         damageDelta = m_TotalDamage - m_SnapDamage,
                         coinDelta = m_TotalCoin - m_SnapCoin,
+                        bossGuard = m_BossGuardCurrent,
+                        bossDmgCum = m_TotalBossDamage,
+                        bossDmgDelta = m_TotalBossDamage - m_SnapBossDamage,
                     });
                     m_SnapKills = m_TotalKills;
                     m_SnapScarlet = m_TotalScarlet;
                     m_SnapDamage = m_TotalDamage;
                     m_SnapCoin = m_TotalCoin;
+                    m_SnapBossDamage = m_TotalBossDamage;
                     m_LastSnapshotSecond = sec;
                 }
             }
@@ -501,6 +655,7 @@ namespace VampireHunt.Diagnostics
         private int RollingKills => Sum(m_KillBuckets);        // 最近 60s 击杀数 = 每分钟击杀
         private float RollingScarlet => Sum(m_ScarletBuckets); // 最近 60s 获取猩红 = 每分钟获取
         private float RollingCoin => Sum(m_CoinBuckets);     // 最近 60s 获取魔币 = 每分钟获取
+        private float RollingBossDamage => Sum(m_BossDamageBuckets); // 最近 60s 对 Boss 输出 = 每分钟对 Boss 输出（格挡条下降量）
 
         private double ElapsedMinutes => m_SessionStarted ? m_SessionElapsed / 60d : 0d;
 
@@ -544,6 +699,18 @@ namespace VampireHunt.Diagnostics
             if (!string.IsNullOrEmpty(m_LastExportMsg))
             {
                 GUILayout.Label(m_LastExportMsg);
+            }
+
+            // —— 刷怪倍率滑条（实时乘到 EnemySpawnDirector 刷怪速率上；范围 0.1 ~ 20 倍）——
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"刷怪倍率 x{m_SpawnRateMultiplier:F1}", GUILayout.Width(130));
+            float rawMult = GUILayout.HorizontalSlider(m_SpawnRateMultiplier, 0.1f, 20f);
+            GUILayout.EndHorizontal();
+            float quantizedMult = Mathf.Round(rawMult * 10f) / 10f;
+            if (!Mathf.Approximately(quantizedMult, m_SpawnRateMultiplier))
+            {
+                m_SpawnRateMultiplier = quantizedMult;
+                ApplySpawnRateMultiplier(quantizedMult);
             }
 
             if (!m_Wired)
@@ -599,6 +766,28 @@ namespace VampireHunt.Diagnostics
             {
                 GUILayout.Label($"Boss战 进行中: 阶段 {m_BossObservedStage} 已 {m_SessionElapsed - m_BossStageStartTime:F1}s…");
             }
+            // 对 Boss 输出（格挡条）：木桩测试主读数 —— bossDmg 是"格挡条下降量"，破防进入 Battle 后不再统计
+            if (m_BossDirector != null && m_BossGuardPrimed)
+            {
+                float avgBoss = min > 0d ? m_TotalBossDamage / (float)min : 0f;
+                GUILayout.Label($"Boss格挡 {m_BossGuardCurrent:F0}/{m_BossGuardMax:F0} | 对Boss输出 滚动 {RollingBossDamage:F0}/分 | 累计 {m_TotalBossDamage:F0} | 均值 {avgBoss:F0}/分");
+            }
+
+            // 当前武器 + 武器切换 / 刷怪倍率调整记录
+            if (m_AbilityHost != null)
+            {
+                GUILayout.Label($"当前武器: {GetWeaponName(m_AbilityHost.ActiveWeaponId)} (id={m_AbilityHost.ActiveWeaponId})");
+            }
+            if (m_WeaponSwitches.Count > 0)
+            {
+                var lastW = m_WeaponSwitches[m_WeaponSwitches.Count - 1];
+                GUILayout.Label($"武器切换 {m_WeaponSwitches.Count} 次 | 最近: {lastW.weaponName} @{lastW.timeSec}s");
+            }
+            if (m_SpawnRateChanges.Count > 0)
+            {
+                var lastR = m_SpawnRateChanges[m_SpawnRateChanges.Count - 1];
+                GUILayout.Label($"刷怪倍率调整 {m_SpawnRateChanges.Count} 次 | 最近: x{lastR.multiplier:F1} @{lastR.timeSec}s");
+            }
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
@@ -614,6 +803,7 @@ namespace VampireHunt.Diagnostics
                           $"kill={m_TotalKills}({RollingKills}/min,{m_TotalKills / Math.Max(min, 1e-3):F1}avg) | " +
                           $"scarlet={m_TotalScarlet:F0}({RollingScarlet:F0}/min) | " +
                           $"coin={m_TotalCoin:F0}(bal={coinBal:F0},{RollingCoin:F0}/min) | " +
+                          $"bossDmg={m_TotalBossDamage:F0}({RollingBossDamage:F0}/min,guard={m_BossGuardCurrent:F0}/{m_BossGuardMax:F0}) | " +
                           $"dmg={m_TotalDamage:F0}({RollingDamage:F0}/min) | " +
                           $"scarlet/kill={(m_TotalKills > 0 ? m_TotalScarlet / m_TotalKills : 0):F2}";
             Debug.Log(line);
@@ -621,7 +811,7 @@ namespace VampireHunt.Diagnostics
             {
                 string dir = ResolveExportDir();
                 Directory.CreateDirectory(dir);
-                string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string stamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
                 string path = dir + "/StatsSummary_" + stamp + ".txt";
                 File.WriteAllText(path, line, new UTF8Encoding(true));
                 Debug.Log($"[StatsMonitor] 摘要已保存: {path}");
@@ -653,47 +843,51 @@ namespace VampireHunt.Diagnostics
             {
                 string dir = ResolveExportDir();
                 Directory.CreateDirectory(dir);
-                string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string stamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
                 string path = dir + "/StatsExport_" + stamp + ".csv";
 
                 var sb = new StringBuilder();
                 // 第 1 段：逐秒原始数据（从游戏开始到导出时刻）
-                sb.AppendLine("# 逐秒监控 (t_sec=游戏开始后整秒; *_cum=累计; *_delta=该秒增量)");
-                sb.AppendLine("t_sec,kills_cum,scarlet_cum,damage_cum,coin_cum,kills_delta,scarlet_delta,damage_delta,coin_delta");
+                sb.AppendLine("# 逐秒监控 (t_sec=游戏开始后整秒; *_cum=累计; *_delta=该秒增量; boss_guard=该秒末Boss格挡条当前值; boss_dmg_*=对Boss输出,由格挡条下降量反推)");
+                sb.AppendLine("t_sec,kills_cum,scarlet_cum,damage_cum,coin_cum,kills_delta,scarlet_delta,damage_delta,coin_delta,boss_guard,boss_dmg_cum,boss_dmg_delta");
                 for (int i = 0; i < m_History.Count; i++)
                 {
                     var s = m_History[i];
-                    sb.AppendLine($"{s.second},{s.killsCum},{s.scarletCum:F0},{s.damageCum:F0},{s.coinCum:F0},{s.killDelta},{s.scarletDelta:F0},{s.damageDelta:F0},{s.coinDelta:F0}");
+                    sb.AppendLine($"{s.second},{s.killsCum},{s.scarletCum:F0},{s.damageCum:F0},{s.coinCum:F0},{s.killDelta},{s.scarletDelta:F0},{s.damageDelta:F0},{s.coinDelta:F0},{s.bossGuard:F0},{s.bossDmgCum:F0},{s.bossDmgDelta:F0}");
                 }
 
                 // 第 2 段：每分钟汇总（直接对应原 KPI：每分钟击杀/猩红/输出/魔币）
                 sb.AppendLine();
-                sb.AppendLine("# 每分钟汇总 (minute=第几分钟; *_in_min=该分钟增量)");
-                sb.AppendLine("minute,kills_in_min,scarlet_in_min,damage_in_min,coin_in_min,kills_cum,scarlet_cum,damage_cum,coin_cum");
+                sb.AppendLine("# 每分钟汇总 (minute=第几分钟; *_in_min=该分钟增量; boss_dmg_in_min=该分钟对Boss输出/格挡条下降量)");
+                sb.AppendLine("minute,kills_in_min,scarlet_in_min,damage_in_min,coin_in_min,boss_dmg_in_min,kills_cum,scarlet_cum,damage_cum,coin_cum,boss_dmg_cum");
                 var mk = new Dictionary<int, int>();
                 var ms = new Dictionary<int, float>();
                 var md = new Dictionary<int, float>();
                 var mc = new Dictionary<int, float>();
+                var mb = new Dictionary<int, float>();
                 var mkc = new Dictionary<int, int>();
                 var msc = new Dictionary<int, float>();
                 var mdc = new Dictionary<int, float>();
                 var mcc = new Dictionary<int, float>();
+                var mbc = new Dictionary<int, float>();
                 foreach (var s in m_History)
                 {
                     int m = s.second / 60;
-                    if (!mk.ContainsKey(m)) { mk[m] = 0; ms[m] = 0f; md[m] = 0f; mc[m] = 0f; }
+                    if (!mk.ContainsKey(m)) { mk[m] = 0; ms[m] = 0f; md[m] = 0f; mc[m] = 0f; mb[m] = 0f; }
                     mk[m] += s.killDelta;
                     ms[m] += s.scarletDelta;
                     md[m] += s.damageDelta;
                     mc[m] += s.coinDelta;
+                    mb[m] += s.bossDmgDelta;
                     mkc[m] = s.killsCum;
                     msc[m] = s.scarletCum;
                     mdc[m] = s.damageCum;
                     mcc[m] = s.coinCum;
+                    mbc[m] = s.bossDmgCum;
                 }
                 foreach (int m in mk.Keys.OrderBy(k => k))
                 {
-                    sb.AppendLine($"{m},{mk[m]},{ms[m]:F0},{md[m]:F0},{mc[m]:F0},{mkc[m]},{msc[m]:F0},{mdc[m]:F0},{mcc[m]:F0}");
+                    sb.AppendLine($"{m},{mk[m]},{ms[m]:F0},{md[m]:F0},{mc[m]:F0},{mb[m]:F0},{mkc[m]},{msc[m]:F0},{mdc[m]:F0},{mcc[m]:F0},{mbc[m]:F0}");
                 }
 
                 // 第 3 段：血契选择记录（第几次 / 游戏内时间点 / 选了哪个）
@@ -796,6 +990,55 @@ namespace VampireHunt.Diagnostics
                     float curDur = curEnd - m_BossStageStartTime;
                     if (curDur < 0f) curDur = 0f;
                     sb.AppendLine($"{m_BossObservedStage},{m_BossStageStartTime:F0},{curEnd},{curDur:F1},ongoing");
+                }
+
+                // 第 5 段：武器切换记录（第几次 / 游戏内时间点 / 切换成了哪把武器）
+                sb.AppendLine();
+                sb.AppendLine("# 武器切换记录 (switch=第几次; t_sec=游戏开始后秒; weapon_id=武器id; weapon_name=武器名)");
+                sb.AppendLine("switch,t_sec,weapon_id,weapon_name");
+                for (int i = 0; i < m_WeaponSwitches.Count; i++)
+                {
+                    var w = m_WeaponSwitches[i];
+                    sb.AppendLine($"{i + 1},{w.timeSec},{w.weaponId},\"{w.weaponName}\"");
+                }
+
+                // 第 5b 段：各武器生效段效率（段0=开局武器；段i=第i次切换后到下次切换前；末段到导出时刻）
+                // boss_dmg_per_min = 对 Boss 输出（格挡条下降量）每分钟 —— Boss 木桩测「对单 DPS」的主读数
+                sb.AppendLine();
+                sb.AppendLine("# 各武器生效段效率 (segment: 0=开局武器, 1=第1次切换后, 2=第2次切换后 …; 末段到导出时刻; boss_dmg=对Boss输出(格挡条下降量))");
+                sb.AppendLine("segment,weapon_name,t_start,t_end,seconds,kills,damage,boss_dmg,kills_per_min,damage_per_min,boss_dmg_per_min");
+                var wbounds = new List<int> { 0 };
+                for (int i = 0; i < m_WeaponSwitches.Count; i++) wbounds.Add(m_WeaponSwitches[i].timeSec);
+                int wendT = m_History.Count > 0 ? m_History[m_History.Count - 1].second : 0;
+                for (int s = 0; s < wbounds.Count; s++)
+                {
+                    int startT = wbounds[s];
+                    int endSeg = (s + 1 < wbounds.Count) ? wbounds[s + 1] : wendT;
+                    if (endSeg <= startT) endSeg = startT + 1;
+                    string segName = s == 0 ? GetWeaponName(m_InitialWeaponId) : m_WeaponSwitches[s - 1].weaponName;
+                    int k = 0; float d = 0f; float bd = 0f;
+                    for (int i = 0; i < m_History.Count; i++)
+                    {
+                        var h = m_History[i];
+                        if (h.second >= startT && h.second < endSeg)
+                        {
+                            k += h.killDelta;
+                            d += h.damageDelta;
+                            bd += h.bossDmgDelta;
+                        }
+                    }
+                    int dur = endSeg - startT;
+                    sb.AppendLine($"{s},\"{segName}\",{startT},{endSeg},{dur},{k},{d:F0},{bd:F0},{k * 60f / dur:F1},{d * 60f / dur:F0},{bd * 60f / dur:F0}");
+                }
+
+                // 第 6 段：刷怪倍率调整记录（第几次 / 游戏内时间点 / 调整为多少倍）
+                sb.AppendLine();
+                sb.AppendLine("# 刷怪倍率调整记录 (adj=第几次; t_sec=游戏开始后秒; multiplier=调整后倍率, 1=默认)");
+                sb.AppendLine("adj,t_sec,multiplier");
+                for (int i = 0; i < m_SpawnRateChanges.Count; i++)
+                {
+                    var c = m_SpawnRateChanges[i];
+                    sb.AppendLine($"{i + 1},{c.timeSec},{c.multiplier:F1}");
                 }
 
                 File.WriteAllText(path, sb.ToString(), new UTF8Encoding(true));
