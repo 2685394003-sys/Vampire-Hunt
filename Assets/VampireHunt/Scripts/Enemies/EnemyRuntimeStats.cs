@@ -139,6 +139,18 @@ namespace VampireHunt.Enemies
             }
         }
 
+        /// <summary>
+        /// 直接乘一个纯倍率（不分层数、不走副契通道）。用于局内时间驱动的全局缩放，
+        /// 与 <see cref="Add"/> 累积的副契加成相乘而非相加。
+        /// </summary>
+        public void AddMultiplier(EnemyStat stat, float multiplier)
+        {
+            int index = (int)stat;
+            if (index < 0 || index >= (int)EnemyStat.Count) return;
+            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier)) return;
+            m_Multiplicative[index] *= Math.Max(0f, multiplier);
+        }
+
         public EnemyRuntimeStats Build()
         {
             return new EnemyRuntimeStats(

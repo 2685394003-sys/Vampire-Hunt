@@ -28,7 +28,7 @@ namespace VampireHunt.Infrastructure.Integration
     /// 视觉 GameObject 目前由服务器 Instantiate，联机时其他客户端暂时看不到（既有约定，待补网络同步）。
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class ImpactFamiliarController : MonoBehaviour, IServerCombatResolutionListener
+    public sealed class ImpactFamiliarController : MonoBehaviour, IServerCombatResolutionListener, IFamiliarPactTarget
     {
         private const float EnemyScanInterval = 0.2f;
 
@@ -94,6 +94,17 @@ namespace VampireHunt.Infrastructure.Integration
         private bool m_Composed;
         private ulong m_Sequence;
         private float m_ScanTimer;
+
+        // ── 血契调制注册（IFamiliarPactTarget，7xxx 撞击使魔）──
+        // 各契模块运行时以自身为 source 注册/注销；任何变更都会触发 RecomputeFromPactScales()
+        // （从资产基线重建定义并把全部契因子乘/加上去 → 重建使魔群）。
+        private readonly Dictionary<object, float> m_DamageScales = new Dictionary<object, float>();
+        private readonly Dictionary<object, float> m_IntervalScales = new Dictionary<object, float>();
+        private readonly Dictionary<object, int> m_CountAdds = new Dictionary<object, int>();
+        private object m_ElementSource;
+        private ElementId m_OverrideElement = ElementId.None;
+        private StatusEffectSpec[] m_OverrideStatuses = System.Array.Empty<StatusEffectSpec>();
+        private float m_ElementStackEff = 1f;
 
         // ── 指针跟随状态 ──
         private Vector3 m_OrbitCenter;
@@ -297,6 +308,104 @@ namespace VampireHunt.Infrastructure.Integration
                 current.VisualScale, current.StretchFactor);
             RebuildStatuses();
             RebuildBrains();
+        }
+
+        // ── 血契调制端口实现（IFamiliarPactTarget，供 7xxx 契模块调用）────────
+
+        public FamiliarKind Kind => FamiliarKind.Impact;
+
+        /// <summary>召唤（7001）：激活撞击使魔群。仅一次、永久；重复调用幂等。</summary>
+        public void ActivateFamiliar() => SetActive(true);
+
+        public void RegisterDamageScale(object source, float factor)
+        {
+            m_DamageScales[source] = Mathf.Max(0f, factor);
+            RecomputeFromPactScales();
+        }
+
+        public void RegisterIntervalScale(object source, float factor)
+        {
+            m_IntervalScales[source] = Mathf.Max(0f, factor);
+            RecomputeFromPactScales();
+        }
+
+        public void RegisterCountAdd(object source, int add)
+        {
+            m_CountAdds[source] = add;
+            RecomputeFromPactScales();
+        }
+
+        /// <summary>撞击使魔无武器档位（契数据保证 7xxx 不含档位契）；no-op。</summary>
+        public void SetWeaponTier(object source, int weaponTier) { }
+
+        public void ConvertElement(object source, ElementId element, uint statusId,
+            int statusStacks, float statusDuration, float stackEffMultiplier)
+        {
+            m_ElementSource = source;
+            m_OverrideElement = element;
+            m_OverrideStatuses = statusId != 0
+                ? new[] { new StatusEffectSpec(statusId, Mathf.Max(1, statusStacks), statusDuration, 0f, element) }
+                : System.Array.Empty<StatusEffectSpec>();
+            m_ElementStackEff = Mathf.Max(0f, stackEffMultiplier);
+            RecomputeFromPactScales();
+        }
+
+        public void UnregisterAll(object source)
+        {
+            bool changed = m_DamageScales.Remove(source);
+            changed |= m_IntervalScales.Remove(source);
+            changed |= m_CountAdds.Remove(source);
+            if (ReferenceEquals(m_ElementSource, source))
+            {
+                m_ElementSource = null;
+                m_OverrideElement = ElementId.None;
+                m_OverrideStatuses = System.Array.Empty<StatusEffectSpec>();
+                m_ElementStackEff = 1f;
+                changed = true;
+            }
+            if (changed) RecomputeFromPactScales();
+        }
+
+        /// <summary>
+        /// 血契变更后的统一重算：<b>从配置资产重建基线定义</b>，再把全部已注册契因子乘/加上去。
+        /// 契间伤害/间隔因子乘法叠加、数量加法叠加（基础 = prefab familiarCount）；元素转化契覆写元素与命中状态。
+        /// 由 <see cref="OverrideDefinition"/> 完成重建并触发 RebuildBrains（契变更发生在升级选牌/叠层时刻，频率低）。
+        /// </summary>
+        private void RecomputeFromPactScales()
+        {
+            if (definitionAsset == null) return;   // 未接资产前无法重建（Awake 后必然已接）
+            ComposeIfNeeded();
+            if (!m_Composed) return;
+
+            float damageFactor = 1f;
+            foreach (float factor in m_DamageScales.Values) damageFactor *= factor;
+            float intervalFactor = 1f;
+            foreach (float factor in m_IntervalScales.Values) intervalFactor *= factor;
+            bool hasElement = m_ElementSource != null;
+
+            // ① 回到资产基线（契因子永远相对 asset 默认值乘，避免叠层时二次累乘）
+            ImpactFamiliarDefinition baseline = definitionAsset.CreateDefinition();
+            m_Definition = baseline;
+            // ② 套用全部契调制（OverrideDefinition 内部会 RebuildStatuses + RebuildBrains）
+            OverrideDefinition(
+                damageMultiplier: baseline.DamageMultiplier * damageFactor,
+                buffTriggerCountMultiplier: hasElement
+                    ? baseline.BuffTriggerCountMultiplier * m_ElementStackEff
+                    : baseline.BuffTriggerCountMultiplier,
+                hitCooldownPerTarget: baseline.HitCooldownPerTarget * intervalFactor,
+                element: hasElement ? m_OverrideElement : (ElementId?)null,
+                onHitStatuses: hasElement ? m_OverrideStatuses : null);
+        }
+
+        /// <summary>实际使魔数量 = prefab 基础数量 + 契增量合计（下限 1）。</summary>
+        private int EffectiveFamiliarCount
+        {
+            get
+            {
+                int add = 0;
+                foreach (int value in m_CountAdds.Values) add += value;
+                return familiarCount + add;
+            }
         }
 
         // ── 候选目标：玩家命中回调 ────────────────────────────
@@ -657,7 +766,7 @@ namespace VampireHunt.Infrastructure.Integration
         private void RebuildBrains()
         {
             ReleaseBrains();      // 旧 brain 先退出队列，新 brain 才会拿到连续的槽位
-            int count = Mathf.Max(1, familiarCount);
+            int count = Mathf.Max(1, EffectiveFamiliarCount);
             Transform owner = OrbitOwner;
             for (int i = 0; i < count; i++)
             {

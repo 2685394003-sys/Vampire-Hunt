@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P4005_missile_cooldown
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 4005
+  displayName: "\u9B54\u9635\u901F\u71C3"
+  description: "\u5BFC\u5F39\u51B7\u5374-15%/\u5C42\uFF0C\u53EF\u53E03\u5C42"
+  icon: {fileID: 0}
+  tier: 0
+  rarity: 1
+  baseWeight: 1
+  tags: 32
+  prerequisites: a10f0000
+  exclusions: 
+  repeatable: 1
+  maxStacks: 3
+  effectModules:
+  - {fileID: 11400000, guid: 36371c7c41cc3994aadfcc8f84b04583, type: 2}

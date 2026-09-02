@@ -11,7 +11,7 @@ namespace VampireHunt.Infrastructure.Integration
 {
     /// <summary>Player-side application service for pure abilities and pact modifiers.</summary>
     [DisallowMultipleComponent]
-    public sealed class CombatAbilityHost : MonoBehaviour, ICombatAbilityModifierTarget
+    public sealed class CombatAbilityHost : MonoBehaviour, ICombatAbilityModifierTarget, IWeaponUnlockTarget
     {
         [SerializeField] private CoreStatsHandler coreStats;
         [SerializeField] private NetworkObject networkObject;
@@ -157,6 +157,12 @@ namespace VampireHunt.Infrastructure.Integration
             m_ActiveWeaponId = abilityId;
             return true;
         }
+
+        /// <summary>
+        /// IWeaponUnlockTarget：「获得武器」类血契（2001/3001/4001/5001）生效时切换主武器。
+        /// 由 Unlock 效果模块（Realm=Owner）经端口机制调用 —— 施法计划在本端构建，切这里才真正换出手。
+        /// </summary>
+        public bool TryUnlockWeapon(uint abilityId) => SetActiveWeapon(abilityId);
 
         /// <summary>The currently active primary weapon id.</summary>
         public uint ActiveWeaponId => m_ActiveWeaponId;

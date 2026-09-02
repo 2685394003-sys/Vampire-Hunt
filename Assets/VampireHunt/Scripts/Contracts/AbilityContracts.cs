@@ -155,4 +155,34 @@ namespace VampireHunt.Contracts
         bool RegisterAbilityModifier(IAbilityCastModifier modifier);
         bool UnregisterAbilityModifier(IAbilityCastModifier modifier);
     }
+
+    /// <summary>
+    /// 武器解锁目标端口：「获得武器」类血契（2001 血穿魔弹 / 3001 血飞魔剑 /
+    /// 4001 血爆魔阵 / 5001 血光魔炮）生效时，把活动主武器切换到目标武器。
+    /// </summary>
+    /// <remarks>
+    /// 由 <see cref="VampireHunt.Infrastructure.Integration.CombatAbilityHost"/> 实现。
+    /// 它与 GameplayEffectHost 挂在同一 GameObject，Unlock 模块（EffectModuleTypeIds.Unlock）
+    /// 的工厂通过端口机制（EffectPortCollection.TryGet）自动定位到它，无需显式接线。
+    /// </remarks>
+    public interface IWeaponUnlockTarget
+    {
+        /// <summary>把活动主武器切到 <paramref name="abilityId"/>（武器 id：狙击 110 / 步枪 120 / 导弹 130 / 激光 140）。
+        /// 返回 false 表示该端没有这把武器（字典无此 id，理论不发生）。</summary>
+        bool TryUnlockWeapon(uint abilityId);
+    }
+
+    /// <summary>
+    /// 领域激活目标端口：「获得领域」类血契（6001 荒芜降临）生效时激活常驻圆型领域。
+    /// </summary>
+    /// <remarks>
+    /// 由 <see cref="VampireHunt.Infrastructure.Integration.CircleFieldAuraDriver"/> 实现
+    /// （其代码注释即以「荒芜之契」为血契接线点）。端口由 Unlock 模块工厂自动定位。
+    /// </remarks>
+    public interface IFieldActivationTarget
+    {
+        /// <summary>激活常驻领域；<paramref name="damageInheritRatio"/> &gt; 0 时同时把
+        /// 基础伤害继承系数设为该值（1 = 全额继承玩家基础伤害）。返回 true 表示已激活。</summary>
+        bool ActivateField(float damageInheritRatio);
+    }
 }

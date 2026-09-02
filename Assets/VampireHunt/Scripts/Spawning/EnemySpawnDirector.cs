@@ -46,6 +46,32 @@ namespace VampireHunt.Spawning
         [Tooltip("运行时刷怪倍率（监控面板滑条实时设置）。默认 1 = 不变；范围 0.1 ~ 20（上限 20 倍）。")]
         [Range(0.1f, 20f)] public float runtimeSpawnRateMultiplier = 1f;
 
+        [Header("Spawn Rate Ramp (Time Driven)")]
+        [Tooltip("开启后，刷怪速率倍率随本局探索时长自动增长；关闭则时间项恒为 1（等同旧行为）。")]
+        [SerializeField] private bool enableTimeRamp = true;
+        [Tooltip("从起始倍率增长到终点倍率所需的时间（分钟），按游戏内探索时长计（unscaledTime，不受 timeScale 与菜单暂停影响）。")]
+        [Min(0.01f)] [SerializeField] private float rampDurationMinutes = 20f;
+        [Tooltip("探索开始时的时间倍率。")]
+        [Min(0.01f)] [SerializeField] private float rampStartMultiplier = 1f;
+        [Tooltip("到达 rampDurationMinutes 后的时间倍率；到达后保持该值不再增长。")]
+        [Min(0.01f)] [SerializeField] private float rampEndMultiplier = 20f;
+        [Tooltip("曲线指数：1 = 线性匀速；2 = 前慢后快（推荐，前 10 分钟只到约 5 倍，后 10 分钟冲到 20 倍）；0.5 = 前快后慢。")]
+        [Min(0.05f)] [SerializeField] private float rampCurveExponent = 2f;
+
+        [Header("Enemy Health Ramp (Time Driven)")]
+        [Tooltip("开启后，新刷出的普通怪（不含 Boss）最大生命值随本局探索时长自动增长；关闭则时间项恒为 1（等同旧行为）。")]
+        [SerializeField] private bool enableHealthRamp = true;
+        [Tooltip("从起始倍率增长到终点倍率所需的时间（分钟），与刷怪速率共用同一条探索计时基线。")]
+        [Min(0.01f)] [SerializeField] private float healthRampDurationMinutes = 20f;
+        [Tooltip("探索开始时刷出的怪，血量相对基础值的倍率。")]
+        [Min(0.01f)] [SerializeField] private float healthRampStartMultiplier = 1f;
+        [Tooltip("到达 healthRampDurationMinutes 后刷出的怪的血量倍率；到达后保持该值不再增长。")]
+        [Min(0.01f)] [SerializeField] private float healthRampEndMultiplier = 2f;
+        [Tooltip("曲线指数：1 = 线性匀速（10 分钟正好到终点的一半，可预测）；2 = 前慢后快；0.5 = 前快后慢。\n" +
+                 "作用范围：只作用于 MaxHealth，怪物攻击力不随时间增长；且与副契「血肉增生」的加成是相乘关系 —— " +
+                 "实际血量 = 原型基础血量 × 本倍率 × (1 + 副契加成)。Boss 走独立链路（BossEncounterAggregate），不受影响。")]
+        [Min(0.05f)] [SerializeField] private float healthRampCurveExponent = 1f;
+
         [Header("Spawn Ring")]
         [Min(1f)] [SerializeField] private float minimumPlayerDistance = 12f;
         [Min(1f)] [SerializeField] private float maximumPlayerDistance = 20f;
@@ -112,14 +138,52 @@ namespace VampireHunt.Spawning
                 GetActiveSpawnCost() >= softSpawnBudget ||
                 Time.unscaledTime < m_NextSpawnTime) return;
 
-            // 刷怪速率倍率 = Boss 战衰减 × 距离 Boss 加成 × 运行时倍率(滑条)；实际间隔 = 基础间隔 ÷ 倍率
+            // 刷怪速率倍率 = 时间增长 × Boss 战衰减 × 距离 Boss 加成 × 运行时倍率(滑条)；实际间隔 = 基础间隔 ÷ 倍率
             float phaseMultiplier = phase == RunPhase.Exploring ? 1f : bossPhaseSpawnRateMultiplier;
-            float rateMultiplier = phaseMultiplier * GetProximityMultiplier(manager) * Mathf.Clamp(runtimeSpawnRateMultiplier, 0.1f, 20f);
+            float rateMultiplier = GetTimeRampMultiplier() * phaseMultiplier
+                * GetProximityMultiplier(manager) * Mathf.Clamp(runtimeSpawnRateMultiplier, 0.1f, 20f);
             if (rateMultiplier <= 0f) return;  // 远离 Boss（>spawnMaxBossDistance）不刷怪
             float effectiveInterval = spawnInterval / Mathf.Max(0.001f, rateMultiplier);
             m_NextSpawnTime = Time.unscaledTime + effectiveInterval;
 
             TrySpawnEnemy(manager);
+        }
+
+        /// <summary>
+        /// 时间驱动的刷怪倍率：随本局探索时长从 rampStartMultiplier 增长到 rampEndMultiplier，
+        /// 到达 rampDurationMinutes 后保持终点值。曲线由 rampCurveExponent 塑形。
+        /// </summary>
+        private float GetTimeRampMultiplier()
+        {
+            if (!enableTimeRamp) return 1f;
+            if (rampDurationMinutes <= 0f) return rampEndMultiplier;
+
+            float elapsedMinutes = Mathf.Max(0f, Time.unscaledTime - m_ExplorationStartedTime) / 60f;
+            float t = Mathf.Clamp01(elapsedMinutes / rampDurationMinutes);
+            float shaped = rampCurveExponent <= 0f ? t : Mathf.Pow(t, rampCurveExponent);
+            return Mathf.Lerp(rampStartMultiplier, rampEndMultiplier, shaped);
+        }
+
+        /// <summary>当前生效的时间驱动刷怪倍率（调试/监控面板读取用）。</summary>
+        public float CurrentTimeRampMultiplier => GetTimeRampMultiplier();
+
+        /// <summary>当前生效的时间驱动怪物血量倍率（调试/监控面板读取用）。</summary>
+        public float CurrentHealthRampMultiplier => GetHealthRampMultiplier();
+
+        /// <summary>
+        /// 时间驱动的怪物血量倍率：随本局探索时长从 healthRampStartMultiplier 增长到 healthRampEndMultiplier，
+        /// 到达 healthRampDurationMinutes 后保持终点值。曲线由 healthRampCurveExponent 塑形。
+        /// 与刷怪速率共用同一条计时基线（m_ExplorationStartedTime），但倍率与曲线各自独立配置。
+        /// </summary>
+        private float GetHealthRampMultiplier()
+        {
+            if (!enableHealthRamp) return 1f;
+            if (healthRampDurationMinutes <= 0f) return healthRampEndMultiplier;
+
+            float elapsedMinutes = Mathf.Max(0f, Time.unscaledTime - m_ExplorationStartedTime) / 60f;
+            float t = Mathf.Clamp01(elapsedMinutes / healthRampDurationMinutes);
+            float shaped = healthRampCurveExponent <= 0f ? t : Mathf.Pow(t, healthRampCurveExponent);
+            return Mathf.Lerp(healthRampStartMultiplier, healthRampEndMultiplier, shaped);
         }
 
         private float GetProximityMultiplier(NetworkManager manager)
@@ -169,7 +233,8 @@ namespace VampireHunt.Spawning
                 ++m_NextEntityId,
                 enemyAffixState != null
                     ? enemyAffixState.CaptureSpawnSnapshot()
-                    : EnemyAffixSpawnSnapshot.Empty);
+                    : EnemyAffixSpawnSnapshot.Empty,
+                GetHealthRampMultiplier());
             instance.Spawn();
             m_ActiveEnemies.Add(new ActiveEnemyRecord { Actor = actor, Archetype = archetype });
         }

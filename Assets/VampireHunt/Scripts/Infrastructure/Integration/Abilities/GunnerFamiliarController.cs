@@ -34,7 +34,7 @@ namespace VampireHunt.Infrastructure.Integration
     /// 视觉 GameObject 由服务器 Instantiate，联机时其他客户端暂时看不到（既有约定，待补网络同步）。
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class GunnerFamiliarController : MonoBehaviour, IServerCombatResolutionListener
+    public sealed class GunnerFamiliarController : MonoBehaviour, IServerCombatResolutionListener, IFamiliarPactTarget
     {
         private const float EnemyScanInterval = 0.2f;
         private const float MuzzleVfxLifetime = 1f;
@@ -120,6 +120,19 @@ namespace VampireHunt.Infrastructure.Integration
         private float m_ScanTimer;
         private bool m_WarnedMissingTracer;
         private Material m_FallbackMaterial;
+
+        // ── 血契调制注册（IFamiliarPactTarget，8xxx 射击使魔）──
+        // 各契模块运行时以自身为 source 注册/注销；任何变更都会触发 RecomputeFromPactScales()
+        // （从资产按当前武器档位重建定义，再把契因子乘到 weapon profile 上 → 重建使魔群）。
+        private readonly Dictionary<object, float> m_DamageScales = new Dictionary<object, float>();
+        private readonly Dictionary<object, float> m_IntervalScales = new Dictionary<object, float>();
+        private readonly Dictionary<object, int> m_CountAdds = new Dictionary<object, int>();
+        private object m_WeaponTierSource;
+        private int m_WeaponTierId = -1;
+        private object m_ElementSource;
+        private ElementId m_OverrideElement = ElementId.None;
+        private StatusEffectSpec[] m_OverrideStatuses = System.Array.Empty<StatusEffectSpec>();
+        private float m_ElementStackEff = 1f;
 
         // ── 指针跟随状态 ──
         private Vector3 m_OrbitCenter;
@@ -350,6 +363,140 @@ namespace VampireHunt.Infrastructure.Integration
                 current.VisualScale);
             RebuildStatuses();
             RebuildBrains();
+        }
+
+        // ── 血契调制端口实现（IFamiliarPactTarget，供 8xxx 契模块调用）────────
+
+        public FamiliarKind Kind => FamiliarKind.Gunner;
+
+        /// <summary>召唤（8001）：激活射击使魔群。仅一次、永久；重复调用幂等。</summary>
+        public void ActivateFamiliar() => SetActive(true);
+
+        public void RegisterDamageScale(object source, float factor)
+        {
+            m_DamageScales[source] = Mathf.Max(0f, factor);
+            RecomputeFromPactScales();
+        }
+
+        public void RegisterIntervalScale(object source, float factor)
+        {
+            m_IntervalScales[source] = Mathf.Max(0f, factor);
+            RecomputeFromPactScales();
+        }
+
+        public void RegisterCountAdd(object source, int add)
+        {
+            m_CountAdds[source] = add;
+            RecomputeFromPactScales();
+        }
+
+        public void SetWeaponTier(object source, int weaponTier)
+        {
+            m_WeaponTierSource = source;
+            m_WeaponTierId = Mathf.Clamp(weaponTier, 0, 4);
+            RecomputeFromPactScales();
+        }
+
+        public void ConvertElement(object source, ElementId element, uint statusId,
+            int statusStacks, float statusDuration, float stackEffMultiplier)
+        {
+            m_ElementSource = source;
+            m_OverrideElement = element;
+            m_OverrideStatuses = statusId != 0
+                ? new[] { new StatusEffectSpec(statusId, Mathf.Max(1, statusStacks), statusDuration, 0f, element) }
+                : System.Array.Empty<StatusEffectSpec>();
+            m_ElementStackEff = Mathf.Max(0f, stackEffMultiplier);
+            RecomputeFromPactScales();
+        }
+
+        public void UnregisterAll(object source)
+        {
+            bool changed = m_DamageScales.Remove(source);
+            changed |= m_IntervalScales.Remove(source);
+            changed |= m_CountAdds.Remove(source);
+            if (ReferenceEquals(m_WeaponTierSource, source))
+            {
+                m_WeaponTierSource = null;
+                m_WeaponTierId = -1;
+                changed = true;
+            }
+            if (ReferenceEquals(m_ElementSource, source))
+            {
+                m_ElementSource = null;
+                m_OverrideElement = ElementId.None;
+                m_OverrideStatuses = System.Array.Empty<StatusEffectSpec>();
+                m_ElementStackEff = 1f;
+                changed = true;
+            }
+            if (changed) RecomputeFromPactScales();
+        }
+
+        /// <summary>
+        /// 血契变更后的统一重算：按「资产默认档位 or 契档位覆写」<b>从配置资产重建基线定义</b>，
+        /// 再把全部已注册契因子乘到 weapon profile 上（伤害 ×Πscale、整套冷却 ×Πscale）、
+        /// 套用元素转化覆写（元素 + 命中状态 + 叠层效率 ×stackEff）。契因子永远相对 asset 默认值乘，
+        /// 避免叠层时二次累乘。契变更发生在升级选牌/叠层时刻，RebuildBrains 打断战斗属可接受行为。
+        /// </summary>
+        private void RecomputeFromPactScales()
+        {
+            if (definitionAsset == null) return;
+            ComposeIfNeeded();
+            if (!m_Composed) return;
+
+            FamiliarWeaponId weaponId = m_WeaponTierSource != null
+                ? (FamiliarWeaponId)Mathf.Clamp(m_WeaponTierId, 0, 4)
+                : definitionAsset.DefaultWeaponId;
+            m_CurrentWeapon = weaponId;
+            m_Definition = definitionAsset.CreateDefinition(weaponId);   // 含武器档位拷贝（基线）
+            GunnerFamiliarWeaponProfile weapon = m_Definition.Weapon;
+            if (weapon == null) return;
+
+            float damageFactor = 1f;
+            foreach (float factor in m_DamageScales.Values) damageFactor *= factor;
+            float intervalFactor = 1f;
+            foreach (float factor in m_IntervalScales.Values) intervalFactor *= factor;
+
+            weapon.damageMultiplier = Mathf.Max(0f, weapon.damageMultiplier * damageFactor);
+            weapon.fireCooldown = Mathf.Max(0f, weapon.fireCooldown * intervalFactor);
+
+            if (m_ElementSource != null)
+            {
+                weapon.element = m_OverrideElement;
+                weapon.onHitStatuses = m_OverrideStatuses;
+                // 叠层效率 ×stackEff：命中挂载层数 = 基础层数 × buff 触发系数（转化契 ×2）。
+                // GunnerFamiliarDefinition 是 readonly struct，乘系数需整体重建一份（weapon 引用不变，已乘的伤害/冷却保留）。
+                if (!Mathf.Approximately(m_ElementStackEff, 1f))
+                {
+                    GunnerFamiliarDefinition current = m_Definition;
+                    m_Definition = new GunnerFamiliarDefinition(
+                        current.AbilityId, current.WeaponTag,
+                        current.OrbitRadius, current.OrbitSpeed, current.OrbitHeight,
+                        current.BobAmplitude, current.BobFrequency, current.FollowLerp,
+                        current.AcquireRange, current.PendingTargetLifetime, current.TargetMask, current.MaxTargets,
+                        current.MoveSpeed, current.MoveLerp, current.RangeTolerance, current.StrafeSpeed,
+                        current.MaxApproachDuration,
+                        current.AimDuration, current.AimLerp,
+                        current.MaxVolleysPerTarget, current.SwitchTargetOnNewCandidate, current.StopWhenPendingExpired,
+                        current.ReturnSpeed, current.ReturnArriveDistance,
+                        current.BaseDamageInheritRatio,
+                        current.BuffTriggerCountMultiplier * m_ElementStackEff,
+                        weapon,
+                        current.VisualScale);
+                }
+            }
+            RebuildStatuses();
+            RebuildBrains();
+        }
+
+        /// <summary>实际使魔数量 = prefab 基础数量 + 契增量合计（下限 1）。</summary>
+        private int EffectiveFamiliarCount
+        {
+            get
+            {
+                int add = 0;
+                foreach (int value in m_CountAdds.Values) add += value;
+                return familiarCount + add;
+            }
         }
 
         // ── 候选目标：玩家命中回调 ────────────────────────────
@@ -869,7 +1016,7 @@ namespace VampireHunt.Infrastructure.Integration
         private void RebuildBrains()
         {
             ReleaseBrains();      // 旧 brain 先退出队列，新 brain 才会拿到连续的槽位
-            int count = Mathf.Max(1, familiarCount);
+            int count = Mathf.Max(1, EffectiveFamiliarCount);
             Transform owner = OrbitOwner;
             for (int i = 0; i < count; i++)
             {

@@ -68,6 +68,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private NetworkObject m_TargetPlayer;
         private ulong m_PreparedEntityId;
         private EnemyAffixSpawnSnapshot m_PreparedAffixes = EnemyAffixSpawnSnapshot.Empty;
+        private float m_PreparedHealthMultiplier = 1f;
         private EnemyAffixCatalog m_DomainAffixCatalog;
         private ulong m_TrustedHitSequence;
         private float m_NextBrainTime;
@@ -123,10 +124,20 @@ namespace VampireHunt.Infrastructure.Netcode
                 : new EnemyAffixCatalog(null);
         }
 
-        public void PrepareServerSpawn(ulong entityId, EnemyAffixSpawnSnapshot affixes)
+        /// <summary>
+        /// 服务器生成前注入数据。healthMultiplier = 局内时间驱动的血量全局倍率（由 EnemySpawnDirector 计算，
+        /// 默认 1 = 不缩放）；它只影响 MaxHealth，且与副契加成相乘。
+        /// </summary>
+        public void PrepareServerSpawn(
+            ulong entityId,
+            EnemyAffixSpawnSnapshot affixes,
+            float healthMultiplier = 1f)
         {
             m_PreparedEntityId = entityId;
             m_PreparedAffixes = affixes ?? EnemyAffixSpawnSnapshot.Empty;
+            m_PreparedHealthMultiplier = float.IsNaN(healthMultiplier) || float.IsInfinity(healthMultiplier)
+                ? 1f
+                : healthMultiplier;
         }
 
         public override void OnNetworkSpawn()
@@ -397,6 +408,8 @@ namespace VampireHunt.Infrastructure.Netcode
                     Stacks = entry.Stacks
                 });
             }
+            // 局内时间驱动的血量缩放：与副契加成相乘（副契的加成已在上面的循环里累积进 statsBuilder）。
+            statsBuilder.AddMultiplier(EnemyStat.MaxHealth, m_PreparedHealthMultiplier);
             m_Aggregate = new EnemyAggregate(
                 new GameplayEntityId(entityId),
                 definition,

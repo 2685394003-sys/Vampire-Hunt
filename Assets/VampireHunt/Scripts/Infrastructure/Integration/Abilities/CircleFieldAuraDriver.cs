@@ -13,7 +13,7 @@ namespace VampireHunt.Infrastructure.Integration
     /// 血契接线点：荒芜之契（pactId 309）等「获得领域」类血契在生效时调用 <see cref="SetActive"/>(true)。
     /// 血契运行时尚未实装时，可勾选 activeOnStart 做单机验证。
     /// </remarks>
-    public sealed class CircleFieldAuraDriver : MonoBehaviour
+    public sealed class CircleFieldAuraDriver : MonoBehaviour, IFieldActivationTarget
     {
         [SerializeField] private CombatAbilityHost host;
         [SerializeField] private CircleFieldAbilityProvider provider;
@@ -73,6 +73,18 @@ namespace VampireHunt.Infrastructure.Integration
             }
             EnsureVisual();
             SyncVisual();
+        }
+
+        /// <summary>
+        /// IFieldActivationTarget：「获得领域」类血契（6001 荒芜降临）生效时激活常驻领域。
+        /// 由 Unlock 效果模块（Realm=Owner）经端口机制调用。伤害继承系数 &gt; 0 时一并写入
+        /// （荒芜降临配置 domainDPS = 玩家伤害 × 0.3，而领域资产默认继承系数为 1）。
+        /// </summary>
+        public bool ActivateField(float damageInheritRatio)
+        {
+            if (damageInheritRatio > 0f) SetBaseDamageInheritRatio(damageInheritRatio);
+            SetActive(true);
+            return true;
         }
 
         // ── 运行期系数接口（转发给运行时，供血契系统调整）─────────────

@@ -137,11 +137,18 @@ namespace VampireHunt.Effects
             if (port != null && !m_Ports.Contains(port)) m_Ports.Add(port);
         }
 
-        public bool TryGet<TPort>(out TPort port) where TPort : class
+        public bool TryGet<TPort>(out TPort port) where TPort : class => TryGet<TPort>(null, out port);
+
+        /// <summary>
+        /// 按谓词取第一个匹配端口。同一 GameObject 上可能挂多个实现同一端口的组件
+        /// （如撞击/射击两个使魔控制器都实现 <c>IFamiliarPactTarget</c>），调用方用谓词按身份精确定位。
+        /// </summary>
+        public bool TryGet<TPort>(Func<TPort, bool> predicate, out TPort port) where TPort : class
         {
             for (int i = 0; i < m_Ports.Count; i++)
             {
                 if (!(m_Ports[i] is TPort match)) continue;
+                if (predicate != null && !predicate(match)) continue;
                 port = match;
                 return true;
             }

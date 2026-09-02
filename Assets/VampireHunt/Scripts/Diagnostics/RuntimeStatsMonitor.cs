@@ -713,6 +713,14 @@ namespace VampireHunt.Diagnostics
                 ApplySpawnRateMultiplier(quantizedMult);
             }
 
+            // —— 时间驱动曲线实时读数（只读）：刷怪速率与怪物血量随本局探索时长增长，二者相乘=每分涌入血量 ——
+            if (m_SpawnDirector != null)
+            {
+                float rateRamp = m_SpawnDirector.CurrentTimeRampMultiplier;
+                float hpRamp = m_SpawnDirector.CurrentHealthRampMultiplier;
+                GUILayout.Label($"时间曲线: 刷怪 x{rateRamp:F2} | 怪血 x{hpRamp:F2} | 涌入 x{rateRamp * hpRamp:F2}/分");
+            }
+
             if (!m_Wired)
             {
                 GUILayout.Label("等待本地玩家接入…");

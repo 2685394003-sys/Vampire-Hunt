@@ -14,18 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossEncounterConfigAsset
   bossName: "\u7329\u7EA2\u4E4B\u4E3B"
   stages:
-  - GuardHealth: 2000000
-    BattleHealth: 300
+  - GuardHealth: 500
+    BattleHealth: 5000
     AbilityPhaseNumber: 1
-  - GuardHealth: 180
-    BattleHealth: 450
+  - GuardHealth: 2500
+    BattleHealth: 25000
     AbilityPhaseNumber: 2
-  - GuardHealth: 280
-    BattleHealth: 650
+  - GuardHealth: 5000
+    BattleHealth: 50000
     AbilityPhaseNumber: 3
   roamingAbilityPhaseNumber: 4
   detectionRange: 18
-  evadeDistance: 0.1
+  evadeDistance: 9
   desiredPlayerDistance: 7
   normalMoveSpeed: 5
   maxMirrorSpeed: 14
@@ -33,8 +33,8 @@ MonoBehaviour:
   decelerationSeconds: 5
   bossMoveProximityRadius: 15
   bossMoveProximityMaxMultiplier: 1.4
-  spawnMinDistance: 8
-  spawnMaxDistance: 12
+  spawnMinDistance: 50
+  spawnMaxDistance: 60
   battleOrbitSwitchInterval: 3
   battleDesiredDistanceMin: 5
   battleDesiredDistanceMax: 9

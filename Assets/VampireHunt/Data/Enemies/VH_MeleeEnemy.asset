@@ -24,6 +24,11 @@ MonoBehaviour:
   telegraphDuration: 0.45
   activeDuration: 0.1
   recoveryDuration: 0.8
-  scarletReward: 20
+  combatStyle: 0
+  preferredRangeMin: 0
+  preferredRangeMax: 1.8
+  retreatRange: 0
+  attackId: 2
+  scarletReward: 5
   spawnCost: 1
   lootTable: {fileID: 11400000, guid: 84f592c0d3e14f462a5b6c7d8e9fa0b1, type: 2}
