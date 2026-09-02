@@ -25,3 +25,4 @@ MonoBehaviour:
   knockbackMultiplier: 0.2
   element: 0
   onHitStatuses: []
+  elementMastery: 0.7

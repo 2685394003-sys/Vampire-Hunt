@@ -20,7 +20,7 @@ namespace VampireHunt.Infrastructure.Netcode
         [Min(0.05f)] [SerializeField] private float hitRadius = 0.65f;
         [Tooltip("勾选后：运行时把 Visual 子物体 Scale 设为判定半径（Hit Radius × Projectile Size），实现\"子弹大小 = 伤害判定大小\"。扇形剑气不勾（视觉由扇形网格生成）。")]
         [SerializeField] private bool scaleVisualToHitRadius;
-        [Tooltip("勾选后：运行时按 SpreadAngle 生成扇形网格替换 Visual 的静态 mesh（用于剑气扇形）。弹丸类武器（狙击/自动步枪）不要勾，否则会被替换成扇形。")]
+        [Tooltip("勾选后：运行时按 Fan Angle 生成扇形网格替换 Visual 的静态 mesh（用于剑气扇形）。弹丸类武器（狙击/自动步枪）不要勾，否则会被替换成扇形。")]
         [SerializeField] private bool buildFanVisual;
         [SerializeField] private LayerMask targetMask = 1 << 8;
         [Tooltip("Wwise 事件名（命中音），对应《策划版音频调用表》。留空不发声。")]
@@ -51,7 +51,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private int m_HitCount;
         private bool m_CompletionRequested;
 
-        // 扇形视觉：仅当 buildFanVisual 勾选时，运行时按 SpreadAngle 生成扇形网格（替换预制体的静态 mesh）
+        // 扇形视觉：仅当 buildFanVisual 勾选时，运行时按 Fan Angle 生成扇形网格（替换预制体的静态 mesh）
         private Mesh m_FanMesh;
         private bool m_FanBuilt;
 
@@ -114,17 +114,17 @@ namespace VampireHunt.Infrastructure.Netcode
             BuildFanVisual();
         }
 
-        /// <summary>把 Visual 子物体的静态 mesh 替换为按 SpreadAngle 生成的扇形网格（半径 = hitRadius）。仅 buildFanVisual 勾选时生效。</summary>
+        /// <summary>把 Visual 子物体的静态 mesh 替换为按 Fan Angle 生成的扇形网格（半径 = hitRadius）。仅 buildFanVisual 勾选时生效。</summary>
         private void BuildFanVisual()
         {
-            if (m_FanBuilt || !buildFanVisual || m_Cast.Value.AbilityId == 0 || m_Cast.Value.SpreadAngle <= 0f) return;
+            if (m_FanBuilt || !buildFanVisual || m_Cast.Value.AbilityId == 0 || m_Cast.Value.FanAngle <= 0f) return;
 
             Transform visual = transform.Find("Visual");
             if (visual == null) return;
             var filter = visual.GetComponent<MeshFilter>();
             if (filter == null) return;
 
-            m_FanMesh = BuildFanMesh(hitRadius, m_Cast.Value.SpreadAngle * 0.5f);
+            m_FanMesh = BuildFanMesh(hitRadius, m_Cast.Value.FanAngle * 0.5f);
             filter.sharedMesh = m_FanMesh;
             m_FanBuilt = true;
         }
@@ -230,13 +230,13 @@ namespace VampireHunt.Infrastructure.Netcode
             int overlapCount = Physics.OverlapSphereNonAlloc(transform.position, radius, m_HitBuffer,
                 targetMask, QueryTriggerInteraction.Collide);
 
-            // 扇形判定：仅 buildFanVisual（剑气）勾选时启用，全角 = cast.SpreadAngle。
+            // 扇形判定：仅 buildFanVisual（剑气）勾选时启用，全角 = cast.FanAngle。
             // 弹丸武器（狙击/步枪）的 SpreadAngle 是精度散布，不是扇形角度，必须保持全向球判定。
             Vector3 forward = transform.forward;
             forward.y = 0f;
-            bool fanMode = buildFanVisual && cast.SpreadAngle > 0.001f && forward.sqrMagnitude > 0.0001f;
+            bool fanMode = buildFanVisual && cast.FanAngle > 0.001f && forward.sqrMagnitude > 0.0001f;
             forward = forward.normalized;
-            float halfAngle = cast.SpreadAngle * 0.5f;
+            float halfAngle = cast.FanAngle * 0.5f;
 
             for (int i = 0; i < overlapCount; i++)
             {

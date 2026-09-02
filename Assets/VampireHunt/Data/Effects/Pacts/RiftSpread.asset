@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: RiftSpread
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Effects.AbilityPlanModifierModuleAsset
   requiredTags: 4
-  property: 2
+  property: 6
   operation: 2
   perStackValue: 0
   constantValue: 12

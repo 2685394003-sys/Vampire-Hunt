@@ -9,7 +9,7 @@ namespace VampireHunt.Combat
         public uint StatusId { get; }
         public ElementId Element { get; }
         public StatusStackPolicy StackPolicy { get; }
-        public int MaxStacks { get; }
+        public float MaxStacks { get; }
         public double DefaultDuration { get; }
         public EffectDefinition RuntimeEffects { get; }
         public EffectBlockFlags BlockFlags => RuntimeEffects.GetBlockFlags();
@@ -19,7 +19,7 @@ namespace VampireHunt.Combat
             uint statusId,
             ElementId element,
             StatusStackPolicy stackPolicy,
-            int maxStacks,
+            float maxStacks,
             double defaultDuration,
             IEffectModuleDescriptor[] effectModules)
         {
@@ -27,7 +27,7 @@ namespace VampireHunt.Combat
             StatusId = statusId;
             Element = element;
             StackPolicy = stackPolicy;
-            MaxStacks = Math.Max(1, maxStacks);
+            MaxStacks = Math.Max(1f, maxStacks);
             DefaultDuration = Math.Max(0.01d, defaultDuration);
             RuntimeEffects = new EffectDefinition(
                 EffectSourceKind.Status, statusId, effectModules ?? Array.Empty<IEffectModuleDescriptor>());

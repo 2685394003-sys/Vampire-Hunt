@@ -85,6 +85,7 @@ GameObject:
   - component: {fileID: 2928057320886987452}
   - component: {fileID: 4308755639961819023}
   - component: {fileID: 6275116970385037119}
+  - component: {fileID: 7713898283489411369}
   m_Layer: 8
   m_Name: VH_Ranged
   m_TagString: Untagged
@@ -402,6 +403,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Audio.EntityDamageAudio
   onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
   damageEventName: Play_Enemy_Hurt
+--- !u!114 &7713898283489411369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890589751619523626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
 --- !u!1 &1031668596334053683
 GameObject:
   m_ObjectHideFlags: 0

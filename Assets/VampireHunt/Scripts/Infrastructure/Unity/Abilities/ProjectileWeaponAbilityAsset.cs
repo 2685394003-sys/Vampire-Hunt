@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VampireHunt.Contracts;
 using VampireHunt.Player.Abilities.ProjectileWeapon;
 
@@ -51,6 +52,8 @@ namespace VampireHunt.Infrastructure.Unity
         [Header("Element and on-hit effects")]
         [SerializeField] private ElementId element;
         [SerializeField] private StatusEntry[] onHitStatuses = Array.Empty<StatusEntry>();
+        [Tooltip("属性精通：影响所有元素效果（挂元素层数、闪电连锁传导）的倍率（狙击=3、步枪=0.5）。")]
+        [Min(0f)] [SerializeField, FormerlySerializedAs("conductivity")] private float elementMastery = 1f;
 
         public ProjectileWeaponAbilityRuntime CreateRuntime()
         {
@@ -61,7 +64,7 @@ namespace VampireHunt.Infrastructure.Unity
             return new ProjectileWeaponAbilityRuntime(new ProjectileWeaponAbilityDefinition(
                 abilityId, slot, weaponTag, damageMultiplier, baseCooldown, travelDistance,
                 projectileSpeed, projectileSize, projectileCount, pierceCount, spreadAngle,
-                spawnForwardOffset, spawnHeight, knockbackMultiplier, element, specs));
+                spawnForwardOffset, spawnHeight, knockbackMultiplier, element, elementMastery, specs));
         }
     }
 }

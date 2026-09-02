@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VampireHunt.Contracts;
 using VampireHunt.Player.Abilities.SwordWave;
 
@@ -32,7 +33,10 @@ namespace VampireHunt.Infrastructure.Unity
         [Min(0.1f)] [SerializeField] private float projectileSize = 1f;
         [Min(1)] [SerializeField] private int projectileCount = 1;
         [Min(1)] [SerializeField] private int pierceCount = 1;
+        [Tooltip("排布散布（度）：多颗剑气弹丸在 ±SpreadAngle/2 内均分。只影响排布，不影响每颗弹丸自身的扇形角度（见 Fan Angle）。")]
         [Min(0f)] [SerializeField] private float spreadAngle;
+        [Tooltip("扇形张开全角（度）：每颗剑气弹丸自身的判定+视觉扇面角度（0=全向球）。与 Spread Angle（排布散布）解耦，改这里不影响剑气排布。")]
+        [Min(0f)] [SerializeField] private float fanAngle = 90f;
         [Min(0f)] [SerializeField] private float spawnForwardOffset = 0.8f;
         [SerializeField] private float spawnHeight = 1f;
 
@@ -43,6 +47,8 @@ namespace VampireHunt.Infrastructure.Unity
         [Header("Element and on-hit effects")]
         [SerializeField] private ElementId element;
         [SerializeField] private StatusEntry[] onHitStatuses = Array.Empty<StatusEntry>();
+        [Tooltip("属性精通：影响所有元素效果（挂元素层数、闪电连锁传导）的倍率（剑气=1）。")]
+        [Min(0f)] [SerializeField, FormerlySerializedAs("conductivity")] private float elementMastery = 1f;
 
         public SwordWaveAbilityRuntime CreateRuntime()
         {
@@ -52,8 +58,8 @@ namespace VampireHunt.Infrastructure.Unity
 
             return new SwordWaveAbilityRuntime(new SwordWaveAbilityDefinition(
                 abilityId, slot, baseCooldown, travelDistance, projectileSpeed, projectileSize,
-                projectileCount, pierceCount, spreadAngle, spawnForwardOffset, spawnHeight,
-                knockbackMultiplier, element, specs));
+                projectileCount, pierceCount, spreadAngle, fanAngle, spawnForwardOffset, spawnHeight,
+                knockbackMultiplier, element, elementMastery, specs));
         }
     }
 }

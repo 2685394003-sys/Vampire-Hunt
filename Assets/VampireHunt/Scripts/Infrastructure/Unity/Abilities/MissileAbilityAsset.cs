@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VampireHunt.Contracts;
 using VampireHunt.Player.Abilities.Missile;
 
@@ -54,6 +55,8 @@ namespace VampireHunt.Infrastructure.Unity
         [Header("Element and on-hit effects")]
         [SerializeField] private ElementId element;
         [SerializeField] private StatusEntry[] onHitStatuses = Array.Empty<StatusEntry>();
+        [Tooltip("属性精通：影响所有元素效果（挂元素层数、闪电连锁传导）的倍率（导弹=0.6）。")]
+        [Min(0f)] [SerializeField, FormerlySerializedAs("conductivity")] private float elementMastery = 1f;
 
         public MissileAbilityRuntime CreateRuntime()
         {
@@ -64,7 +67,7 @@ namespace VampireHunt.Infrastructure.Unity
             return new MissileAbilityRuntime(new MissileAbilityDefinition(
                 abilityId, slot, weaponTag, damageMultiplier, baseCooldown, range,
                 projectileSpeed, pierceCount, arcAngle, blastRadius, gravity, projectileCount,
-                spawnHeight, spawnForwardOffset, knockbackMultiplier, element, specs));
+                spawnHeight, spawnForwardOffset, knockbackMultiplier, element, elementMastery, specs));
         }
     }
 }

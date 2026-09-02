@@ -13,6 +13,16 @@ namespace VampireHunt.Effects
         public const uint PresentationCue = 6;
         public const uint AttributeModifier = 7;
         public const uint ResourceCapacityModifier = 8;
+        /// <summary>使魔指针指令（血契「牵丝之契」）：绕鼠标 + 左键指派目标。</summary>
+        public const uint FamiliarCommand = 9;
+        /// <summary>敌人移速修改（霜寒减速）：挂到 IAttributeModifierTarget（EnemyStat.MoveSpeed）。</summary>
+        public const uint EnemySpeedModifier = 10;
+        /// <summary>燃爆：结算灼烧剩余 DoT 并清除灼烧（经 IStatusEffectExecutor）。</summary>
+        public const uint DetonateBurn = 11;
+        /// <summary>闪电连锁：向周围敌人跳跃伤害 + 传导（经 IStatusEffectExecutor）。</summary>
+        public const uint ChainLightning = 12;
+        /// <summary>引雷：一次性伤害（经 IStatusEffectExecutor）。</summary>
+        public const uint ThunderStrike = 13;
     }
 
     public enum AbilityPlanProperty : byte
@@ -22,7 +32,9 @@ namespace VampireHunt.Effects
         SpreadAngle = 2,
         PierceCount = 3,
         TravelDistance = 4,
-        Cooldown = 5
+        Cooldown = 5,
+        /// <summary>扇形张开全角（度）：剑气等扇形武器每颗弹丸自身的判定/视觉角度，与 SpreadAngle（排布散布）解耦。</summary>
+        FanAngle = 6
     }
 
     public enum EffectNumericOperation : byte
@@ -82,6 +94,49 @@ namespace VampireHunt.Effects
             Duration = Math.Max(0f, duration);
             Magnitude = Math.Max(0f, magnitude);
             Element = element;
+        }
+    }
+
+    /// <summary>
+    /// 使魔指针指令（familiar command effect）—— 血契「牵丝之契」(pactId 316) 的效果参数。<br/>
+    /// 选中后：<b>使魔待机时围绕鼠标</b>而不是围绕玩家；<b>按住左键</b>时，
+    /// 以鼠标为圆心 <c>CommandRadius</c> 米内的敌人会被指派为使魔目标，
+    /// 且该指令的优先级高于「谁被打中就追谁」的被动索敌。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>血契系统引擎侧尚未实装</b>：本 descriptor 只作为<b>数据载体</b>，
+    /// 真正的运行时行为由 <c>ImpactFamiliarController</c> / <c>GunnerFamiliarController</c>
+    /// 的 <c>SetPointerOrbit</c> / <c>SetCommandRadius</c> 承载（当前靠调试按键 Digit6 驱动）。
+    /// 等血契系统落地，把这里的字段接到那两个方法上即可，不需要再改使魔代码。
+    /// </remarks>
+    public sealed class FamiliarCommandEffectDescriptor : IEffectModuleDescriptor
+    {
+        public uint ModuleTypeId => EffectModuleTypeIds.FamiliarCommand;
+        public EffectExecutionRealm Realm => EffectExecutionRealm.Server;
+
+        /// <summary>是否开启「围绕鼠标」（true = 血契生效）。</summary>
+        public bool PointerOrbit { get; }
+        /// <summary>左键指令的索敌半径（米）：以鼠标为圆心。</summary>
+        public float CommandRadius { get; }
+        /// <summary>指令目标的有效期（秒）：松手后多久回归被动索敌。</summary>
+        public float CommandTargetLifetime { get; }
+        /// <summary>环绕中心跟随鼠标的平滑速度（越大跟得越紧）。</summary>
+        public float OrbitCenterFollowLerp { get; }
+        /// <summary>环绕中心离玩家的最大距离（米），0 = 不限制。</summary>
+        public float MaxOrbitCenterDistance { get; }
+
+        public FamiliarCommandEffectDescriptor(
+            bool pointerOrbit,
+            float commandRadius,
+            float commandTargetLifetime,
+            float orbitCenterFollowLerp,
+            float maxOrbitCenterDistance)
+        {
+            PointerOrbit = pointerOrbit;
+            CommandRadius = Math.Max(0.5f, commandRadius);
+            CommandTargetLifetime = Math.Max(0.05f, commandTargetLifetime);
+            OrbitCenterFollowLerp = Math.Max(0.1f, orbitCenterFollowLerp);
+            MaxOrbitCenterDistance = Math.Max(0f, maxOrbitCenterDistance);
         }
     }
 
@@ -199,6 +254,10 @@ namespace VampireHunt.Effects
             registry.Register(new PresentationCueFactory());
             registry.Register(new AttributeModifierFactory());
             registry.Register(new ResourceCapacityModifierFactory());
+            registry.Register(new EnemySpeedModifierFactory());
+            registry.Register(new DetonateBurnFactory());
+            registry.Register(new ChainLightningFactory());
+            registry.Register(new ThunderStrikeFactory());
             return registry;
         }
     }
@@ -259,6 +318,9 @@ namespace VampireHunt.Effects
                     break;
                 case AbilityPlanProperty.SpreadAngle:
                     plan.SpreadAngle = Apply(plan.SpreadAngle, value, m_Definition.Operation);
+                    break;
+                case AbilityPlanProperty.FanAngle:
+                    plan.FanAngle = Apply(plan.FanAngle, value, m_Definition.Operation);
                     break;
                 case AbilityPlanProperty.PierceCount:
                     plan.PierceCount = Math.Max(1, (int)Math.Round(Apply(

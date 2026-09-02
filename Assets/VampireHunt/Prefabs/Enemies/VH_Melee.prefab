@@ -23,6 +23,7 @@ GameObject:
   - component: {fileID: 5880844795128911762}
   - component: {fileID: 1626954648073268543}
   - component: {fileID: -8230944489718884409}
+  - component: {fileID: -3238692581830535199}
   m_Layer: 8
   m_Name: VH_Melee
   m_TagString: Untagged
@@ -333,6 +334,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Audio.EntityDamageAudio
   onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
   damageEventName: Play_Enemy_Hurt
+--- !u!114 &-3238692581830535199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6734190735489785284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
 --- !u!1 &8245638330595890637
 GameObject:
   m_ObjectHideFlags: 0

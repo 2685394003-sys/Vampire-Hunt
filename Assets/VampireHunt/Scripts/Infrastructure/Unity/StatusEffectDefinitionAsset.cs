@@ -12,7 +12,7 @@ namespace VampireHunt.Infrastructure.Unity
         [Min(1)] [SerializeField] private uint statusId = 1;
         [SerializeField] private ElementId element;
         [SerializeField] private StatusStackPolicy stackPolicy;
-        [Min(1)] [SerializeField] private int maxStacks = 1;
+        [Min(0.1f)] [SerializeField] private float maxStacks = 1f;
         [Min(0.01f)] [SerializeField] private float defaultDuration = 1f;
         [SerializeField] private EffectModuleAsset[] effectModules;
 

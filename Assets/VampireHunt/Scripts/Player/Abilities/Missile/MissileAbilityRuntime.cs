@@ -26,6 +26,7 @@ namespace VampireHunt.Player.Abilities.Missile
         public float SpawnForwardOffset { get; }
         public float KnockbackMultiplier { get; }
         public ElementId Element { get; }
+        public float ElementMastery { get; }
         public StatusEffectSpec[] OnHitStatuses { get; }
 
         public MissileAbilityDefinition(
@@ -45,6 +46,7 @@ namespace VampireHunt.Player.Abilities.Missile
             float spawnForwardOffset,
             float knockbackMultiplier,
             ElementId element,
+            float elementMastery,
             StatusEffectSpec[] onHitStatuses)
         {
             AbilityId = abilityId;
@@ -63,6 +65,7 @@ namespace VampireHunt.Player.Abilities.Missile
             SpawnForwardOffset = Math.Max(0f, spawnForwardOffset);
             KnockbackMultiplier = Math.Max(0f, knockbackMultiplier);
             Element = element;
+            ElementMastery = Math.Max(0f, elementMastery);
             OnHitStatuses = onHitStatuses ?? Array.Empty<StatusEffectSpec>();
         }
     }
@@ -131,7 +134,8 @@ namespace VampireHunt.Player.Abilities.Missile
                 PierceCount = m_Definition.PierceCount,
                 SpreadAngle = m_Definition.ArcAngle,          // repurposed: launch elevation
                 Tags = tags,
-                Element = m_Definition.Element
+                Element = m_Definition.Element,
+                ElementMastery = m_Definition.ElementMastery
             };
 
             for (int i = 0; i < m_Definition.OnHitStatuses.Length; i++)

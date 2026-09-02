@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25a484ca9bfe4326b54ce6af18524b6e, type: 3}
+  m_Name: ImpactFamiliar
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.ImpactFamiliarAsset
+  abilityId: 161
+  weaponTag: 16384
+  orbitRadius: 2.2
+  orbitSpeed: 120
+  orbitHeight: 1.2
+  bobAmplitude: 0.15
+  bobFrequency: 1.5
+  followLerp: 12
+  acquireRange: 30
+  pendingTargetLifetime: 3
+  targetMask: 256
+  maxTargets: 32
+  dashSpeed: 22
+  maxDashDuration: 2.5
+  maxDashDistance: 40
+  arriveDistance: 1.2
+  overshootDistance: 4
+  turnDuration: 0.25
+  turnSpeedRatio: 0.4
+  turnLerp: 12
+  maxPassesPerTarget: 0
+  switchTargetOnNewCandidate: 1
+  stopWhenPendingExpired: 1
+  impactRadius: 0.9
+  returnSpeed: 14
+  returnArriveDistance: 0.25
+  baseDamageInheritRatio: 1
+  damageMultiplier: 1.5
+  knockbackMultiplier: 1
+  hitCooldownPerTarget: 0.2
+  element: 0
+  onHitStatuses: []
+  buffTriggerCountMultiplier: 1
+  visualScale: 0.35
+  stretchFactor: 1.6

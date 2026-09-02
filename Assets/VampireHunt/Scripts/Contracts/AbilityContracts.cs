@@ -113,8 +113,15 @@ namespace VampireHunt.Contracts
         public int ProjectileCount { get; set; } = 1;
         public int PierceCount { get; set; } = 1;
         public float SpreadAngle { get; set; }
+        /// <summary>扇形张开全角（度）：剑气等扇形武器每颗弹丸自身的判定/视觉角度。与 SpreadAngle（多弹丸排布散布）解耦。</summary>
+        public float FanAngle { get; set; }
         public DamageTags Tags { get; set; }
         public ElementId Element { get; set; }
+        /// <summary>
+        /// 属性精通：影响所有元素效果——挂火/挂冰/挂闪电的层数、以及闪电连锁传导的复制层数。
+        /// 由武器运行时从武器定义写入，元素注入（血契/调试）读取后烙到元素状态上。
+        /// </summary>
+        public float ElementMastery { get; set; } = 1f;
         public bool IsCancelled { get; set; }
         public List<StatusEffectSpec> OnHitStatuses { get; } = new List<StatusEffectSpec>();
     }

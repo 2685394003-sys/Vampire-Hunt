@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VampireHunt.Contracts;
 using VampireHunt.Player.Abilities.LaserWeapon;
 
@@ -50,6 +51,8 @@ namespace VampireHunt.Infrastructure.Unity
         [Header("Element and on-hit effects")]
         [SerializeField] private ElementId element;
         [SerializeField] private StatusEntry[] onHitStatuses = Array.Empty<StatusEntry>();
+        [Tooltip("属性精通：影响所有元素效果（挂元素层数、闪电连锁传导）的倍率（激光=0.7）。")]
+        [Min(0f)] [SerializeField, FormerlySerializedAs("conductivity")] private float elementMastery = 1f;
 
         public LaserWeaponAbilityRuntime CreateRuntime()
         {
@@ -60,7 +63,7 @@ namespace VampireHunt.Infrastructure.Unity
             return new LaserWeaponAbilityRuntime(new LaserWeaponAbilityDefinition(
                 abilityId, slot, weaponTag, damageMultiplier, tickInterval, range, width,
                 pierceCount,
-                spawnHeight, spawnForwardOffset, knockbackMultiplier, element, specs));
+                spawnHeight, spawnForwardOffset, knockbackMultiplier, element, elementMastery, specs));
         }
     }
 }

@@ -1,6 +1,7 @@
 using Blocks.Gameplay.Core;
 using Unity.Netcode;
 using UnityEngine;
+using VampireHunt.Combat;
 using VampireHunt.Contracts;
 using VampireHunt.Effects;
 using VampireHunt.Enemies;
@@ -20,7 +21,8 @@ namespace VampireHunt.Infrastructure.Netcode
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(NetworkObject))]
-    public sealed class EnemyNetworkActor : HitProcessor, IDamageReceiver, ITrustedCombatHitTarget, ICombatEntityIdentity
+    public sealed class EnemyNetworkActor : HitProcessor, IDamageReceiver, ITrustedCombatHitTarget, ICombatEntityIdentity,
+        IAttributeModifierTarget
     {
         private const uint SwordWaveAttackId = 1;
         private const float BrainInterval = 0.1f;
@@ -61,6 +63,7 @@ namespace VampireHunt.Infrastructure.Netcode
             new NetworkList<EnemyAffixStackNetworkState>();
 
         private readonly EnemyApplicationService m_Application = new EnemyApplicationService();
+        private readonly AttributeModifierCollection m_AttributeModifiers = new AttributeModifierCollection();
         private EnemyAggregate m_Aggregate;
         private NetworkObject m_TargetPlayer;
         private ulong m_PreparedEntityId;
@@ -88,6 +91,17 @@ namespace VampireHunt.Infrastructure.Netcode
         public GameplayEntityId CombatEntityId => m_Aggregate != null
             ? m_Aggregate.Id
             : new GameplayEntityId(m_ReplicatedState.Value.EntityId);
+
+        public bool RegisterAttributeModifier(IAttributeModifier modifier) => m_AttributeModifiers.Register(modifier);
+        public bool UnregisterAttributeModifier(IAttributeModifier modifier) => m_AttributeModifiers.Unregister(modifier);
+        public float ResolveAttributeValue(int attributeId, float baseValue) => m_AttributeModifiers.Resolve(attributeId, baseValue);
+
+        /// <summary>敌人侧属性端口：当前只接 MoveSpeed（霜寒减速），以出生时的 RuntimeStats 为基数。</summary>
+        public float GetFinalAttributeValue(int attributeId)
+        {
+            float baseValue = m_Aggregate != null ? m_Aggregate.RuntimeStats.MoveSpeed : 0f;
+            return ResolveAttributeValue(attributeId, baseValue);
+        }
 
         private void Awake()
         {
@@ -245,15 +259,25 @@ namespace VampireHunt.Infrastructure.Netcode
         private bool ApplyTrustedHit(in TrustedCombatHit hit)
         {
             if (!IsServer || m_Aggregate == null || m_Aggregate.IsDead || hit.Damage.BaseDamage <= 0f) return false;
-            float reactionMultiplier = statusHost != null
+            ElementReactionResult reaction = statusHost != null
                 ? statusHost.ResolveElementReaction(hit.Element)
-                : 1f;
+                : ElementReactionResult.None();
+            float baseDamage = hit.Damage.BaseDamage;
+            if (reaction.Type == ElementReactionType.Shatter && reaction.PercentDamage > 0f)
+                baseDamage = m_Aggregate.RuntimeStats.MaxHealth * reaction.PercentDamage;
+            else if (reaction.HasReaction && reaction.DamageMultiplier > 0f)
+                baseDamage *= reaction.DamageMultiplier;
             var request = new DamageRequest(hit.Damage.Source, m_Aggregate.Id, hit.Damage.AttackId,
-                hit.Damage.Sequence, hit.Damage.BaseDamage * reactionMultiplier, hit.Damage.Tags);
+                hit.Damage.Sequence, baseDamage, hit.Damage.Tags);
             if (!TryApplyDamage(request, out ResolvedDamage result)) return false;
 
             if (!result.IsCancelled && result.Amount > 0f)
             {
+                if (reaction.Type == ElementReactionType.Detonate &&
+                    reaction.ExplodeRadius > 0f && reaction.DamageMultiplier > 0f)
+                {
+                    ExecuteDetonateAoe(hit.Damage.Source, hit.Damage.BaseDamage, reaction);
+                }
                 Vector3 force = new Vector3(hit.ImpactForce.X, hit.ImpactForce.Y, hit.ImpactForce.Z);
                 m_KnockbackVelocity += force;
                 if (!m_Aggregate.IsDead && statusHost != null)
@@ -266,6 +290,26 @@ namespace VampireHunt.Infrastructure.Netcode
                 }
             }
             return true;
+        }
+
+        /// <summary>炸裂（冰×火）：对自身周围半径内其他敌人造成 武器单发×倍率 伤害并击退。</summary>
+        private void ExecuteDetonateAoe(GameplayEntityId source, float baseDamage, in ElementReactionResult reaction)
+        {
+            Collider[] hits = Physics.OverlapSphere(transform.position, reaction.ExplodeRadius);
+            Vector3 center = transform.position;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                EnemyNetworkActor other = hits[i].GetComponentInParent<EnemyNetworkActor>();
+                if (other == null || other == this || other.m_Aggregate == null || other.m_Aggregate.IsDead) continue;
+                var damageRequest = new DamageRequest(
+                    source, other.m_Aggregate.Id, 0u, ++m_TrustedHitSequence,
+                    baseDamage * reaction.DamageMultiplier, DamageTags.Status | DamageTags.Flame);
+                other.TryApplyDamage(damageRequest, out _);
+                Vector3 outward = other.transform.position - center;
+                outward.y = 0f;
+                if (outward.sqrMagnitude > 0.0001f)
+                    other.m_KnockbackVelocity += outward.normalized * reaction.KnockbackDistance;
+            }
         }
 
         public bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result)
@@ -468,7 +512,7 @@ namespace VampireHunt.Infrastructure.Netcode
                         float stoppingDistance = ResolveStoppingDistance(m_MovementIntent);
                         if (navigationAgent.TryGetDesiredVelocity(
                                 destination,
-                                m_Aggregate.RuntimeStats.MoveSpeed,
+                                GetFinalAttributeValue((int)EnemyStat.MoveSpeed),
                                 stoppingDistance,
                                 out navigationVelocity))
                         {
@@ -484,7 +528,7 @@ namespace VampireHunt.Infrastructure.Netcode
                         fallbackDirection.y = 0f;
                         if (fallbackDirection.sqrMagnitude > 0.0001f)
                             fallbackDirection.Normalize();
-                        movement += fallbackDirection * m_Aggregate.RuntimeStats.MoveSpeed;
+                        movement += fallbackDirection * GetFinalAttributeValue((int)EnemyStat.MoveSpeed);
                         facingDirection = fallbackDirection.sqrMagnitude > 0.0001f
                             ? fallbackDirection
                             : directDirection;

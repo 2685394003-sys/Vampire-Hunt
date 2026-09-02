@@ -1,0 +1,162 @@
+using Unity.Netcode;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using VampireHunt.Contracts;
+
+namespace VampireHunt.Player.Abilities.Familiar
+{
+    /// <summary>
+    /// 使魔指针指令源（familiar pointer command）：把两个<b>本地</b>输入整理成服务器也能读到的一份快照 ——
+    /// ① 鼠标指在世界坐标的哪个点（pointer point）；② 左键是否正被按住（command held）。
+    /// 两种使魔（撞击水滴 161 / 射击僚机 162）共用它，血契「牵丝之契」据此让使魔绕鼠标待机、按左键指派目标。
+    /// </summary>
+    /// <remarks>
+    /// <b>为什么需要它</b>：使魔的状态机与伤害结算<b>只在服务器推进</b>，而鼠标是本机设备 ——
+    /// 纯 Server 模式下服务器读到的 <c>Mouse.current</c> 是服务器机器自己的鼠标，是错的。
+    /// 所以这里用 <b>owner 可写</b>的 NetworkVariable 把本地输入同步给服务器：
+    /// <list type="bullet">
+    /// <item><b>Host</b>（本项目主要验证方式）：本机既是 owner 又是服务器，直接读本地值，零延迟。</item>
+    /// <item><b>Client + Server</b>：客户端每帧写入，服务器读 NetworkVariable，行为一致。</item>
+    /// <item><b>未联网</b>（没有 NetworkManager / 未 Spawn）：退化成本地直读，使魔照常工作。</item>
+    /// </list>
+    /// </remarks>
+    /// <remarks>
+    /// <b>指针点（pointer point）来自 <see cref="ICombatAimSource"/></b>，即 <c>TopDownAimAddon</c>：
+    /// 它已经把鼠标射线投到地面并返回世界坐标，玩家武器也用同一个源，因此使魔与玩家看到的「鼠标位置」完全一致。
+    /// 命中不到地面时它会退化为「过玩家的水平面」交点，所以指针点几乎总是有效的。
+    /// </remarks>
+    [DisallowMultipleComponent]
+    [RequireComponent(typeof(NetworkObject))]
+    public sealed class FamiliarPointerCommand : NetworkBehaviour
+    {
+        /// <summary>指针世界坐标（owner 可写，所有人可读）。</summary>
+        private readonly NetworkVariable<Vector3> m_PointerPoint = new NetworkVariable<Vector3>(
+            default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        /// <summary>指针是否有效（鼠标没投到地面 / 没瞄准时为 false）。</summary>
+        private readonly NetworkVariable<bool> m_PointerValid = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        /// <summary>指令键（左键）是否处于按住状态。</summary>
+        private readonly NetworkVariable<bool> m_CommandHeld = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        [Header("引用（留空自动从本物体查找）")]
+        [Tooltip("瞄准源（aim source）：提供鼠标的世界坐标。留空 = 自动在本物体上找 ICombatAimSource" +
+                 "（玩家身上挂的 TopDownAimAddon 就是）。")]
+        [SerializeField] private MonoBehaviour aimSourceBehaviour;
+
+        [Header("调试")]
+        [Tooltip("在 Console 打印指针与左键状态变化，便于确认链路是否通。")]
+        [SerializeField] private bool logToConsole;
+
+        private ICombatAimSource m_AimSource;
+        private Vector3 m_LocalPointer;
+        private bool m_LocalHasPointer;
+        private bool m_LocalHeld;
+        private bool m_LoggedHeld;
+
+        /// <summary>指令键当前是否被按住（服务器读到的权威值）。</summary>
+        public bool IsCommandHeld =>
+            IsLocalOperator ? m_LocalHeld : m_CommandHeld.Value;
+
+        /// <summary>
+        /// 取出当前指针的世界坐标（pointer point）。
+        /// 返回 false = 指针无效（鼠标没投到地面），调用方应退回「围绕玩家」。
+        /// </summary>
+        public bool TryGetPointer(out Vector3 worldPoint)
+        {
+            if (IsLocalOperator)
+            {
+                worldPoint = m_LocalPointer;
+                return m_LocalHasPointer;
+            }
+            worldPoint = m_PointerPoint.Value;
+            return m_PointerValid.Value;
+        }
+
+        /// <summary>
+        /// 本机是否就是「操作这台电脑的人」：owner，或尚未联网（此时本机即操作者）。
+        /// 判断它才能决定该读本地输入还是读网络同步值。
+        /// </summary>
+        private bool IsLocalOperator => !IsSpawned || IsOwner;
+
+        // ── 生命周期 ──────────────────────────────────────────
+
+        private void Awake()
+        {
+            if (aimSourceBehaviour is ICombatAimSource assigned)
+            {
+                m_AimSource = assigned;
+                return;
+            }
+            MonoBehaviour[] behaviours = GetComponents<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] is ICombatAimSource source)
+                {
+                    m_AimSource = source;
+                    return;
+                }
+            }
+        }
+
+        private void Update()
+        {
+            // 只有操作者本人产生输入；服务器上这份数据来自网络同步，不能拿服务器的鼠标去覆盖。
+            if (!IsLocalOperator)
+            {
+                if (logToConsole && IsServer) LogServerView();
+                return;
+            }
+
+            // 注意：aim 必须先给默认值 —— 左侧 m_AimSource 为空时 && 短路，out 不会执行，
+            // 编译器会判定 aim 可能未赋值（CS0165），下一行读取即报错。
+            AimSnapshot aim = default;
+            bool hasPointer = m_AimSource != null && m_AimSource.TryGetAim(out aim);
+            Vector3 point = hasPointer ? ToVector3(aim.WorldPoint) : Vector3.zero;
+            bool held = IsCommandButtonHeld();
+
+            m_LocalHasPointer = hasPointer;
+            m_LocalPointer = point;
+            m_LocalHeld = held;
+
+            // 已联网才写 NetworkVariable：未 Spawn 时写会被 NGO 拒绝。
+            if (IsSpawned)
+            {
+                m_PointerValid.Value = hasPointer;
+                m_PointerPoint.Value = point;
+                m_CommandHeld.Value = held;
+            }
+
+            if (logToConsole && held != m_LoggedHeld)
+            {
+                m_LoggedHeld = held;
+                Debug.Log($"[FamiliarPointer] 左键 {(held ? "按下" : "松开")}  pointer={point} valid={hasPointer}", this);
+            }
+        }
+
+        /// <summary>
+        /// 指令键是否按住：<b>左键</b>。与游戏「按住连发（hold-to-fire）」的口径一致 ——
+        /// 按住期间持续生效，而不是只在按下那一帧。
+        /// </summary>
+        private static bool IsCommandButtonHeld()
+        {
+            Mouse mouse = Mouse.current;
+            return mouse != null && mouse.leftButton.isPressed;
+        }
+
+        private void LogServerView()
+        {
+            // 只在按住状态翻转时打印，避免刷屏。
+            bool held = m_CommandHeld.Value;
+            if (held == m_LoggedHeld) return;
+            m_LoggedHeld = held;
+            Debug.Log($"[FamiliarPointer] (server) 左键 {(held ? "按下" : "松开")}  " +
+                      $"pointer={m_PointerPoint.Value} valid={m_PointerValid.Value}", this);
+        }
+
+        // Float3 的分量是大写属性 X/Y/Z（见 AbilityContracts.cs），不是小写字段。
+        private static Vector3 ToVector3(Float3 value) => new Vector3(value.X, value.Y, value.Z);
+    }
+}

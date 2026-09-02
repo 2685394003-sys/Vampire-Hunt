@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 810000000000000014}
   - component: {fileID: 810000000000000015}
   - component: {fileID: 810000000000000016}
+  - component: {fileID: 219119476408945916}
   m_Layer: 8
   m_Name: VH_MeleeEnemy
   m_TagString: Untagged
@@ -54,7 +55,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3147211801
+  GlobalObjectIdHash: 609365202
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 0
@@ -167,13 +168,20 @@ MonoBehaviour:
   archetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
   affixCatalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
   characterController: {fileID: 810000000000000004}
+  navigationAgent: {fileID: 0}
   presenter: {fileID: 810000000000000008}
   modifierHost: {fileID: 810000000000000006}
   statusHost: {fileID: 810000000000000013}
   effectHost: {fileID: 810000000000000015}
   lootDropper: {fileID: 810000000000000016}
   onDamagePresented: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  attackExecutorBehaviour: {fileID: 0}
+  attackOrigin: {fileID: 0}
+  attackBlockingMask:
+    serializedVersion: 2
+    m_Bits: 1
   deathDespawnDelay: 1.25
+  noTargetDespawnDelay: 3
 --- !u!114 &810000000000000008
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -203,6 +211,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 02fad95847c94ab2de8c215a93b24c6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.CombatStatusHost
+  ShowTopMostFoldoutHeaderGroup: 1
   catalog: {fileID: 11400000, guid: 718712cf38a475b718293a4b5c6d7e8f, type: 2}
   effectHost: {fileID: 810000000000000015}
   onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
@@ -234,7 +243,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 53447c250496478f5b09fe27608f193b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.GameplayEffectHost
 --- !u!114 &810000000000000016
 MonoBehaviour:
@@ -246,8 +255,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40b15e8c9fad4b02e61728394a5b6c7d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.EnemyLootDropper
+  ShowTopMostFoldoutHeaderGroup: 1
   runSeed: 1337
   scatterRadius: 0.75
   groundMask:
@@ -255,6 +265,23 @@ MonoBehaviour:
     m_Bits: 1
   groundProbeHeight: 4
   groundOffset: 0.1
+--- !u!114 &219119476408945916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810000000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
 --- !u!1 &810000000000000009
 GameObject:
   m_ObjectHideFlags: 0
