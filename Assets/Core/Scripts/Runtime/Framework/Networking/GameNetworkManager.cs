@@ -71,6 +71,15 @@ namespace Blocks.Gameplay.Core
 
         private void Awake()
         {
+            // NGO 2.x 的 NetworkManager.Awake 是 private（C# 规则：子类不能 base.私有方法，会报 CS0117），
+            // 且 ContextualLogger(NetworkManager, bool) 构造是 internal，跨 asmdef 调不到。只能反射触发一次基类 Awake，完成 Log / NetworkConfig prefabs / 场景订阅初始化。
+            // 缺失时 Development 构建在 StartHost 第一行 Log.CaptureFunctionCall() NRE（编辑器靠 OnValidate、Release 靠 [Conditional(UNITY_ASSERTIONS)] 删行兜底，只有开发构建会炸）。
+            // TODO 根治：让 haohao 改成组合（不继承 NetworkManager），彻底去掉反射。
+            var baseAwake = typeof(NetworkManager).GetMethod(
+                "Awake",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            baseAwake?.Invoke(this, null);
+
             // Enforce singleton pattern
             if (Instance != null && Instance != this)
             {

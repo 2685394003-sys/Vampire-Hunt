@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P8010_familiar_gun_damage
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 8010
+  displayName: "\u5F71\u536B\u566C\u9B42"
+  description: "\u5C04\u51FB\u4F7F\u9B54\u4F24\u5BB3+25%/\u5C42\uFF0C\u53EF\u53E03\u5C42"
+  icon: {fileID: 0}
+  tier: 0
+  rarity: 1
+  baseWeight: 1
+  tags: 32
+  prerequisites: 411f0000
+  exclusions: 
+  repeatable: 1
+  maxStacks: 3
+  effectModules:
+  - {fileID: 11400000, guid: 4d8cefb7105cdb14c8ab283897c6e1fc, type: 2}

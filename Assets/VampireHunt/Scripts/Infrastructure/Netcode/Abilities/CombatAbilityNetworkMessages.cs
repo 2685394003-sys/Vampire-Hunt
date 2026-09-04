@@ -8,10 +8,11 @@ namespace VampireHunt.Infrastructure.Netcode
     public struct StatusEffectNetworkSpec : INetworkSerializable, IEquatable<StatusEffectNetworkSpec>
     {
         public uint StatusId;
-        public int Stacks;
+        public float Stacks;
         public float Duration;
         public float Magnitude;
         public byte Element;
+        public float ElementMastery;
 
         public StatusEffectNetworkSpec(in StatusEffectSpec spec)
         {
@@ -20,10 +21,11 @@ namespace VampireHunt.Infrastructure.Netcode
             Duration = spec.Duration;
             Magnitude = spec.Magnitude;
             Element = (byte)spec.Element;
+            ElementMastery = spec.ElementMastery;
         }
 
         public StatusEffectSpec ToDomain() =>
-            new StatusEffectSpec(StatusId, Stacks, Duration, Magnitude, (ElementId)Element);
+            new StatusEffectSpec(StatusId, Stacks, Duration, Magnitude, (ElementId)Element, ElementMastery);
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
@@ -32,11 +34,12 @@ namespace VampireHunt.Infrastructure.Netcode
             serializer.SerializeValue(ref Duration);
             serializer.SerializeValue(ref Magnitude);
             serializer.SerializeValue(ref Element);
+            serializer.SerializeValue(ref ElementMastery);
         }
 
         public bool Equals(StatusEffectNetworkSpec other) =>
-            StatusId == other.StatusId && Stacks == other.Stacks && Duration.Equals(other.Duration) &&
-            Magnitude.Equals(other.Magnitude) && Element == other.Element;
+            StatusId == other.StatusId && Stacks.Equals(other.Stacks) && Duration.Equals(other.Duration) &&
+            Magnitude.Equals(other.Magnitude) && Element == other.Element && ElementMastery.Equals(other.ElementMastery);
     }
 
     public struct StatusEffectNetworkBundle : INetworkSerializable, IEquatable<StatusEffectNetworkBundle>
@@ -80,6 +83,15 @@ namespace VampireHunt.Infrastructure.Netcode
             }
         }
 
+        /// <summary>把网络包还原为领域规格数组（最多 4 个），供 Boss 本体/手等命中目标施加元素状态。</summary>
+        public StatusEffectSpec[] ToSpecs()
+        {
+            int count = Math.Min(4, (int)Count);
+            var specs = new StatusEffectSpec[count];
+            for (int i = 0; i < count; i++) specs[i] = Get(i).ToDomain();
+            return specs;
+        }
+
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref Count);
@@ -108,6 +120,7 @@ namespace VampireHunt.Infrastructure.Netcode
         public int ProjectileCount;
         public int PierceCount;
         public float SpreadAngle;
+        public float FanAngle;
         public uint Tags;
         public byte Element;
         public StatusEffectNetworkBundle OnHitStatuses;
@@ -128,6 +141,7 @@ namespace VampireHunt.Infrastructure.Netcode
                 ProjectileCount = plan.ProjectileCount,
                 PierceCount = plan.PierceCount,
                 SpreadAngle = plan.SpreadAngle,
+                FanAngle = plan.FanAngle,
                 Tags = (uint)plan.Tags,
                 Element = (byte)plan.Element,
                 OnHitStatuses = StatusEffectNetworkBundle.FromPlan(plan)
@@ -148,6 +162,7 @@ namespace VampireHunt.Infrastructure.Netcode
             serializer.SerializeValue(ref ProjectileCount);
             serializer.SerializeValue(ref PierceCount);
             serializer.SerializeValue(ref SpreadAngle);
+            serializer.SerializeValue(ref FanAngle);
             serializer.SerializeValue(ref Tags);
             serializer.SerializeValue(ref Element);
             serializer.SerializeValue(ref OnHitStatuses);
@@ -159,7 +174,7 @@ namespace VampireHunt.Infrastructure.Netcode
             TravelDistance.Equals(other.TravelDistance) && ProjectileSpeed.Equals(other.ProjectileSpeed) &&
             Knockback.Equals(other.Knockback) && ProjectileSize.Equals(other.ProjectileSize) &&
             ProjectileCount == other.ProjectileCount && PierceCount == other.PierceCount &&
-            SpreadAngle.Equals(other.SpreadAngle) && Tags == other.Tags && Element == other.Element &&
+            SpreadAngle.Equals(other.SpreadAngle) && FanAngle.Equals(other.FanAngle) && Tags == other.Tags && Element == other.Element &&
             OnHitStatuses.Equals(other.OnHitStatuses);
     }
 

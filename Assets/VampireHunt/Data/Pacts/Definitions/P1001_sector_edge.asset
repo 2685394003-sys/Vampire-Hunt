@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P1001_sector_edge
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 1001
+  displayName: "\u8840\u5203\u996E\u8840"
+  description: "\u5251\u6C14\u4F24\u5BB3+25%/\u5C42\uFF0C\u53EF\u53E03\u5C42"
+  icon: {fileID: 0}
+  tier: 0
+  rarity: 1
+  baseWeight: 1
+  tags: 32
+  prerequisites: 
+  exclusions: d1070000b90b0000a10f000089130000
+  repeatable: 1
+  maxStacks: 3
+  effectModules:
+  - {fileID: 11400000, guid: eb370a834d37649438f1168f4f2abe5d, type: 2}

@@ -15,7 +15,24 @@ namespace VampireHunt.Contracts
         Pact = 1 << 5,
         Periodic = 1 << 6,
         /// <summary>Explicit player parry signal. It is not inferred from ordinary damage.</summary>
-        Parry = 1 << 7
+        Parry = 1 << 7,
+        /// <summary>High-damage piercing sniper projectile.</summary>
+        Sniper = 1 << 8,
+        /// <summary>Rapid-fire automatic rifle projectile.</summary>
+        AutoRifle = 1 << 9,
+        /// <summary>Continuous hitscan laser beam.</summary>
+        Laser = 1 << 10,
+        /// <summary>Short-range cone flamethrower.</summary>
+        Flame = 1 << 11,
+        /// <summary>Lobbed missile bomb (parabola + piercing + landing AoE).</summary>
+        Missile = 1 << 12,
+        /// <summary>圆形领域（field）：非玩家发射型，以玩家为圆心的常驻光环周期伤害。</summary>
+        Field = 1 << 13,
+        /// <summary>
+        /// 使魔（familiar）：非玩家发射型，撞击水滴使魔的穿透撞击伤害。
+        /// 带此标签的伤害不会被使魔控制器登记回候选目标，避免「使魔打中怪 → 又记成新候选」的自触发循环。
+        /// </summary>
+        Familiar = 1 << 14
     }
 
     /// <summary>Pure combat input. Unity hit data stays in the adapter layer.</summary>

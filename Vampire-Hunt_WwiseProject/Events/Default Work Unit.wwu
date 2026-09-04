@@ -3,17 +3,8 @@
 	<Events>
 		<WorkUnit Name="Default Work Unit" ID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" PersistMode="Standalone">
 			<ChildrenList>
-				<Event Name="Play_TESTSFX" ID="{37675D81-DD85-4B60-B8F2-A0DB2D46C722}">
-					<ChildrenList>
-						<Action Name="" ID="{F74970CE-307F-4EA2-8947-CBD53018D26D}" ShortID="685287948">
-							<ReferenceList>
-								<Reference Name="Target">
-									<ObjectRef Name="TESTSFX" ID="{546D0410-3758-48A6-92D2-B99A455BEB0C}" WorkUnitID="{13E11ED5-A965-4923-AEFE-B212D09A144F}"/>
-								</Reference>
-							</ReferenceList>
-						</Action>
-					</ChildrenList>
-				</Event>
+				<Event Name="Play_TESTSFX" ID="{37675D81-DD85-4B60-B8F2-A0DB2D46C722}"/>
+				<Event Name="Play_Enemy_Hurt" ID="{A97F90B7-0A18-4B57-B5B9-70E265A1088B}"/>
 			</ChildrenList>
 		</WorkUnit>
 	</Events>

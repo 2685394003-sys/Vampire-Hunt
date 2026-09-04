@@ -98,7 +98,21 @@ namespace VampireHunt.Infrastructure.Netcode
         [SerializeField, Min(0)] private int rerollScarletCost = 25;
         [SerializeField, Min(0)] private int maxRerolls = 1;
         [SerializeField, Range(1, 3)] private int optionCount = 3;
+        [Header("等级上限")]
+        [Tooltip("玩家等级上限。等级 = 1 + 已完成升级次数（= 已装血契数）；达到上限后按 Z 不再触发升级面板。")]
+        [SerializeField, Min(1)] private int maxLevel = 20;
+        [Tooltip("固定局种子：仅当 autoSeedPerRun=false 时作为回退值使用（复现/回归）。")]
         [SerializeField] private int runSeed = 1337;
+        [Tooltip("每局开局由 server 自动生成随机局种子，替代固定 1337（修复每局第一次抽卡/整局随机全部可复现的问题）。关闭 = 回退到上方固定 runSeed，用于复现指定局。")]
+        [SerializeField] private bool autoSeedPerRun = true;
+
+        [Header("解锁契软保底（soft pity）")]
+        [Tooltip("仍可获得（未拥有、前置满足、互斥不冲突）的形态解锁契名单：武器/领域/使魔获得契。")]
+        [SerializeField] private uint[] pityUnlockPactIds = { 2001, 3001, 4001, 5001, 6001, 7001, 8001 };
+        [Tooltip("阈值 N：连续 N 次「新的升级」初始选项未刷出任何仍合格的解锁契 → 下次升级触发（权重 ×K）。reroll 不推进也不清零。")]
+        [SerializeField, Min(1)] private int pityMissThreshold = 3;
+        [Tooltip("力度 K：触发后解锁契权重乘子（仍是权重采样，非硬塞必出）。触发轮仍空手则计数继续累计、保底延续。")]
+        [SerializeField, Min(1f)] private float pityWeightMultiplier = 4f;
 
         private readonly NetworkVariable<PactDraftNetworkState> m_Draft =
             new NetworkVariable<PactDraftNetworkState>(default,
@@ -112,13 +126,19 @@ namespace VampireHunt.Infrastructure.Netcode
         private EnemyAffixCatalog m_DomainAffixCatalog;
         private ulong m_NextOfferId = 1;
         private int m_RollIndex;
+        private int m_RunSeed = 1337;
         private bool m_NoEligibleOptions;
+        private int m_UnlockMissStreak;
 
         public event Action<PactDraftNetworkState> DraftChanged;
         public event Action<float> LevelUpCostChanged;
         public PactDraftNetworkState CurrentDraft => m_Draft.Value;
         public float SelectionScarletCost => LevelUpCostPolicy.CalculateRequiredScarlet(
             selectionScarletCost, levelUpCostGrowthRate, m_CompletedLevelUps.Value);
+        /// <summary>当前等级 = 1 + 已完成升级次数（与已装血契数一致）。</summary>
+        public int CurrentLevel => m_CompletedLevelUps.Value + 1;
+        /// <summary>是否已达到等级上限：达到后不再触发升级面板（升级成本提示可据此隐藏）。</summary>
+        public bool IsLevelMaxed => m_CompletedLevelUps.Value >= Mathf.Max(0, maxLevel - 1);
 
         private void Awake()
         {
@@ -137,7 +157,12 @@ namespace VampireHunt.Infrastructure.Netcode
                 : new EnemyAffixCatalog(null);
             m_Draft.OnValueChanged += HandleDraftChanged;
             m_CompletedLevelUps.OnValueChanged += HandleCompletedLevelUpsChanged;
-            if (IsServer) m_CompletedLevelUps.Value = pactState != null ? pactState.TotalStacks : 0;
+            if (IsServer)
+            {
+                m_RunSeed = autoSeedPerRun ? Guid.NewGuid().GetHashCode() : runSeed;
+                m_CompletedLevelUps.Value = pactState != null ? pactState.TotalStacks : 0;
+                m_UnlockMissStreak = 0;
+            }
             if (IsOwner)
             {
                 onTriggerLevelup?.RegisterListener(HandleTriggerLevelup);
@@ -166,6 +191,8 @@ namespace VampireHunt.Infrastructure.Netcode
             ResolveEnemyAffixDependencies();
             if (m_Draft.Value.IsActive || m_NoEligibleOptions || coreStats == null ||
                 pactState == null || enemyAffixState == null) return;
+            // 等级上限：等级 = 1 + 已完成升级次数，达到 maxLevel 后不再开升级面板。
+            if (IsLevelMaxed) return;
 
             float selectionCost = LevelUpCostPolicy.CalculateRequiredScarlet(
                 selectionScarletCost, levelUpCostGrowthRate, m_CompletedLevelUps.Value);
@@ -249,10 +276,17 @@ namespace VampireHunt.Infrastructure.Netcode
                 : new PactInventory();
             EnemyAffixSet affixSet = enemyAffixState.CreateSetSnapshot();
             int roll = ++m_RollIndex;
-            int pactSeed = unchecked(runSeed * 397 ^ (int)OwnerClientId * 7919 ^ roll * 104729);
+            int pactSeed = unchecked(m_RunSeed * 397 ^ (int)OwnerClientId * 7919 ^ roll * 104729);
             int affixSeed = unchecked(pactSeed ^ (int)0x5F356495);
+
+            // 解锁契软保底：连续 N 次「新升级初始选项」都没出现仍可获得的解锁契 → 下次升级权重 ×K。
+            // 仅当名单内还有可获得的解锁契时才激活（避免已全拿到/被武器线互斥锁死后空转）。
+            bool hasEligibleUnlock = HasEligibleUnlockPity(inventory);
+            bool pityActive = hasEligibleUnlock && m_UnlockMissStreak >= pityMissThreshold;
             uint[] pactOptions = m_PactRollService.Roll(
-                m_DomainCatalog, inventory, optionCount, pactSeed);
+                m_DomainCatalog, inventory, optionCount, pactSeed,
+                pityUnlockIds: pityUnlockPactIds, pityActive: pityActive,
+                pityWeightMultiplier: pityWeightMultiplier);
             uint[] affixOptions = m_AffixRollService.Roll(
                 m_DomainAffixCatalog, affixSet, optionCount, affixSeed);
             if (pactOptions.Length == 0 || affixOptions.Length == 0)
@@ -260,6 +294,21 @@ namespace VampireHunt.Infrastructure.Netcode
                 m_NoEligibleOptions = true;
                 m_Draft.Value = default;
                 return;
+            }
+
+            // 更新 miss 计数：见着解锁契→清零；新升级(非 reroll)未见→+1；reroll 未见→不变(同一升级不双计)；
+            // 名单已无可获得解锁契→归零(保底无对象，不累计)。
+            if (!hasEligibleUnlock)
+            {
+                m_UnlockMissStreak = 0;
+            }
+            else if (OptionsContainPityUnlock(pactOptions))
+            {
+                m_UnlockMissStreak = 0;
+            }
+            else if (rerollCount == 0)
+            {
+                m_UnlockMissStreak++;
             }
 
             m_Draft.Value = new PactDraftNetworkState
@@ -285,6 +334,35 @@ namespace VampireHunt.Infrastructure.Netcode
             if (enemyAffixState == null) enemyAffixState = FindAnyObjectByType<EnemyAffixRunState>();
             if (enemyAffixCatalog == null && enemyAffixState != null)
                 enemyAffixCatalog = enemyAffixState.CatalogAsset;
+        }
+
+        /// <summary>名单内是否还有「仍可获得」的解锁契（未拥有、前置满足、互斥不冲突）。无对象时保底不激活也不累计。</summary>
+        private bool HasEligibleUnlockPity(PactInventory inventory)
+        {
+            if (inventory == null || pityUnlockPactIds == null || pityUnlockPactIds.Length == 0)
+                return false;
+            for (int i = 0; i < pityUnlockPactIds.Length; i++)
+            {
+                if (!m_DomainCatalog.TryGet(pityUnlockPactIds[i], out PactDefinition definition))
+                    continue;
+                if (m_PactRollService.IsEligible(m_DomainCatalog, inventory, definition))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>本次 roll 选项里是否出现了名单内的解锁契（roll 结果必为 eligible，故命中即视为「本次见过解锁契」）。</summary>
+        private bool OptionsContainPityUnlock(uint[] pactOptions)
+        {
+            if (pactOptions == null || pityUnlockPactIds == null) return false;
+            for (int o = 0; o < pactOptions.Length; o++)
+            {
+                for (int i = 0; i < pityUnlockPactIds.Length; i++)
+                {
+                    if (pactOptions[o] == pityUnlockPactIds[i]) return true;
+                }
+            }
+            return false;
         }
 
         private void RefundSelectionCost(float amount)

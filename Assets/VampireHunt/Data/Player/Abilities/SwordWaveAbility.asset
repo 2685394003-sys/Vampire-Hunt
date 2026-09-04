@@ -15,13 +15,16 @@ MonoBehaviour:
   abilityId: 1
   slot: 0
   baseCooldown: 0.45
-  travelDistance: 1
+  travelDistance: 2
   projectileSpeed: 14
   projectileSize: 1
-  projectileCount: 1
+  projectileCount: 3
   pierceCount: 100
-  spreadAngle: 0
+  spreadAngle: 90
+  fanAngle: 90
   spawnForwardOffset: 0.8
   spawnHeight: 1
+  knockbackMultiplier: 0.8
   element: 0
   onHitStatuses: []
+  elementMastery: 1

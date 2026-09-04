@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P8012_familiar_gun_swarm
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 8012
+  displayName: "\u5F71\u536B\u72C2\u589E"
+  description: "\u4E00\u6B21\u6027\u989D\u5916\u53EC\u55245\u4E2A\u5C04\u51FB\u4F7F\u9B54\uFF1B\u4F7F\u9B54\u4F24\u5BB3\u7EDF\u4E00\xD70.7\uFF08\u9632\u81A8\u80C0\uFF09"
+  icon: {fileID: 0}
+  tier: 2
+  rarity: 1
+  baseWeight: 0.3
+  tags: 32
+  prerequisites: 411f0000
+  exclusions: 
+  repeatable: 0
+  maxStacks: 1
+  effectModules:
+  - {fileID: 11400000, guid: dfe30fb1b2f4f1c42824c2b21b6e5b70, type: 2}
+  - {fileID: 11400000, guid: 4f254cacbb2544c44a599cf2c5f99457, type: 2}

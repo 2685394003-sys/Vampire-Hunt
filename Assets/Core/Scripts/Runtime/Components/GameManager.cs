@@ -47,6 +47,17 @@ namespace Blocks.Gameplay.Core
         [Tooltip("List of Transforms to use as spawn points.")]
         [SerializeField] private List<Transform> spawnPoints;
 
+        /// <summary>
+        /// 重生位置解析器委托：由上层（如 VampireHunt）注入，返回 true 且给出位置时替代 spawnPoints。
+        /// </summary>
+        public delegate bool RespawnPositionResolver(out Vector3 position);
+
+        /// <summary>
+        /// 外部注入的重生位置解析器（如 VampireHunt 按 Boss 位置计算空地重生点）。
+        /// 为 null 时重生回退到 spawnPoints。
+        /// </summary>
+        public static RespawnPositionResolver ResolveRespawnPosition;
+
         [Header("Events")]
         [Tooltip("Event raised when a player's stat is depleted (e.g., health reaches zero).")]
         [SerializeField] private StatDepletedEvent onStatDepleted;
@@ -437,15 +448,25 @@ namespace Blocks.Gameplay.Core
             var coreMovement = playerState.GetComponent<CoreMovement>();
             if (coreMovement != null)
             {
-                int spawnIndex = GetRandomSpawnIndex();
-                if (spawnIndex >= 0 && spawnPoints != null && spawnPoints.Count > spawnIndex)
+                Vector3 respawnPosition;
+                if (ResolveRespawnPosition != null && ResolveRespawnPosition(out respawnPosition))
                 {
-                    coreMovement.transform.rotation = spawnPoints[spawnIndex].rotation;
-                    coreMovement.SetPosition(spawnPoints[spawnIndex].position);
+                    // 外部注入的重生位置（如 VampireHunt 按 Boss 位置计算空地重生点）
+                    coreMovement.SetPosition(respawnPosition);
+                    coreMovement.transform.rotation = Quaternion.identity;
                 }
                 else
                 {
-                    coreMovement.SetPosition(Vector3.zero);
+                    int spawnIndex = GetRandomSpawnIndex();
+                    if (spawnIndex >= 0 && spawnPoints != null && spawnPoints.Count > spawnIndex)
+                    {
+                        coreMovement.transform.rotation = spawnPoints[spawnIndex].rotation;
+                        coreMovement.SetPosition(spawnPoints[spawnIndex].position);
+                    }
+                    else
+                    {
+                        coreMovement.SetPosition(Vector3.zero);
+                    }
                 }
 
                 coreMovement.ResetMovementForces();

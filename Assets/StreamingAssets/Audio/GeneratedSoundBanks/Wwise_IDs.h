@@ -13,12 +13,14 @@ namespace AK
 {
     namespace EVENTS
     {
+        static const AkUniqueID PLAY_ENEMY_HURT = 2960920018U;
         static const AkUniqueID PLAY_TESTSFX = 2013398331U;
     } // namespace EVENTS
 
     namespace BANKS
     {
         static const AkUniqueID INIT = 1355168291U;
+        static const AkUniqueID BANK_COMBAT = 1248370110U;
         static const AkUniqueID MAIN = 3161908922U;
     } // namespace BANKS
 

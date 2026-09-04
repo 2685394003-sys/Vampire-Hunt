@@ -70,8 +70,8 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
         // Get current stamina from stats system
         float currentStamina = m_StatsHandler.GetCurrentValue(StatKeys.Stamina);
 
-        // Check Stamina
-        if (currentStamina < staminaCost)
+        // Check Stamina（开发者控制台开启无限体力时跳过检查）
+        if (currentStamina < staminaCost && !m_StatsHandler.InfiniteStamina)
         {
             HandleInsufficientStamina();
             return;
@@ -80,13 +80,8 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
         // Attempt Dash
         if (dashAbility.TryActivate())
         {
-            // Consume Stamina
-            m_StatsHandler.ModifyStat(
-                StatKeys.Stamina,
-                -staminaCost,
-                m_PlayerManager.OwnerClientId,
-                ModificationSource.Consumption
-            );
+            // 冲刺消耗体力：打断恢复，冲刺后 0.2s（DashStaminaRegenDelay）才恢复
+            m_StatsHandler.ConsumeDashStamina(staminaCost, m_PlayerManager.OwnerClientId);
         }
     }
 

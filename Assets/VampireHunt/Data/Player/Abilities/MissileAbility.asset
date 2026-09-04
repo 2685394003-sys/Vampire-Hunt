@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43275a3d194896c468c26915ea5e51b4, type: 3}
+  m_Name: MissileAbility
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.MissileAbilityAsset
+  abilityId: 130
+  slot: 0
+  weaponTag: 4096
+  damageMultiplier: 0.8
+  baseCooldown: 1.2
+  range: 25
+  projectileSpeed: 16
+  pierceCount: 0
+  arcAngle: 25
+  gravity: 9.8
+  blastRadius: 2
+  projectileCount: 1
+  spawnForwardOffset: 0.5
+  spawnHeight: 1
+  knockbackMultiplier: 0.4
+  element: 0
+  onHitStatuses: []
+  elementMastery: 0.6

@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Systems;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -51,6 +52,7 @@ namespace VampireHunt.Presentation.HUD
         private ulong m_RenderedOfferId;
         private uint m_SelectedPactId;
         private uint m_SelectedAffixId;
+        private bool m_PactMenuPausedByUs;
 
         private void Awake()
         {
@@ -87,6 +89,11 @@ namespace VampireHunt.Presentation.HUD
             if (enemyAffixState != null) enemyAffixState.AffixesChanged -= HandleAffixesChanged;
             UnbindButtons();
             SetCursorForDraft(false);
+            if (m_PactMenuPausedByUs)
+            {
+                m_PactMenuPausedByUs = false;
+                MenuPauseController.ReleasePactPause();
+            }
             base.OnNetworkDespawn();
         }
 
@@ -169,6 +176,18 @@ namespace VampireHunt.Presentation.HUD
 
             m_Overlay.style.display = draft.IsActive ? DisplayStyle.Flex : DisplayStyle.None;
             SetCursorForDraft(draft.IsActive);
+
+            // 单人模式下，打开血契菜单时暂停游戏，关闭时恢复
+            if (draft.IsActive && !m_PactMenuPausedByUs)
+            {
+                m_PactMenuPausedByUs = true;
+                MenuPauseController.RequestPactPause();
+            }
+            else if (!draft.IsActive && m_PactMenuPausedByUs)
+            {
+                m_PactMenuPausedByUs = false;
+                MenuPauseController.ReleasePactPause();
+            }
             if (m_DraftSubtitle != null)
                 m_DraftSubtitle.text = draft.IsActive
                     ? $"选择一份血契和一份副契，确认后消耗 {Mathf.CeilToInt(draft.SelectionCost)} 猩红"

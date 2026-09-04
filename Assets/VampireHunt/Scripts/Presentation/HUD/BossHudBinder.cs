@@ -46,8 +46,7 @@ namespace VampireHunt.Presentation.HUD
             if (m_Hud == null) return;
             bool guardVisible = state.State == BossEncounterState.RoamingIdle ||
                                 state.State == BossEncounterState.RoamingEvade ||
-                                state.State == BossEncounterState.StaggerEffect ||
-                                state.State == BossEncounterState.ExecutionWindow;
+                                state.State == BossEncounterState.StaggerEffect;
             m_Hud.SetBossEncounterState(config != null ? config.BossName : "猩红之主",
                 state.Health, state.MaxHealth, state.GuardHealth, state.MaxGuardHealth,
                 state.StageNumber, GetStatusText(state.State), state.HudVisible, guardVisible);
@@ -60,7 +59,6 @@ namespace VampireHunt.Presentation.HUD
                 case BossEncounterState.RoamingIdle: return "游走·待机攻击";
                 case BossEncounterState.RoamingEvade: return "游走·远离";
                 case BossEncounterState.StaggerEffect: return "踉跄反击";
-                case BossEncounterState.ExecutionWindow: return "处决窗口";
                 case BossEncounterState.Battle: return "Boss 战";
                 case BossEncounterState.PhaseTransition: return "阶段转换";
                 case BossEncounterState.Defeated: return "已击败";

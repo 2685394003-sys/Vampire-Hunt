@@ -6,6 +6,7 @@ using VampireHunt.Contracts;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity.Boss;
 using VampireHunt.Navigation;
+using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -25,6 +26,7 @@ namespace VampireHunt.Infrastructure.Netcode
         [SerializeField] private BossAbilityServerDriver abilityDriver;
         [SerializeField] private BossRoamingMovement roamingMovement;
         [SerializeField] private BossBodyStateHost bodyState;
+        [SerializeField] private BossHandCoordinator handCoordinator;
         [SerializeField] private VampireHuntGameManager runManager;
         [SerializeField] private int runSeed = 72631;
 
@@ -37,10 +39,20 @@ namespace VampireHunt.Infrastructure.Netcode
         private uint m_RandomOrdinal;
         private bool m_FrenzyTriggered;
         private bool m_SpawnPositionChosen;
+        private double m_LastPlayerDamageTime = double.NegativeInfinity;
+        // 漫游期受击逃离：剩余逃离秒数 + 最后一次伤害来源坐标（逃跑方向 = 背离该点）
+        private float m_DamageFleeTimer;
+        private Float3 m_DamageFleeOrigin;
 
         public BossEncounterConfigAsset Config => config;
         public BossEncounterState State => m_Aggregate?.State ?? BossEncounterState.Dormant;
         public int StageNumber => m_Aggregate?.StageNumber ?? 1;
+
+        // 诊断/数值测试只读口：格挡条当前值与上限（直接映射服务器权威 aggregate，不提供任何写入路径）。
+        // 用途：玩家对 Boss 的伤害不走 ServerCombatResolutionRouter（见 BossVitalsReceiver），
+        // 监控插件只能靠"格挡条下降量"反推玩家对 Boss 的实打输出，用于武器单体 DPS 木桩测试。
+        public float GuardHealth => m_Aggregate?.GuardHealth ?? 0f;
+        public float MaxGuardHealth => m_Aggregate?.MaxGuardHealth ?? 0f;
 
         private void Awake()
         {
@@ -48,6 +60,7 @@ namespace VampireHunt.Infrastructure.Netcode
             if (abilityDriver == null) abilityDriver = GetComponent<BossAbilityServerDriver>();
             if (roamingMovement == null) roamingMovement = GetComponent<BossRoamingMovement>();
             if (bodyState == null) bodyState = GetComponent<BossBodyStateHost>();
+            if (handCoordinator == null) handCoordinator = GetComponent<BossHandCoordinator>();
             if (runManager == null) runManager = FindAnyObjectByType<VampireHuntGameManager>();
             roamingMovement?.SetConfig(config);
             ResolveTargetQuery();
@@ -80,6 +93,8 @@ namespace VampireHunt.Infrastructure.Netcode
         private void Update()
         {
             if (!IsSpawned || !IsServer || m_Aggregate == null) return;
+            // 单人模式菜单暂停时冻结整个 Boss 遭遇模拟（ServerTime 是墙钟，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
             if (runManager == null) runManager = FindAnyObjectByType<VampireHuntGameManager>();
             ResolveTargetQuery();
 
@@ -88,8 +103,21 @@ namespace VampireHunt.Infrastructure.Netcode
                                         roamingMovement.TrySpawnInPlayerAnnulusServer(NextRandom());
 
             bool hasTarget = TryGetNearest(out BossPlayerTarget target, out float distance);
-            if (!m_Aggregate.HudVisible && hasTarget && distance <= config.DetectionRange)
-                m_Aggregate.SetEngaged();
+            // Boss 血量 HUD：玩家距离 Boss ≤ BossHudShowDistance 时显示，超出则隐藏
+            m_Aggregate.SetEngaged(hasTarget && distance <= config.BossHudShowDistance);
+
+            // 玩家全部死亡 → Boss 退出战斗，格挡条恢复满（本体血保留）
+            if (!hasTarget) m_Aggregate.ResetToRoaming();
+
+            // 格挡条脱战恢复：无伤害超过 GuardRegenDelaySeconds 后持续恢复
+            if (m_Aggregate.State == BossEncounterState.RoamingIdle ||
+                m_Aggregate.State == BossEncounterState.RoamingEvade)
+            {
+                if (NetworkManager.ServerTime.Time - m_LastPlayerDamageTime >= config.GuardRegenDelaySeconds)
+                    m_Aggregate.RegenerateGuard(config.GuardRegenPerSecond * Time.deltaTime);
+            }
+
+            if (m_DamageFleeTimer > 0f) m_DamageFleeTimer -= Time.deltaTime;
 
             TickState(hasTarget, target, distance);
             TryForcePendingAbility();
@@ -105,11 +133,19 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             outcome = BossDamageOutcome.Ignored;
             if (!IsServer || m_Aggregate == null || amount <= 0f) return false;
-            float distance = Distance(attackerPosition, ToFloat3(transform.position));
+            // 攻击者位置不参与伤害结算，但用于漫游期受击逃离的方向计算（见下方）。
             float validatedDamage = Mathf.Min(amount, config.MaxTrustedHitDamage);
             BossEncounterState previous = m_Aggregate.State;
-            outcome = m_Aggregate.ApplyDamage(validatedDamage, distance);
+            outcome = m_Aggregate.ApplyDamage(validatedDamage);
             if (outcome == BossDamageOutcome.Ignored) return false;
+            m_LastPlayerDamageTime = NetworkManager.ServerTime.Time;
+            // 漫游期挨打 → 朝伤害来源反方向逃离，防玩家站在 DetectionRange 外无脑输出。
+            // 只认 GuardDamaged：GuardBroken 当帧就进踉跄开战，跑了没意义；Battle 期打的是本体血，不逃。
+            if (outcome == BossDamageOutcome.GuardDamaged && config.RoamingDamageFleeDuration > 0f)
+            {
+                m_DamageFleeOrigin = attackerPosition;
+                m_DamageFleeTimer = config.RoamingDamageFleeDuration;
+            }
             if (previous != m_Aggregate.State) ObserveStateTransition(force: true);
             stateReplicator.PublishServer(m_Aggregate.CaptureSnapshot(), force: true);
             return true;
@@ -123,30 +159,36 @@ namespace VampireHunt.Infrastructure.Netcode
                 case BossEncounterState.RoamingIdle:
                 case BossEncounterState.RoamingEvade:
                     EnsureAbilityPhase(config.RoamingAbilityPhaseNumber);
-                    bool evade = hasTarget && distance <= config.EvadeDistance;
+                    // 两种逃跑：玩家贴脸（EvadeDistance 内）／漫游期被远程打到（受击逃离计时中）。
+                    bool proximityEvade = hasTarget && distance <= config.EvadeDistance;
+                    bool fleeFromDamage = hasTarget && m_DamageFleeTimer > 0f;
+                    bool evade = proximityEvade || fleeFromDamage;
                     m_Aggregate.SetRoamingEvade(evade);
-                    roamingMovement?.TickServer(evade);
-                    abilityDriver?.SetAutomaticCastsServer(!evade);
+                    if (fleeFromDamage)
+                        roamingMovement?.TickFleeServer(m_DamageFleeOrigin, config.RoamingDamageFleeMaxDistance);
+                    else
+                        roamingMovement?.TickServer(proximityEvade);
+                    // 远离玩家（evade）时也继续自动施法攻击，而不是停下技能
+                    abilityDriver?.SetAutomaticCastsServer(true);
+                    // 破盾即踉跄：只要还有存活玩家，不再要求玩家靠近到 StaggerTriggerDistance 内。
                     if (m_Aggregate.GuardHealth <= 0f && hasTarget)
-                        m_Aggregate.TryBeginStagger(distance);
+                        m_Aggregate.TryBeginStagger();
                     break;
 
                 case BossEncounterState.StaggerEffect:
                     roamingMovement?.TickServer(false);
                     abilityDriver?.SetAutomaticCastsServer(false);
+                    // 踉跄表演结束 → 直接进入 Boss 战（原处决窗口已移除）。
                     if (now - m_StateEnterTime >= config.StaggerEffectDuration)
                         m_Aggregate.CompleteStaggerEffect();
                     break;
 
-                case BossEncounterState.ExecutionWindow:
-                    roamingMovement?.TickServer(false);
-                    abilityDriver?.SetAutomaticCastsServer(false);
-                    if (now - m_StateEnterTime >= config.ExecutionWindowDuration)
-                        m_Aggregate.CompleteExecutionWindow();
-                    break;
-
                 case BossEncounterState.Battle:
-                    roamingMovement?.TickServer(false);
+                    // 战斗中有目标 → 环形游走 + 距离抖动；无目标 → 减速停下
+                    if (hasTarget)
+                        roamingMovement?.TickBattleServer(target);
+                    else
+                        roamingMovement?.TickServer(false);
                     EnsureAbilityPhase(config.GetAbilityPhaseNumber(m_Aggregate.StageNumber));
                     abilityDriver?.SetAutomaticCastsServer(true);
                     TryQueueFrenzy();
@@ -161,6 +203,8 @@ namespace VampireHunt.Infrastructure.Netcode
                         m_CurrentAbilityPhase = 0;
                         m_SpawnPositionChosen = roamingMovement != null &&
                                                 roamingMovement.TryTeleportAwayServer(NextRandom());
+                        // Boss 传送后，左右手跟随传送到新位置
+                        handCoordinator?.TeleportHandsToBossServer();
                     }
                     break;
 
@@ -177,6 +221,9 @@ namespace VampireHunt.Infrastructure.Netcode
             if (!force && current == m_ObservedState) return;
             m_ObservedState = current;
             m_StateEnterTime = NetworkManager.ServerTime.Time;
+            // 离开漫游状态后立刻停止受击逃离（踉跄/战斗/阶段转换期间都不该跑）。
+            if (current != BossEncounterState.RoamingIdle && current != BossEncounterState.RoamingEvade)
+                m_DamageFleeTimer = 0f;
 
             switch (current)
             {
@@ -185,9 +232,6 @@ namespace VampireHunt.Infrastructure.Netcode
                     abilityDriver?.TryCancelActiveCastServer();
                     bodyState?.TrySetStaggered(true);
                     m_PendingForcedAbility = config.GetStaggerAbilityId(NextRandom());
-                    break;
-                case BossEncounterState.ExecutionWindow:
-                    bodyState?.TrySetStaggered(true);
                     break;
                 case BossEncounterState.Battle:
                     bodyState?.TrySetStaggered(false);
@@ -200,6 +244,10 @@ namespace VampireHunt.Infrastructure.Netcode
                     bodyState?.TrySetStaggered(false);
                     runManager?.TryBeginBossPhaseTransition();
                     m_PendingForcedAbility = config.PhaseAuraAbilityId;
+                    // 击破本阶段 → 给整局 run 倒计时加时奖励（阶段1 = +6min，阶段2 = +8min；阶段3 击破即通关不另加）
+                    TryExtendClockForClearedStage(m_Aggregate.StageNumber);
+                    // 进入下一阶段 → 左右手立刻复活
+                    handCoordinator?.RestoreAllHandsServer();
                     break;
                 case BossEncounterState.RoamingIdle:
                     bodyState?.TrySetStaggered(false);
@@ -219,6 +267,19 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             if (abilityDriver == null || phaseNumber <= 0 || m_CurrentAbilityPhase == phaseNumber) return;
             if (abilityDriver.TrySetPhaseServer(phaseNumber)) m_CurrentAbilityPhase = phaseNumber;
+        }
+
+        // 击破某阶段时按配置给整局 run 倒计时加时（服务器权威；仅在未进入终局/大厅时生效）。
+        // 调用时机：ObserveStateTransition 进入 PhaseTransition（此时 m_Aggregate.StageNumber 仍是刚被清空的阶段 N）。
+        private void TryExtendClockForClearedStage(int clearedStage)
+        {
+            if (runManager == null || config == null) return;
+            float bonus = config.GetStageClearBonusSeconds(clearedStage);
+            if (bonus > 0f)
+            {
+                runManager.TryExtendClock(bonus);
+                Debug.Log($"[BossEncounterDirector] 击破阶段 {clearedStage} → run 倒计时 +{bonus:F0}s");
+            }
         }
 
         private void TryForcePendingAbility()

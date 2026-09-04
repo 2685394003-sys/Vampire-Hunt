@@ -5112,7 +5112,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ecdda20ad7cc418cbd21ade48e900af, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Shooter::Blocks.Gameplay.Shooter.ObjectPoolSystem
   networkPrefabs:
   - {fileID: 6863151210658857517, guid: 7edc5a31ca9821244a7b48077607fdb4, type: 3}
@@ -10269,7 +10269,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 629.80597
+      value: 600.1
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.y
@@ -10277,7 +10277,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 562.0287
+      value: 502.4
       objectReference: {fileID: 0}
     - target: {fileID: 9189852451154105968, guid: 50970eeaf9ef05241a827e8661d40e63, type: 3}
       propertyPath: m_LocalRotation.w
@@ -18849,11 +18849,26 @@ MonoBehaviour:
   enemyAffixState: {fileID: 1651709039}
   fallbackArchetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
   spawnCatalog: {fileID: 11400000, guid: 8b4c1f95eaff6f4458adefada95d1fc2, type: 2}
-  softEnemyCap: 20
-  softSpawnBudget: 20
+  softEnemyCap: 200
+  softSpawnBudget: 200
   spawnInterval: 1.5
   initialDelay: 1
   runSeed: 1337
+  bossPhaseSpawnRateMultiplier: 0.4
+  proximityMaxSpawnRateMultiplier: 1.5
+  proximityBoostRadius: 15
+  spawnMaxBossDistance: 45
+  runtimeSpawnRateMultiplier: 1
+  enableTimeRamp: 1
+  rampDurationMinutes: 20
+  rampStartMultiplier: 1
+  rampEndMultiplier: 10
+  rampCurveExponent: 2
+  enableHealthRamp: 1
+  healthRampDurationMinutes: 20
+  healthRampStartMultiplier: 1
+  healthRampEndMultiplier: 2
+  healthRampCurveExponent: 1
   minimumPlayerDistance: 12
   maximumPlayerDistance: 20
   groundMask:
@@ -18893,7 +18908,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.GameManager
   isUsingMultiplayerServices: 0
   sessionSettings: {fileID: 11400000, guid: 0bf4e1684added44da254017c7fc41b2, type: 2}
-  sessionUI: {fileID: 0}
+  sessionUI: {fileID: 109008441}
   fadeDuration: 0.5
   respawnDelay: 5
   autoRespawn: 1

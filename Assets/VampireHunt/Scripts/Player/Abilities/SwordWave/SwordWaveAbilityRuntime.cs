@@ -14,9 +14,13 @@ namespace VampireHunt.Player.Abilities.SwordWave
         public int ProjectileCount { get; }
         public int PierceCount { get; }
         public float SpreadAngle { get; }
+        /// <summary>扇形张开全角（度）：每颗剑气弹丸自身的判定/视觉角度（与 SpreadAngle 排布散布解耦）。</summary>
+        public float FanAngle { get; }
         public float SpawnForwardOffset { get; }
         public float SpawnHeight { get; }
+        public float KnockbackMultiplier { get; }
         public ElementId Element { get; }
+        public float ElementMastery { get; }
         public StatusEffectSpec[] OnHitStatuses { get; }
 
         public SwordWaveAbilityDefinition(
@@ -29,9 +33,12 @@ namespace VampireHunt.Player.Abilities.SwordWave
             int projectileCount,
             int pierceCount,
             float spreadAngle,
+            float fanAngle,
             float spawnForwardOffset,
             float spawnHeight,
+            float knockbackMultiplier,
             ElementId element,
+            float elementMastery,
             StatusEffectSpec[] onHitStatuses)
         {
             AbilityId = abilityId;
@@ -43,9 +50,12 @@ namespace VampireHunt.Player.Abilities.SwordWave
             ProjectileCount = Math.Max(1, projectileCount);
             PierceCount = Math.Max(1, pierceCount);
             SpreadAngle = Math.Max(0f, spreadAngle);
+            FanAngle = Math.Max(0f, fanAngle);
             SpawnForwardOffset = Math.Max(0f, spawnForwardOffset);
             SpawnHeight = spawnHeight;
+            KnockbackMultiplier = Math.Max(0f, knockbackMultiplier);
             Element = element;
+            ElementMastery = Math.Max(0f, elementMastery);
             OnHitStatuses = onHitStatuses ?? Array.Empty<StatusEffectSpec>();
         }
     }
@@ -95,13 +105,15 @@ namespace VampireHunt.Player.Abilities.SwordWave
                 Cooldown = cooldown,
                 TravelDistance = m_Definition.BaseTravelDistance * context.RangeMultiplier,
                 ProjectileSpeed = m_Definition.ProjectileSpeed,
-                Knockback = context.Knockback,
+                Knockback = context.Knockback * m_Definition.KnockbackMultiplier,
                 ProjectileSize = m_Definition.ProjectileSize,
                 ProjectileCount = m_Definition.ProjectileCount,
                 PierceCount = m_Definition.PierceCount,
                 SpreadAngle = m_Definition.SpreadAngle,
+                FanAngle = m_Definition.FanAngle,
                 Tags = tags,
-                Element = m_Definition.Element
+                Element = m_Definition.Element,
+                ElementMastery = m_Definition.ElementMastery
             };
 
             for (int i = 0; i < m_Definition.OnHitStatuses.Length; i++)

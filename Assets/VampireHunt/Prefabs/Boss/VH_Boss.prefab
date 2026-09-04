@@ -335,6 +335,18 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
       insertIndex: -1
       addedObject: {fileID: -800000000000000021}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -8445631550637193157}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5370457677638475382}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -1660016545645862268}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -1387328349590148369}
   m_SourcePrefab: {fileID: 100100000, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
 --- !u!95 &2983853323149822986 stripped
 Animator:
@@ -356,9 +368,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 0
+  GlobalObjectIdHash: 2846008804
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -382,7 +394,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -550,7 +562,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d3356bdaeb1e5f241a33c8119b730637, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityAnchorRegistry
   bindings:
   - id: 1
@@ -573,7 +585,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e23edd4f31844cd69baf49e3d1933997, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityPhaseProvider
   phaseSet: {fileID: 11400000, guid: e30dec8e00722e64ab34a82cb27bb55e, type: 2}
   startingPhase: 4
@@ -819,7 +831,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7160debb0a2c4d83a7c456ec8a9eb93a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossAreaTelegraphNetworkBridge
   ShowTopMostFoldoutHeaderGroup: 1
 --- !u!114 &-800000000000000016
@@ -832,76 +844,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c064cb8647a2427cb0134c9d210f75f6, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAreaTelegraphVfxPresenter
   source: {fileID: -800000000000000015}
   phaseProvider: {fileID: -800000000000000001}
---- !u!114 &-800000000000000017
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d84c98fe33184e47892de1aa7844e0c8, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossSweepTelegraphNetworkBridge
-  ShowTopMostFoldoutHeaderGroup: 1
---- !u!114 &-800000000000000018
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd2bd47684b244bc885617c06787e999, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossSweepWaveVfxPresenter
-  source: {fileID: -800000000000000017}
-  phaseProvider: {fileID: -800000000000000001}
---- !u!114 &-800000000000000019
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5101, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossTrackingLaserNetworkBridge
-  ShowTopMostFoldoutHeaderGroup: 1
---- !u!114 &-800000000000000020
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5102, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossTrackingLaserVfxPresenter
-  source: {fileID: -800000000000000019}
-  phaseProvider: {fileID: -800000000000000001}
---- !u!114 &-800000000000000021
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8413633064298302666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5109, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossFacingService
 --- !u!114 &1137482579880286980
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -947,6 +893,7 @@ MonoBehaviour:
   abilityDriver: {fileID: -800000000000000003}
   roamingMovement: {fileID: 1137482579880286980}
   bodyState: {fileID: -800000000000000014}
+  handCoordinator: {fileID: 0}
   runManager: {fileID: 0}
   runSeed: 72631
 --- !u!114 &7727192009711774727
@@ -965,6 +912,7 @@ MonoBehaviour:
   director: {fileID: 8597334096629814681}
   bodyState: {fileID: -800000000000000014}
   abilityDriver: {fileID: -800000000000000003}
+  statusHost: {fileID: 5370457677638475382}
 --- !u!114 &5418780529182945612
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -997,6 +945,136 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.HUD.BossHudBinder
   config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
   stateSource: {fileID: 2041100596713562046}
+--- !u!114 &-800000000000000017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d84c98fe33184e47892de1aa7844e0c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossSweepTelegraphNetworkBridge
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-800000000000000018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd2bd47684b244bc885617c06787e999, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossSweepWaveVfxPresenter
+  source: {fileID: -800000000000000017}
+  phaseProvider: {fileID: -800000000000000001}
+--- !u!114 &-800000000000000019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5101, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossTrackingLaserNetworkBridge
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-800000000000000020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5102, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossTrackingLaserVfxPresenter
+  source: {fileID: -800000000000000019}
+  phaseProvider: {fileID: -800000000000000001}
+--- !u!114 &-800000000000000021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5109, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossFacingService
+--- !u!114 &-8445631550637193157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53447c250496478f5b09fe27608f193b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.GameplayEffectHost
+--- !u!114 &5370457677638475382
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02fad95847c94ab2de8c215a93b24c6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.CombatStatusHost
+  ShowTopMostFoldoutHeaderGroup: 1
+  catalog: {fileID: 11400000, guid: 718712cf38a475b718293a4b5c6d7e8f, type: 2}
+  effectHost: {fileID: -8445631550637193157}
+  onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
+  onStatusRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  elementResist: 1
+--- !u!114 &-1660016545645862268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
+--- !u!114 &-1387328349590148369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26def39c8b0d4ef6c270659ed7f680a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.CombatVfxPresenter
+  onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  onEffectAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
+  onEffectRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  effectAnchor: {fileID: 0}
+  vfxDriverBehaviour: {fileID: 0}
 --- !u!4 &9189852451154105968 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}

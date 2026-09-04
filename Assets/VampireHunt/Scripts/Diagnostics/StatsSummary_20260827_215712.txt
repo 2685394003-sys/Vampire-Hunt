@@ -1,0 +1,1 @@
+﻿[StatsMonitor] t=0.2min | kill=0(0/min,0.0avg) | scarlet=0(0/min) | coin=0(bal=0,0/min) | dmg=40(40/min) | scarlet/kill=0.00

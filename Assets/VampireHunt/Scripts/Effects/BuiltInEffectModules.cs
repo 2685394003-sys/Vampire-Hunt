@@ -13,6 +13,21 @@ namespace VampireHunt.Effects
         public const uint PresentationCue = 6;
         public const uint AttributeModifier = 7;
         public const uint ResourceCapacityModifier = 8;
+        /// <summary>使魔指针指令（血契「牵丝之契」）：绕鼠标 + 左键指派目标。</summary>
+        public const uint FamiliarCommand = 9;
+        /// <summary>敌人移速修改（霜寒减速）：挂到 IAttributeModifierTarget（EnemyStat.MoveSpeed）。</summary>
+        public const uint EnemySpeedModifier = 10;
+        /// <summary>燃爆：结算灼烧剩余 DoT 并清除灼烧（经 IStatusEffectExecutor）。</summary>
+        public const uint DetonateBurn = 11;
+        /// <summary>闪电连锁：向周围敌人跳跃伤害 + 传导（经 IStatusEffectExecutor）。</summary>
+        public const uint ChainLightning = 12;
+        /// <summary>引雷：一次性伤害（经 IStatusEffectExecutor）。</summary>
+        public const uint ThunderStrike = 13;
+        /// <summary>解锁：获得武器 / 获得领域（血契 2001/3001/4001/5001/6001），Install 时执行一次。</summary>
+        public const uint Unlock = 14;
+        /// <summary>使魔调制（血契 7001~7008 撞击使魔 / 8001~8012 射击使魔）：召唤、伤害/间隔倍率、
+        /// 数量增量、武器档位、元素转化。经 IFamiliarPactTarget 端口落到对应控制器。</summary>
+        public const uint FamiliarPact = 15;
     }
 
     public enum AbilityPlanProperty : byte
@@ -22,7 +37,9 @@ namespace VampireHunt.Effects
         SpreadAngle = 2,
         PierceCount = 3,
         TravelDistance = 4,
-        Cooldown = 5
+        Cooldown = 5,
+        /// <summary>扇形张开全角（度）：剑气等扇形武器每颗弹丸自身的判定/视觉角度，与 SpreadAngle（排布散布）解耦。</summary>
+        FanAngle = 6
     }
 
     public enum EffectNumericOperation : byte
@@ -30,6 +47,19 @@ namespace VampireHunt.Effects
         AddPerStack = 0,
         MultiplyAddPerStack = 1,
         MaxConstant = 2
+    }
+
+    /// <summary>
+    /// 解锁类血契的目标类型。
+    /// <list type="bullet">
+    /// <item><term>Weapon</term>「获得武器」：把活动主武器切换到 targetId（狙击110/步枪120/导弹130/激光140）。</item>
+    /// <item><term>Field</term>「获得领域」：激活常驻圆型领域（荒芜降临 6001）。</item>
+    /// </list>
+    /// </summary>
+    public enum UnlockKind : byte
+    {
+        Weapon = 0,
+        Field = 1
     }
 
     public sealed class AbilityPlanModifierEffectDescriptor : IEffectModuleDescriptor
@@ -82,6 +112,49 @@ namespace VampireHunt.Effects
             Duration = Math.Max(0f, duration);
             Magnitude = Math.Max(0f, magnitude);
             Element = element;
+        }
+    }
+
+    /// <summary>
+    /// 使魔指针指令（familiar command effect）—— 血契「牵丝之契」(pactId 316) 的效果参数。<br/>
+    /// 选中后：<b>使魔待机时围绕鼠标</b>而不是围绕玩家；<b>按住左键</b>时，
+    /// 以鼠标为圆心 <c>CommandRadius</c> 米内的敌人会被指派为使魔目标，
+    /// 且该指令的优先级高于「谁被打中就追谁」的被动索敌。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>血契系统引擎侧尚未实装</b>：本 descriptor 只作为<b>数据载体</b>，
+    /// 真正的运行时行为由 <c>ImpactFamiliarController</c> / <c>GunnerFamiliarController</c>
+    /// 的 <c>SetPointerOrbit</c> / <c>SetCommandRadius</c> 承载（当前靠调试按键 Digit6 驱动）。
+    /// 等血契系统落地，把这里的字段接到那两个方法上即可，不需要再改使魔代码。
+    /// </remarks>
+    public sealed class FamiliarCommandEffectDescriptor : IEffectModuleDescriptor
+    {
+        public uint ModuleTypeId => EffectModuleTypeIds.FamiliarCommand;
+        public EffectExecutionRealm Realm => EffectExecutionRealm.Server;
+
+        /// <summary>是否开启「围绕鼠标」（true = 血契生效）。</summary>
+        public bool PointerOrbit { get; }
+        /// <summary>左键指令的索敌半径（米）：以鼠标为圆心。</summary>
+        public float CommandRadius { get; }
+        /// <summary>指令目标的有效期（秒）：松手后多久回归被动索敌。</summary>
+        public float CommandTargetLifetime { get; }
+        /// <summary>环绕中心跟随鼠标的平滑速度（越大跟得越紧）。</summary>
+        public float OrbitCenterFollowLerp { get; }
+        /// <summary>环绕中心离玩家的最大距离（米），0 = 不限制。</summary>
+        public float MaxOrbitCenterDistance { get; }
+
+        public FamiliarCommandEffectDescriptor(
+            bool pointerOrbit,
+            float commandRadius,
+            float commandTargetLifetime,
+            float orbitCenterFollowLerp,
+            float maxOrbitCenterDistance)
+        {
+            PointerOrbit = pointerOrbit;
+            CommandRadius = Math.Max(0.5f, commandRadius);
+            CommandTargetLifetime = Math.Max(0.05f, commandTargetLifetime);
+            OrbitCenterFollowLerp = Math.Max(0.1f, orbitCenterFollowLerp);
+            MaxOrbitCenterDistance = Math.Max(0f, maxOrbitCenterDistance);
         }
     }
 
@@ -186,6 +259,38 @@ namespace VampireHunt.Effects
         }
     }
 
+    /// <summary>
+    /// 解锁类效果 —— 「获得武器 / 获得领域」血契（2001 血穿魔弹 / 3001 血飞魔剑 /
+    /// 4001 血爆魔阵 / 5001 血光魔炮 / 6001 荒芜降临）。<br/>
+    /// 安装（Install）时执行一次<b>永久解锁</b>：<br/>
+    /// · Weapon：把活动主武器切到 <see cref="TargetId"/>（CombatAbilityHost.SetActiveWeapon）；<br/>
+    /// · Field：激活常驻圆型领域（CircleFieldAuraDriver.SetActive）并写入 <see cref="FieldDamageInheritRatio"/>。
+    /// </summary>
+    /// <remarks>
+    /// Realm = <b>Owner</b>：武器切换 / 领域激活都作用在「拥有该玩家的端」——施法计划在本端构建，
+    /// 与伤害/冷却类血契（AbilityPlanModifier，同为 Owner）一致。血契局内不回收（EndTime=+∞），
+    /// Dispose 无需回滚；本模块也不占叠层语义（一次性契，Stacks 恒为 1）。
+    /// </remarks>
+    public sealed class UnlockEffectDescriptor : IEffectModuleDescriptor
+    {
+        public uint ModuleTypeId => EffectModuleTypeIds.Unlock;
+        public EffectExecutionRealm Realm => EffectExecutionRealm.Owner;
+
+        /// <summary>解锁类型：Weapon = 切主武器；Field = 激活领域。</summary>
+        public UnlockKind Kind { get; }
+        /// <summary>目标武器 abilityId（Weapon 类）：狙击 110 / 步枪 120 / 导弹 130 / 激光 140。</summary>
+        public uint TargetId { get; }
+        /// <summary>领域基础伤害继承系数（Field 类，1 = 全额继承玩家基础伤害）；0 = 不覆盖默认。</summary>
+        public float FieldDamageInheritRatio { get; }
+
+        public UnlockEffectDescriptor(UnlockKind kind, uint targetId, float fieldDamageInheritRatio)
+        {
+            Kind = kind;
+            TargetId = targetId;
+            FieldDamageInheritRatio = Math.Max(0f, fieldDamageInheritRatio);
+        }
+    }
+
     public static class BuiltInEffectModuleFactories
     {
         public static EffectModuleRegistry CreateRegistry()
@@ -199,6 +304,12 @@ namespace VampireHunt.Effects
             registry.Register(new PresentationCueFactory());
             registry.Register(new AttributeModifierFactory());
             registry.Register(new ResourceCapacityModifierFactory());
+            registry.Register(new EnemySpeedModifierFactory());
+            registry.Register(new DetonateBurnFactory());
+            registry.Register(new ChainLightningFactory());
+            registry.Register(new ThunderStrikeFactory());
+            registry.Register(new UnlockFactory());
+            registry.Register(new FamiliarPactFactory());
             return registry;
         }
     }
@@ -259,6 +370,9 @@ namespace VampireHunt.Effects
                     break;
                 case AbilityPlanProperty.SpreadAngle:
                     plan.SpreadAngle = Apply(plan.SpreadAngle, value, m_Definition.Operation);
+                    break;
+                case AbilityPlanProperty.FanAngle:
+                    plan.FanAngle = Apply(plan.FanAngle, value, m_Definition.Operation);
                     break;
                 case AbilityPlanProperty.PierceCount:
                     plan.PierceCount = Math.Max(1, (int)Math.Round(Apply(
@@ -541,6 +655,73 @@ namespace VampireHunt.Effects
         {
             m_Target?.UnregisterCapacityModifier(this);
             m_Target = null;
+        }
+    }
+
+    /// <summary>
+    /// 解锁工厂：武器解锁经 <see cref="IWeaponUnlockTarget"/>（CombatAbilityHost 实现），
+    /// 领域激活经 <see cref="IFieldActivationTarget"/>（CircleFieldAuraDriver 实现）。
+    /// 两个宿主与 GameplayEffectHost 挂在同一 GameObject，端口由 GameplayEffectHost.Awake 自动收集。
+    /// </summary>
+    internal sealed class UnlockFactory : IEffectModuleFactory
+    {
+        public uint ModuleTypeId => EffectModuleTypeIds.Unlock;
+
+        public IEffectRuntimeModule Create(IEffectModuleDescriptor descriptor, in EffectRuntimeContext context)
+        {
+            if (!(descriptor is UnlockEffectDescriptor typed) || context.Ports == null) return null;
+            switch (typed.Kind)
+            {
+                case UnlockKind.Weapon:
+                    return context.Ports.TryGet(out IWeaponUnlockTarget weapon)
+                        ? new WeaponUnlockRuntime(typed, weapon)
+                        : null;
+                case UnlockKind.Field:
+                    return context.Ports.TryGet(out IFieldActivationTarget field)
+                        ? new FieldUnlockRuntime(typed, field)
+                        : null;
+                default:
+                    return null;
+            }
+        }
+    }
+
+    /// <summary>武器解锁运行时：「获得武器」血契生效时把活动主武器切到目标武器（仅一次）。</summary>
+    internal sealed class WeaponUnlockRuntime : EffectRuntimeModuleBase
+    {
+        private readonly UnlockEffectDescriptor m_Definition;
+        private readonly IWeaponUnlockTarget m_Target;
+
+        public WeaponUnlockRuntime(UnlockEffectDescriptor definition, IWeaponUnlockTarget target)
+        {
+            m_Definition = definition;
+            m_Target = target;
+        }
+
+        public override void Install(in EffectRuntimeState state)
+        {
+            base.Install(state);
+            // 永久解锁：血契局内不回收，Dispose 不回滚（没有「换回旧武器」的撤销语义）。
+            if (m_Definition.TargetId != 0 && m_Target != null) m_Target.TryUnlockWeapon(m_Definition.TargetId);
+        }
+    }
+
+    /// <summary>领域激活运行时：「获得领域」血契（荒芜降临）生效时激活常驻圆型领域并写入伤害继承系数。</summary>
+    internal sealed class FieldUnlockRuntime : EffectRuntimeModuleBase
+    {
+        private readonly UnlockEffectDescriptor m_Definition;
+        private readonly IFieldActivationTarget m_Target;
+
+        public FieldUnlockRuntime(UnlockEffectDescriptor definition, IFieldActivationTarget target)
+        {
+            m_Definition = definition;
+            m_Target = target;
+        }
+
+        public override void Install(in EffectRuntimeState state)
+        {
+            base.Install(state);
+            if (m_Target != null) m_Target.ActivateField(m_Definition.FieldDamageInheritRatio);
         }
     }
 }

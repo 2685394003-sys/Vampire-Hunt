@@ -14,29 +14,45 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossEncounterConfigAsset
   bossName: "\u7329\u7EA2\u4E4B\u4E3B"
   stages:
-  - GuardHealth: 100
-    BattleHealth: 300
+  - GuardHealth: 500
+    BattleHealth: 5000
     AbilityPhaseNumber: 1
-  - GuardHealth: 180
-    BattleHealth: 450
+  - GuardHealth: 3000
+    BattleHealth: 30000
     AbilityPhaseNumber: 2
-  - GuardHealth: 280
-    BattleHealth: 650
+  - GuardHealth: 4500
+    BattleHealth: 45000
     AbilityPhaseNumber: 3
   roamingAbilityPhaseNumber: 4
   detectionRange: 18
   evadeDistance: 9
+  roamingDamageFleeDuration: 1
+  roamingDamageFleeMaxDistance: 45
   desiredPlayerDistance: 7
   normalMoveSpeed: 5
   maxMirrorSpeed: 14
-  spawnMinDistance: 16
-  spawnMaxDistance: 32
-  staggerTriggerDistance: 6
+  accelerationSeconds: 0.2
+  decelerationSeconds: 5
+  bossMoveProximityRadius: 15
+  bossMoveProximityMaxMultiplier: 1.4
+  spawnMinDistance: 50
+  spawnMaxDistance: 60
+  battleOrbitSwitchInterval: 3
+  battleDesiredDistanceMin: 5
+  battleDesiredDistanceMax: 9
+  battleDistanceDriftInterval: 2
+  battleDistanceSpring: 3
+  bossHudShowDistance: 30
+  guardRegenDelaySeconds: 10
+  guardRegenPerSecond: 0.1
   staggerEffectDuration: 3.2
-  executionWindowDuration: 3
   staggerAbilityIds: d1070000d2070000d3070000
   phaseTransitionDuration: 2
   phaseAuraAbilityId: 2090
+  stageClearBonusSeconds:
+  - 360
+  - 480
+  - 0
   frenzyAbilityId: 2060
   requiredFrenzyPactId: 200
   frenzyHealthThreshold: 0.2

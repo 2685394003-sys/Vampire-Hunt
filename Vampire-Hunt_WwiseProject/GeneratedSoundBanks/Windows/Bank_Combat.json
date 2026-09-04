@@ -1,0 +1,33 @@
+{
+ "SoundBanksInfo": {
+  "Platform": "Windows",
+  "BasePlatform": "Windows",
+  "SchemaVersion": "16",
+  "SoundBankVersion": "172",
+  "SoundBanks": [
+   {
+    "Id": "1248370110",
+    "Type": "User",
+    "GUID": "{59654FF1-33DF-459A-B654-F7DAC3131980}",
+    "Language": "SFX",
+    "Hash": "{6691D12D-C20C-3766-C78A-A707960D6E8C}",
+    "ObjectPath": "\\SoundBanks\\Default Work Unit\\Bank_Combat",
+    "ShortName": "Bank_Combat",
+    "Path": "Bank_Combat.bnk",
+    "Events": [
+     {
+      "Id": "2960920018",
+      "Name": "Play_Enemy_Hurt",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Enemy_Hurt",
+      "GUID": "{A97F90B7-0A18-4B57-B5B9-70E265A1088B}",
+      "MaxAttenuation": "0",
+      "DurationType": "OneShot",
+      "DurationMin": "0",
+      "DurationMax": "0"
+     }
+    ]
+   }
+  ],
+  "FileHash": "{1FD06783-A42A-28A8-B115-241EBB75FE03}"
+ }
+}

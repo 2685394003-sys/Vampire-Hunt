@@ -1,6 +1,7 @@
 using Blocks.Gameplay.Core;
 using Unity.Netcode;
 using UnityEngine;
+using VampireHunt.Combat;
 using VampireHunt.Contracts;
 using VampireHunt.Effects;
 using VampireHunt.Enemies;
@@ -9,6 +10,7 @@ using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Navigation;
 using VampireHunt.Presentation.Enemies;
 using VampireHunt.Progression;
+using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -19,7 +21,8 @@ namespace VampireHunt.Infrastructure.Netcode
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(NetworkObject))]
-    public sealed class EnemyNetworkActor : HitProcessor, IDamageReceiver, ITrustedCombatHitTarget, ICombatEntityIdentity
+    public sealed class EnemyNetworkActor : HitProcessor, IDamageReceiver, ITrustedCombatHitTarget, ICombatEntityIdentity,
+        IAttributeModifierTarget
     {
         private const uint SwordWaveAttackId = 1;
         private const float BrainInterval = 0.1f;
@@ -48,6 +51,8 @@ namespace VampireHunt.Infrastructure.Netcode
 
         [Header("Lifecycle")]
         [Min(0f)] [SerializeField] private float deathDespawnDelay = 1.25f;
+        [Tooltip("索敌范围内没有玩家超过该秒数后，怪物自行消失（防止远离 Boss 后残留小怪）。")]
+        [Min(0.5f)] [SerializeField] private float noTargetDespawnDelay = 3f;
 
         private readonly NetworkVariable<EnemyNetworkState> m_ReplicatedState =
             new NetworkVariable<EnemyNetworkState>(
@@ -58,15 +63,18 @@ namespace VampireHunt.Infrastructure.Netcode
             new NetworkList<EnemyAffixStackNetworkState>();
 
         private readonly EnemyApplicationService m_Application = new EnemyApplicationService();
+        private readonly AttributeModifierCollection m_AttributeModifiers = new AttributeModifierCollection();
         private EnemyAggregate m_Aggregate;
         private NetworkObject m_TargetPlayer;
         private ulong m_PreparedEntityId;
         private EnemyAffixSpawnSnapshot m_PreparedAffixes = EnemyAffixSpawnSnapshot.Empty;
+        private float m_PreparedHealthMultiplier = 1f;
         private EnemyAffixCatalog m_DomainAffixCatalog;
         private ulong m_TrustedHitSequence;
         private float m_NextBrainTime;
         private float m_NextTargetRefreshTime;
         private float m_DeathDespawnTime = float.PositiveInfinity;
+        private float m_NoTargetSinceTime = float.PositiveInfinity;
         private Vector3 m_KnockbackVelocity;
         private float m_VerticalVelocity;
         private bool m_RewardGranted;
@@ -84,6 +92,17 @@ namespace VampireHunt.Infrastructure.Netcode
         public GameplayEntityId CombatEntityId => m_Aggregate != null
             ? m_Aggregate.Id
             : new GameplayEntityId(m_ReplicatedState.Value.EntityId);
+
+        public bool RegisterAttributeModifier(IAttributeModifier modifier) => m_AttributeModifiers.Register(modifier);
+        public bool UnregisterAttributeModifier(IAttributeModifier modifier) => m_AttributeModifiers.Unregister(modifier);
+        public float ResolveAttributeValue(int attributeId, float baseValue) => m_AttributeModifiers.Resolve(attributeId, baseValue);
+
+        /// <summary>敌人侧属性端口：当前只接 MoveSpeed（霜寒减速），以出生时的 RuntimeStats 为基数。</summary>
+        public float GetFinalAttributeValue(int attributeId)
+        {
+            float baseValue = m_Aggregate != null ? m_Aggregate.RuntimeStats.MoveSpeed : 0f;
+            return ResolveAttributeValue(attributeId, baseValue);
+        }
 
         private void Awake()
         {
@@ -105,10 +124,20 @@ namespace VampireHunt.Infrastructure.Netcode
                 : new EnemyAffixCatalog(null);
         }
 
-        public void PrepareServerSpawn(ulong entityId, EnemyAffixSpawnSnapshot affixes)
+        /// <summary>
+        /// 服务器生成前注入数据。healthMultiplier = 局内时间驱动的血量全局倍率（由 EnemySpawnDirector 计算，
+        /// 默认 1 = 不缩放）；它只影响 MaxHealth，且与副契加成相乘。
+        /// </summary>
+        public void PrepareServerSpawn(
+            ulong entityId,
+            EnemyAffixSpawnSnapshot affixes,
+            float healthMultiplier = 1f)
         {
             m_PreparedEntityId = entityId;
             m_PreparedAffixes = affixes ?? EnemyAffixSpawnSnapshot.Empty;
+            m_PreparedHealthMultiplier = float.IsNaN(healthMultiplier) || float.IsInfinity(healthMultiplier)
+                ? 1f
+                : healthMultiplier;
         }
 
         public override void OnNetworkSpawn()
@@ -148,6 +177,8 @@ namespace VampireHunt.Infrastructure.Netcode
         private void Update()
         {
             if (!IsSpawned || !IsServer || m_Aggregate == null) return;
+            // 单人模式菜单暂停时冻结敌人 AI（Brain 用 Time.unscaledTime，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
 
             if (m_Aggregate.IsDead)
             {
@@ -160,6 +191,22 @@ namespace VampireHunt.Infrastructure.Netcode
             }
 
             if (HandleMovementBlock()) return;
+
+            // 索敌范围内无玩家持续超时 → 自行消失
+            if (!IsTargetValid(m_TargetPlayer))
+            {
+                if (float.IsPositiveInfinity(m_NoTargetSinceTime))
+                    m_NoTargetSinceTime = Time.unscaledTime;
+                else if (Time.unscaledTime - m_NoTargetSinceTime >= noTargetDespawnDelay)
+                {
+                    if (NetworkObject.IsSpawned) NetworkObject.Despawn();
+                    return;
+                }
+            }
+            else
+            {
+                m_NoTargetSinceTime = float.PositiveInfinity;
+            }
 
             if (Time.unscaledTime >= m_NextTargetRefreshTime)
             {
@@ -223,15 +270,25 @@ namespace VampireHunt.Infrastructure.Netcode
         private bool ApplyTrustedHit(in TrustedCombatHit hit)
         {
             if (!IsServer || m_Aggregate == null || m_Aggregate.IsDead || hit.Damage.BaseDamage <= 0f) return false;
-            float reactionMultiplier = statusHost != null
+            ElementReactionResult reaction = statusHost != null
                 ? statusHost.ResolveElementReaction(hit.Element)
-                : 1f;
+                : ElementReactionResult.None();
+            float baseDamage = hit.Damage.BaseDamage;
+            if (reaction.Type == ElementReactionType.Shatter && reaction.PercentDamage > 0f)
+                baseDamage = m_Aggregate.RuntimeStats.MaxHealth * reaction.PercentDamage;
+            else if (reaction.HasReaction && reaction.DamageMultiplier > 0f)
+                baseDamage *= reaction.DamageMultiplier;
             var request = new DamageRequest(hit.Damage.Source, m_Aggregate.Id, hit.Damage.AttackId,
-                hit.Damage.Sequence, hit.Damage.BaseDamage * reactionMultiplier, hit.Damage.Tags);
+                hit.Damage.Sequence, baseDamage, hit.Damage.Tags);
             if (!TryApplyDamage(request, out ResolvedDamage result)) return false;
 
             if (!result.IsCancelled && result.Amount > 0f)
             {
+                if (reaction.Type == ElementReactionType.Detonate &&
+                    reaction.ExplodeRadius > 0f && reaction.DamageMultiplier > 0f)
+                {
+                    ExecuteDetonateAoe(hit.Damage.Source, hit.Damage.BaseDamage, reaction);
+                }
                 Vector3 force = new Vector3(hit.ImpactForce.X, hit.ImpactForce.Y, hit.ImpactForce.Z);
                 m_KnockbackVelocity += force;
                 if (!m_Aggregate.IsDead && statusHost != null)
@@ -244,6 +301,26 @@ namespace VampireHunt.Infrastructure.Netcode
                 }
             }
             return true;
+        }
+
+        /// <summary>炸裂（冰×火）：对自身周围半径内其他敌人造成 武器单发×倍率 伤害并击退。</summary>
+        private void ExecuteDetonateAoe(GameplayEntityId source, float baseDamage, in ElementReactionResult reaction)
+        {
+            Collider[] hits = Physics.OverlapSphere(transform.position, reaction.ExplodeRadius);
+            Vector3 center = transform.position;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                EnemyNetworkActor other = hits[i].GetComponentInParent<EnemyNetworkActor>();
+                if (other == null || other == this || other.m_Aggregate == null || other.m_Aggregate.IsDead) continue;
+                var damageRequest = new DamageRequest(
+                    source, other.m_Aggregate.Id, 0u, ++m_TrustedHitSequence,
+                    baseDamage * reaction.DamageMultiplier, DamageTags.Status | DamageTags.Flame);
+                other.TryApplyDamage(damageRequest, out _);
+                Vector3 outward = other.transform.position - center;
+                outward.y = 0f;
+                if (outward.sqrMagnitude > 0.0001f)
+                    other.m_KnockbackVelocity += outward.normalized * reaction.KnockbackDistance;
+            }
         }
 
         public bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result)
@@ -331,6 +408,8 @@ namespace VampireHunt.Infrastructure.Netcode
                     Stacks = entry.Stacks
                 });
             }
+            // 局内时间驱动的血量缩放：与副契加成相乘（副契的加成已在上面的循环里累积进 statsBuilder）。
+            statsBuilder.AddMultiplier(EnemyStat.MaxHealth, m_PreparedHealthMultiplier);
             m_Aggregate = new EnemyAggregate(
                 new GameplayEntityId(entityId),
                 definition,
@@ -347,6 +426,7 @@ namespace VampireHunt.Infrastructure.Netcode
             m_NextTargetRefreshTime = Time.unscaledTime;
             m_RewardGranted = false;
             m_DeathDespawnTime = float.PositiveInfinity;
+            m_NoTargetSinceTime = float.PositiveInfinity;
             m_WasMovementBlocked = false;
             m_BlockStartedTime = 0d;
             m_MovementIntent = EnemyMovementIntent.None;
@@ -445,7 +525,7 @@ namespace VampireHunt.Infrastructure.Netcode
                         float stoppingDistance = ResolveStoppingDistance(m_MovementIntent);
                         if (navigationAgent.TryGetDesiredVelocity(
                                 destination,
-                                m_Aggregate.RuntimeStats.MoveSpeed,
+                                GetFinalAttributeValue((int)EnemyStat.MoveSpeed),
                                 stoppingDistance,
                                 out navigationVelocity))
                         {
@@ -461,7 +541,7 @@ namespace VampireHunt.Infrastructure.Netcode
                         fallbackDirection.y = 0f;
                         if (fallbackDirection.sqrMagnitude > 0.0001f)
                             fallbackDirection.Normalize();
-                        movement += fallbackDirection * m_Aggregate.RuntimeStats.MoveSpeed;
+                        movement += fallbackDirection * GetFinalAttributeValue((int)EnemyStat.MoveSpeed);
                         facingDirection = fallbackDirection.sqrMagnitude > 0.0001f
                             ? fallbackDirection
                             : directDirection;

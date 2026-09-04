@@ -22,7 +22,7 @@ namespace VampireHunt.Infrastructure.Unity
         public ulong sourceEntityId;
         public ulong targetEntityId;
         public uint statusId;
-        public int stacks;
+        public float stacks;
         public float magnitude;
         public double startServerTime;
         public double endServerTime;

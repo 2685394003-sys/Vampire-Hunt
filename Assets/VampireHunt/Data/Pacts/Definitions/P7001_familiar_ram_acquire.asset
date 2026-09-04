@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P7001_familiar_ram_acquire
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 7001
+  displayName: "\u8840\u5251\u964D\u751F"
+  description: "\u83B7\u5F97\u649E\u51FB\u578B\u4F7F\u9B54\uFF08\u51B2\u950B\u649E\u51FB+\u51FB\u9000\uFF09"
+  icon: {fileID: 0}
+  tier: 1
+  rarity: 1
+  baseWeight: 1.5
+  tags: 32
+  prerequisites: 
+  exclusions: 
+  repeatable: 0
+  maxStacks: 1
+  effectModules:
+  - {fileID: 11400000, guid: 1afce8fbae78e4048b076226f5e305ca, type: 2}

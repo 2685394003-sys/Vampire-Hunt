@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bc58403f2e64d6eac37d8165f570829, type: 3}
   m_Name: Burn
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.StatusEffectDefinitionAsset
-  statusId: 1
+  statusId: 2
   element: 1
   stackPolicy: 1
   maxStacks: 5
@@ -20,3 +20,4 @@ MonoBehaviour:
   effectModules:
   - {fileID: 11400000, guid: 6788c06948da4bc39f4d316ba4c35d7f, type: 2}
   - {fileID: 11400000, guid: 6abbf39c7b0d4ef6c270649ed7f680a2, type: 2}
+  - {fileID: 11400000, guid: a3000000000000000000000000000002, type: 2}
