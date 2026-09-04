@@ -18859,6 +18859,16 @@ MonoBehaviour:
   proximityBoostRadius: 15
   spawnMaxBossDistance: 45
   runtimeSpawnRateMultiplier: 1
+  enableTimeRamp: 1
+  rampDurationMinutes: 20
+  rampStartMultiplier: 1
+  rampEndMultiplier: 10
+  rampCurveExponent: 2
+  enableHealthRamp: 1
+  healthRampDurationMinutes: 20
+  healthRampStartMultiplier: 1
+  healthRampEndMultiplier: 2
+  healthRampCurveExponent: 1
   minimumPlayerDistance: 12
   maximumPlayerDistance: 20
   groundMask:

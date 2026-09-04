@@ -72,6 +72,7 @@ GameObject:
   - component: {fileID: -700000000000000030}
   - component: {fileID: 4187387311122350085}
   - component: {fileID: -700000000000000031}
+  - component: {fileID: 946511594756907663}
   m_Layer: 3
   m_Name: VH_Player
   m_TagString: Player
@@ -679,6 +680,7 @@ MonoBehaviour:
   effectHost: {fileID: -700000000000000014}
   onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
   onStatusRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  elementResist: 1
 --- !u!114 &-700000000000000009
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -763,7 +765,12 @@ MonoBehaviour:
   rerollScarletCost: 25
   maxRerolls: 1
   optionCount: 3
+  maxLevel: 20
   runSeed: 1337
+  autoSeedPerRun: 1
+  pityUnlockPactIds: d1070000b90b0000a10f00008913000071170000591b0000411f0000
+  pityMissThreshold: 3
+  pityWeightMultiplier: 4
 --- !u!114 &-700000000000000014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1170,10 +1177,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f7c1e9a5b2d4c8ea1f6037bd94e2c51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.Abilities.DebugEffectSwitcher
-  circleField: {fileID: -700000000000000028}
-  familiarController: {fileID: -700000000000000030}
-  gunnerController: {fileID: 4187387311122350085}
-  pointerCommand: {fileID: -700000000000000031}
+  clearRadius: 30
+  stacksPerPress: 1
   logToConsole: 1
 --- !u!114 &-700000000000000030
 MonoBehaviour:
@@ -1218,11 +1223,6 @@ MonoBehaviour:
   familiarCount: 2
   activeOnStart: 0
   familiarVisualPrefab: {fileID: 781562394710592770, guid: b3c665c923c783a44b77095f5910f772, type: 3}
-  fallbackTracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
-  fallbackImpactVfxPrefab: {fileID: 3927051027270457278, guid: 53cb34c763f0fd146b5144e367c54ce1, type: 3}
-  fallbackMuzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}
-  impactVfxLifetime: 0.14
-  tracerScaleMultiplier: 1.4
   orbitOwner: {fileID: 0}
   pointerCommand: {fileID: -700000000000000031}
   pointerOrbit: 0
@@ -1230,6 +1230,11 @@ MonoBehaviour:
   commandTargetLifetime: 1
   orbitCenterFollowLerp: 6
   maxOrbitCenterDistance: 15
+  fallbackTracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
+  fallbackImpactVfxPrefab: {fileID: 3927051027270457278, guid: 53cb34c763f0fd146b5144e367c54ce1, type: 3}
+  fallbackMuzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}
+  impactVfxLifetime: 0.14
+  tracerScaleMultiplier: 1.4
   networkObject: {fileID: 0}
   resolutionHost: {fileID: 0}
   coreStats: {fileID: 0}
@@ -1247,8 +1252,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54d9197586ef47a29dd754a0cf5674a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.Abilities.Familiar.FamiliarPointerCommand
+  ShowTopMostFoldoutHeaderGroup: 1
   aimSourceBehaviour: {fileID: 0}
   logToConsole: 0
+--- !u!114 &946511594756907663
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5502595a8584794eb26be6f1caf2c0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Player.PlayerHealthRegen
+  ShowTopMostFoldoutHeaderGroup: 1
+  regenDelaySeconds: 5
+  regenFractionPerSecond: 0.016666668
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

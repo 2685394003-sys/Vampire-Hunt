@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statName: Scarlet
   minValue: 0
-  maxValue: 400
+  maxValue: 2000
   startingValue: 0
   regenRate: 0
   regenDelay: 0

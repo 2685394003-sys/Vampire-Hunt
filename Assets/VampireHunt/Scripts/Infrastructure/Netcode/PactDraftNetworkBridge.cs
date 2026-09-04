@@ -98,6 +98,9 @@ namespace VampireHunt.Infrastructure.Netcode
         [SerializeField, Min(0)] private int rerollScarletCost = 25;
         [SerializeField, Min(0)] private int maxRerolls = 1;
         [SerializeField, Range(1, 3)] private int optionCount = 3;
+        [Header("等级上限")]
+        [Tooltip("玩家等级上限。等级 = 1 + 已完成升级次数（= 已装血契数）；达到上限后按 Z 不再触发升级面板。")]
+        [SerializeField, Min(1)] private int maxLevel = 20;
         [Tooltip("固定局种子：仅当 autoSeedPerRun=false 时作为回退值使用（复现/回归）。")]
         [SerializeField] private int runSeed = 1337;
         [Tooltip("每局开局由 server 自动生成随机局种子，替代固定 1337（修复每局第一次抽卡/整局随机全部可复现的问题）。关闭 = 回退到上方固定 runSeed，用于复现指定局。")]
@@ -132,6 +135,10 @@ namespace VampireHunt.Infrastructure.Netcode
         public PactDraftNetworkState CurrentDraft => m_Draft.Value;
         public float SelectionScarletCost => LevelUpCostPolicy.CalculateRequiredScarlet(
             selectionScarletCost, levelUpCostGrowthRate, m_CompletedLevelUps.Value);
+        /// <summary>当前等级 = 1 + 已完成升级次数（与已装血契数一致）。</summary>
+        public int CurrentLevel => m_CompletedLevelUps.Value + 1;
+        /// <summary>是否已达到等级上限：达到后不再触发升级面板（升级成本提示可据此隐藏）。</summary>
+        public bool IsLevelMaxed => m_CompletedLevelUps.Value >= Mathf.Max(0, maxLevel - 1);
 
         private void Awake()
         {
@@ -184,6 +191,8 @@ namespace VampireHunt.Infrastructure.Netcode
             ResolveEnemyAffixDependencies();
             if (m_Draft.Value.IsActive || m_NoEligibleOptions || coreStats == null ||
                 pactState == null || enemyAffixState == null) return;
+            // 等级上限：等级 = 1 + 已完成升级次数，达到 maxLevel 后不再开升级面板。
+            if (IsLevelMaxed) return;
 
             float selectionCost = LevelUpCostPolicy.CalculateRequiredScarlet(
                 selectionScarletCost, levelUpCostGrowthRate, m_CompletedLevelUps.Value);

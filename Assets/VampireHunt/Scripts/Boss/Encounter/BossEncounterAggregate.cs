@@ -76,7 +76,11 @@ namespace VampireHunt.Boss.Encounter
             return true;
         }
 
-        public BossDamageOutcome ApplyDamage(float amount, float attackerDistance)
+        /// <summary>
+        /// 服务器权威结算玩家伤害。格挡条（Guard）在漫游期可被打空；打空即进入踉跄，
+        /// <b>不要求玩家靠近 Boss</b>（原 StaggerTriggerDistance 距离门槛已移除）。
+        /// </summary>
+        public BossDamageOutcome ApplyDamage(float amount)
         {
             amount = Math.Max(0f, amount);
             if (amount <= 0f || State == BossEncounterState.Dormant ||
@@ -86,20 +90,14 @@ namespace VampireHunt.Boss.Encounter
             SetEngaged();
             if (State == BossEncounterState.RoamingIdle || State == BossEncounterState.RoamingEvade)
             {
-                if (GuardHealth <= 0f) return TryBeginStagger(attackerDistance)
+                if (GuardHealth <= 0f) return TryBeginStagger()
                     ? BossDamageOutcome.GuardBroken
                     : BossDamageOutcome.Ignored;
                 GuardHealth = Math.Max(0f, GuardHealth - amount);
                 IncrementRevision();
                 if (GuardHealth > 0f) return BossDamageOutcome.GuardDamaged;
-                TryBeginStagger(attackerDistance);
+                TryBeginStagger();
                 return BossDamageOutcome.GuardBroken;
-            }
-
-            if (State == BossEncounterState.ExecutionWindow)
-            {
-                SetState(BossEncounterState.Battle);
-                return BossDamageOutcome.ExecutionTriggered;
             }
 
             if (State != BossEncounterState.Battle) return BossDamageOutcome.Ignored;
@@ -117,24 +115,19 @@ namespace VampireHunt.Boss.Encounter
             return BossDamageOutcome.StageDefeated;
         }
 
-        public bool TryBeginStagger(float nearestPlayerDistance)
+        /// <summary>格挡条归零即踉跄，与玩家距离无关。</summary>
+        public bool TryBeginStagger()
         {
             if ((State != BossEncounterState.RoamingIdle && State != BossEncounterState.RoamingEvade) ||
-                GuardHealth > 0f || nearestPlayerDistance > m_Rules.StaggerTriggerDistance) return false;
+                GuardHealth > 0f) return false;
             SetState(BossEncounterState.StaggerEffect);
             return true;
         }
 
+        /// <summary>踉跄表演结束 → 直接进入 Boss 战（不再经过处决窗口）。</summary>
         public bool CompleteStaggerEffect()
         {
             if (State != BossEncounterState.StaggerEffect) return false;
-            SetState(BossEncounterState.ExecutionWindow);
-            return true;
-        }
-
-        public bool CompleteExecutionWindow()
-        {
-            if (State != BossEncounterState.ExecutionWindow) return false;
             SetState(BossEncounterState.Battle);
             return true;
         }
@@ -152,8 +145,7 @@ namespace VampireHunt.Boss.Encounter
         public bool ResetToRoaming()
         {
             if (State != BossEncounterState.Battle &&
-                State != BossEncounterState.StaggerEffect &&
-                State != BossEncounterState.ExecutionWindow) return false;
+                State != BossEncounterState.StaggerEffect) return false;
             GuardHealth = MaxGuardHealth;
             HudVisible = false;
             SetState(BossEncounterState.RoamingIdle);

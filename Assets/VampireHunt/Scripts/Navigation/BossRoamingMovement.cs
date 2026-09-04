@@ -101,6 +101,49 @@ namespace VampireHunt.Navigation
             ApplyMovement(moveDirection, faceDirection, targetSpeed);
         }
 
+        /// <summary>
+        /// 漫游期（未进 Boss 战）受击逃离：朝【伤害来源的反方向】跑。
+        /// 与 <see cref="TickServer(bool)"/> 的关键区别：<b>不依赖 DetectionRange 去找玩家</b>，
+        /// 而是直接用已知的威胁坐标算方向 —— 这样玩家站在 DetectionRange 外远程输出时 Boss 也会躲。
+        /// </summary>
+        /// <param name="threatPosition">伤害来源坐标（通常是玩家位置）。</param>
+        /// <param name="maxFleeDistance">与威胁点的距离上限，超过则停下；0 或负 = 不限。</param>
+        public void TickFleeServer(in Float3 threatPosition, float maxFleeDistance)
+        {
+            m_BattleInitialized = false;
+
+            if (config == null || characterController == null || !characterController.enabled)
+            {
+                ApplyGravityOnly();
+                return;
+            }
+
+            Vector3 away = transform.position - ToVector3(threatPosition);
+            away.y = 0f;
+            float distanceToThreat = away.magnitude;
+            if (away.sqrMagnitude < 0.001f) away = -transform.forward;
+            away.Normalize();
+
+            // 已经跑够远 → 停下（仍保持朝向，让玩家能追上），避免 Boss 越跑越远导致关卡卡死。
+            if (maxFleeDistance > 0f && distanceToThreat >= maxFleeDistance)
+            {
+                ApplyMovement(away, -away, 0f);
+                return;
+            }
+
+            // 速度基准：能取到真实玩家速度就用它（Boss 与玩家同源），否则退回配置值。
+            float baseSpeed = config.NormalMoveSpeed;
+            ResolveTargetPort();
+            if (m_Targets != null && m_Targets.TryGetNearest(ToFloat3(transform.position), config.DetectionRange,
+                    out BossPlayerTarget target) && target.NormalMoveSpeed > 0.001f)
+                baseSpeed = target.NormalMoveSpeed;
+
+            float proximityT = Mathf.Clamp01(distanceToThreat / config.BossMoveProximityRadius);
+            float proximityMultiplier = Mathf.Lerp(config.BossMoveProximityMaxMultiplier, 1f, proximityT);
+
+            ApplyMovement(away, -away, baseSpeed * proximityMultiplier);
+        }
+
         public void TickBattleServer(in BossPlayerTarget target)
         {
             if (config == null || characterController == null || !characterController.enabled)

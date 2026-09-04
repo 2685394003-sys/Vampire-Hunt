@@ -30,6 +30,12 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [Min(1)] [SerializeField] private int roamingAbilityPhaseNumber = 4;
         [Min(0f)] [SerializeField] private float detectionRange = 18f;
         [Min(0.1f)] [SerializeField] private float evadeDistance = 9f;
+        [Tooltip("漫游期（未进 Boss 战）受到玩家伤害后，朝【伤害来源反方向】逃跑的持续秒数。" +
+                 "独立于 Evade Distance：玩家站在 DetectionRange 外远程输出时也会触发。" +
+                 "0 = 关闭受击逃离（Boss 会站着挨打）。")]
+        [Min(0f)] [SerializeField] private float roamingDamageFleeDuration = 2.5f;
+        [Tooltip("受击逃离时与伤害来源的距离上限（米）。跑超过这个距离就停，避免 Boss 越跑越远导致玩家永远追不上。0 = 不限距离。")]
+        [Min(0f)] [SerializeField] private float roamingDamageFleeMaxDistance = 45f;
         [Min(0.1f)] [SerializeField] private float desiredPlayerDistance = 7f;
         [Min(0.1f)] [SerializeField] private float normalMoveSpeed = 5f;
         [Min(0.1f)] [SerializeField] private float maxMirrorSpeed = 14f;
@@ -61,10 +67,9 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [Tooltip("格挡条恢复速度（每秒恢复多少点格挡）。")]
         [Min(0.1f)] [SerializeField] private float guardRegenPerSecond = 5f;
 
-        [Header("Stagger / Execution")]
-        [Min(0.1f)] [SerializeField] private float staggerTriggerDistance = 6f;
+        [Header("Stagger (破盾即踉跄，无距离门槛)")]
+        [Tooltip("踉跄表演时长（秒）。格挡条归零即进入该状态，结束后直接开战，不要求玩家靠近。")]
         [Min(0.1f)] [SerializeField] private float staggerEffectDuration = 3.2f;
-        [Min(0.1f)] [SerializeField] private float executionWindowDuration = 3f;
         [SerializeField] private uint[] staggerAbilityIds = { 2001u, 2002u, 2003u };
 
         [Header("Stage Transition")]
@@ -87,6 +92,10 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public int RoamingAbilityPhaseNumber => roamingAbilityPhaseNumber;
         public float DetectionRange => detectionRange;
         public float EvadeDistance => evadeDistance;
+        /// <summary>漫游期受击后反向逃离的持续秒数（0 = 关闭）。</summary>
+        public float RoamingDamageFleeDuration => roamingDamageFleeDuration;
+        /// <summary>受击逃离时与伤害来源的距离上限（米）；0 = 不限。</summary>
+        public float RoamingDamageFleeMaxDistance => roamingDamageFleeMaxDistance;
         public float DesiredPlayerDistance => desiredPlayerDistance;
         public float NormalMoveSpeed => normalMoveSpeed;
         public float MaxMirrorSpeed => maxMirrorSpeed;
@@ -112,7 +121,6 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public float SpawnMinDistance => spawnMinDistance;
         public float SpawnMaxDistance => spawnMaxDistance;
         public float StaggerEffectDuration => staggerEffectDuration;
-        public float ExecutionWindowDuration => executionWindowDuration;
         public float PhaseTransitionDuration => phaseTransitionDuration;
         public uint PhaseAuraAbilityId => phaseAuraAbilityId;
         /// <summary>击破指定阶段时给整局 run 倒计时加的秒数（阶段 1=360s/6min，阶段 2=480s/8min，阶段 3=0）。</summary>
@@ -151,7 +159,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
                 BossStageConfigRow row = stages[i] ?? new BossStageConfigRow();
                 rows[i] = new BossStageRules(row.GuardHealth, row.BattleHealth, row.AbilityPhaseNumber);
             }
-            return new BossEncounterRules(rows, staggerTriggerDistance);
+            return new BossEncounterRules(rows);
         }
 
         private void OnValidate()
@@ -162,6 +170,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
             roamingAbilityPhaseNumber = Mathf.Max(1, roamingAbilityPhaseNumber);
             detectionRange = Mathf.Max(0f, detectionRange);
             evadeDistance = Mathf.Max(0.1f, evadeDistance);
+            roamingDamageFleeDuration = Mathf.Max(0f, roamingDamageFleeDuration);
+            roamingDamageFleeMaxDistance = Mathf.Max(0f, roamingDamageFleeMaxDistance);
             desiredPlayerDistance = Mathf.Max(0.1f, desiredPlayerDistance);
             normalMoveSpeed = Mathf.Max(0.1f, normalMoveSpeed);
             maxMirrorSpeed = Mathf.Max(normalMoveSpeed, maxMirrorSpeed);
@@ -179,9 +189,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
             guardRegenPerSecond = Mathf.Max(0.1f, guardRegenPerSecond);
             spawnMinDistance = Mathf.Max(0.1f, spawnMinDistance);
             spawnMaxDistance = Mathf.Max(spawnMinDistance, spawnMaxDistance);
-            staggerTriggerDistance = Mathf.Max(0.1f, staggerTriggerDistance);
             staggerEffectDuration = Mathf.Max(0.1f, staggerEffectDuration);
-            executionWindowDuration = Mathf.Max(0.1f, executionWindowDuration);
             phaseTransitionDuration = Mathf.Max(0.1f, phaseTransitionDuration);
             stageClearBonusSeconds ??= new float[] { 360f, 480f, 0f };
             if (stageClearBonusSeconds.Length != 3) Array.Resize(ref stageClearBonusSeconds, 3);
