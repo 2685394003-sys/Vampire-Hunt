@@ -46,7 +46,8 @@ namespace VampireHunt.Infrastructure.Integration
             double serverTime,
             in BossAbilityExecutionInput input,
             uint randomSeed,
-            bool allowNewCast)
+            bool allowNewCast,
+            int participantCount = 1)
         {
             if (!m_Initialized || m_Controller == null) return false;
             return m_Controller.Tick(
@@ -57,14 +58,16 @@ namespace VampireHunt.Infrastructure.Integration
                 input.TargetPosition,
                 input.Direction,
                 randomSeed,
-                allowNewCast);
+                allowNewCast,
+                participantCount);
         }
 
         public bool TryStartAbilityServer(
             BossAbilityDefinition ability,
             double serverTime,
             in BossAbilityExecutionInput input,
-            uint randomSeed)
+            uint randomSeed,
+            int participantCount = 1)
         {
             return m_Initialized && m_Controller != null &&
                    m_Controller.TryStartAbility(
@@ -74,7 +77,8 @@ namespace VampireHunt.Infrastructure.Integration
                        input.SourcePosition,
                        input.TargetPosition,
                        input.Direction,
-                       randomSeed);
+                       randomSeed,
+                       participantCount);
         }
 
         public bool TrySetPhaseServer(BossPhaseDefinition phase, double serverTime)

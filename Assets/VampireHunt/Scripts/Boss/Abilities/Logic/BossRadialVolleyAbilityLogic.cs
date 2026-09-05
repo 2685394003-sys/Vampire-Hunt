@@ -7,6 +7,8 @@ namespace VampireHunt.Boss.Abilities.Logic
     public sealed class BossRadialVolleyAbilityLogic : BossGameplayAbilityLogic
     {
         private int m_SpawnedProjectileCount;
+        private int m_TotalProjectileCount;
+        private int m_ArmCount;
         private double m_NextShotTime;
         private double m_EndTime;
 
@@ -14,6 +16,15 @@ namespace VampireHunt.Boss.Abilities.Logic
         {
             base.OnCastStarted(context);
             m_SpawnedProjectileCount = 0;
+            m_ArmCount = context.Modifiers.ParticipantCount <= 1
+                ? Tuning.VolleyArmCount
+                : System.Math.Min(64, 1 + context.Modifiers.QuantityUnits);
+            int authoredWaves = System.Math.Max(
+                1,
+                (Tuning.ProjectileCount + Tuning.VolleyArmCount - 1) / Tuning.VolleyArmCount);
+            m_TotalProjectileCount = context.Modifiers.ParticipantCount <= 1
+                ? Tuning.ProjectileCount
+                : authoredWaves * m_ArmCount;
             m_NextShotTime = 0d;
             m_EndTime = 0d;
         }
@@ -22,37 +33,37 @@ namespace VampireHunt.Boss.Abilities.Logic
         {
             if (Services.ProjectileSpawner == null || Services.BossBodyState == null) return;
             m_EndTime = serverTime + Tuning.Duration;
-            SpawnOpposedPair(serverTime);
+            SpawnWave(serverTime);
             m_NextShotTime = serverTime + Tuning.Interval;
         }
 
         public override void Tick(double serverTime)
         {
-            if (Phase != BossAbilityCastPhase.Resolve || m_SpawnedProjectileCount >= Tuning.ProjectileCount ||
+            if (Phase != BossAbilityCastPhase.Resolve || m_SpawnedProjectileCount >= m_TotalProjectileCount ||
                 serverTime > m_EndTime || m_NextShotTime <= 0d) return;
 
             // Catch up deterministically after a slow frame, but cap work per frame so a lag
             // spike cannot create an unbounded projectile burst.
             int catchUpWaves = 0;
-            while (serverTime >= m_NextShotTime && m_SpawnedProjectileCount < Tuning.ProjectileCount &&
+            while (serverTime >= m_NextShotTime && m_SpawnedProjectileCount < m_TotalProjectileCount &&
                    m_NextShotTime <= m_EndTime && catchUpWaves++ < 8)
             {
-                SpawnOpposedPair(m_NextShotTime);
+                SpawnWave(m_NextShotTime);
                 m_NextShotTime += Tuning.Interval;
             }
         }
 
-        private void SpawnOpposedPair(double shotTime)
+        private void SpawnWave(double shotTime)
         {
-            int remaining = Tuning.ProjectileCount - m_SpawnedProjectileCount;
-            int countThisWave = System.Math.Min(2, remaining);
+            int remaining = m_TotalProjectileCount - m_SpawnedProjectileCount;
+            int countThisWave = System.Math.Min(m_ArmCount, remaining);
             float seedOffset = Context.RandomSeed % 360u;
             float spin = Tuning.RotationSpeed * (float)(shotTime - Context.StartServerTime);
 
             for (int i = 0; i < countThisWave; i++)
             {
-                float opposedAngle = i * 180f;
-                Float3 direction = RotateY(new Float3(0f, 0f, 1f), seedOffset + spin + opposedAngle);
+                float armAngle = i * (360f / m_ArmCount);
+                Float3 direction = RotateY(new Float3(0f, 0f, 1f), seedOffset + spin + armAngle);
                 uint projectileOrdinal = (uint)(++m_SpawnedProjectileCount);
                 var request = new BossProjectileSpawnRequest(
                     Tuning.ProjectileId,

@@ -4,9 +4,9 @@ using VampireHunt.Bootstrap;
 using VampireHunt.Boss.Encounter;
 using VampireHunt.Contracts;
 using VampireHunt.Infrastructure.Integration;
+using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Infrastructure.Unity.Boss;
 using VampireHunt.Navigation;
-using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -147,6 +147,29 @@ namespace VampireHunt.Infrastructure.Netcode
                 m_DamageFleeTimer = config.RoamingDamageFleeDuration;
             }
             if (previous != m_Aggregate.State) ObserveStateTransition(force: true);
+            stateReplicator.PublishServer(m_Aggregate.CaptureSnapshot(), force: true);
+            return true;
+        }
+
+        /// <summary>Debug-only server command: reloads a stage and enters its battle state.</summary>
+        public bool TryForceStageForDebugServer(int stageNumber)
+        {
+            if (!IsServer || m_Aggregate == null || config == null || abilityDriver == null ||
+                stageNumber < 1 || stageNumber > config.StageCount) return false;
+
+            abilityDriver.TryCancelActiveCastServer();
+            if (!m_Aggregate.ForceStageForDebug(stageNumber)) return false;
+
+            m_PendingForcedAbility = 0;
+            m_FrenzyTriggered = false;
+            m_SpawnPositionChosen = true;
+            m_CurrentAbilityPhase = 0;
+            m_ObservedState = BossEncounterState.Battle;
+            m_StateEnterTime = NetworkManager.ServerTime.Time;
+            bodyState?.TrySetStaggered(false);
+            bodyState?.TrySetNormalizedHealth(1f);
+            runManager?.TryEnterBossEncounter();
+            EnsureAbilityPhase(config.GetAbilityPhaseNumber(stageNumber));
             stateReplicator.PublishServer(m_Aggregate.CaptureSnapshot(), force: true);
             return true;
         }

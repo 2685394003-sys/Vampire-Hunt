@@ -19,8 +19,8 @@ namespace VampireHunt.Contracts
     /// 使魔血契调制端口（familiar pact target）：撞击使魔（7xxx）与射击使魔（8xxx）类血契的效果落点。
     /// </summary>
     /// <remarks>
-    /// 由 <see cref="VampireHunt.Infrastructure.Integration.ImpactFamiliarController"/>（Impact）与
-    /// <see cref="VampireHunt.Infrastructure.Integration.GunnerFamiliarController"/>（Gunner）实现。
+    /// 由 <see cref="VampireHunt.Infrastructure.Netcode.Abilities.Familiar.ImpactFamiliarController"/>（Impact）与
+    /// <see cref="VampireHunt.Infrastructure.Netcode.Abilities.Familiar.GunnerFamiliarController"/>（Gunner）实现。
     /// 两个控制器与 GameplayEffectHost 挂在同一 GameObject（玩家根物体），FamiliarPact 模块
     /// （EffectModuleTypeIds.FamiliarPact）的工厂通过端口机制（EffectPortCollection.TryGet）按
     /// <see cref="Kind"/> 自动定位到对应控制器，无需显式接线。

@@ -123,7 +123,8 @@ namespace VampireHunt.Boss.Abilities.Logic
             return Services.SweepTelegraphService.TryPublish(new BossSweepTelegraphRequest(
                 Context.AbilityId,
                 Context.CastSequence,
-                passes));
+                passes,
+                Context.TelegraphDuration));
         }
 
         private void CancelBrokenPendingPasses()

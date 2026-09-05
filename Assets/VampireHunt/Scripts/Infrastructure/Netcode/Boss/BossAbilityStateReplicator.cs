@@ -19,6 +19,8 @@ namespace VampireHunt.Infrastructure.Netcode
         public Vector3 Direction;
         public uint RandomSeed;
         public uint Revision;
+        public double TelegraphDuration;
+        public int ParticipantCount;
 
         public bool IsCasting => AbilityId != 0 && CastPhase != BossAbilityCastPhase.None;
 
@@ -41,6 +43,8 @@ namespace VampireHunt.Infrastructure.Netcode
             serializer.SerializeValue(ref Direction);
             serializer.SerializeValue(ref RandomSeed);
             serializer.SerializeValue(ref Revision);
+            serializer.SerializeValue(ref TelegraphDuration);
+            serializer.SerializeValue(ref ParticipantCount);
         }
 
         public bool Equals(BossAbilityNetworkState other) =>
@@ -55,7 +59,9 @@ namespace VampireHunt.Infrastructure.Netcode
             TargetPosition.Equals(other.TargetPosition) &&
             Direction.Equals(other.Direction) &&
             RandomSeed == other.RandomSeed &&
-            Revision == other.Revision;
+            Revision == other.Revision &&
+            TelegraphDuration.Equals(other.TelegraphDuration) &&
+            ParticipantCount == other.ParticipantCount;
 
         public override bool Equals(object obj) => obj is BossAbilityNetworkState other && Equals(other);
         public override int GetHashCode()
@@ -85,7 +91,9 @@ namespace VampireHunt.Infrastructure.Netcode
                 TargetPosition = ToVector3(snapshot.TargetPosition),
                 Direction = ToVector3(snapshot.Direction),
                 RandomSeed = snapshot.RandomSeed,
-                Revision = snapshot.Revision
+                Revision = snapshot.Revision,
+                TelegraphDuration = snapshot.TelegraphDuration,
+                ParticipantCount = snapshot.ParticipantCount
             };
         }
 

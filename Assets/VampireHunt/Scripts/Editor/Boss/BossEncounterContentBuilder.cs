@@ -5,6 +5,7 @@ using Unity.Netcode.Components;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UIElements;
 using UnityEngine.SceneManagement;
 using VampireHunt.Boss.Abilities;
 using VampireHunt.Boss.Abilities.Logic;
@@ -44,6 +45,12 @@ namespace VampireHunt.Editor.Boss
         private const string LaserBeamShaderPath = PresentationRoot + "/Shaders/VH_Boss_TrackingLaserBeam.shader";
         private const string LaserMarkerPrefabPath = VfxRoot + "/VH_BossSkill_Laser_TargetMarker_VFX.prefab";
         private const string LaserBeamPrefabPath = VfxRoot + "/VH_BossSkill_Laser_TrackingBeam_VFX.prefab";
+        private const string GridWarningShaderPath = PresentationRoot + "/Shaders/VH_Boss_GridCutWarning.shader";
+        private const string GridBurstShaderPath = PresentationRoot + "/Shaders/VH_Boss_GridCutBurst.shader";
+        private const string GridWarningPrefabPath = VfxRoot + "/VH_BossSkill_GridCut_CrossGridWarning_VFX.prefab";
+        private const string GridBurstPrefabPath = VfxRoot + "/VH_BossSkill_GridCut_CrossGridBurst_VFX.prefab";
+        private const string BossDebugUxmlPath = "Assets/VampireHunt/Scripts/Presentation/Boss/BossDebugPanel.uxml";
+        private const string PanelSettingsPath = "Assets/Core/Settings/PanelSettings.asset";
         private const string BossPrefabPath = PrefabRoot + "/VH_Boss.prefab";
         private const string HandPrefabPath = PrefabRoot + "/VH_BossHand.prefab";
         private const string ProjectilePrefabPath = PrefabRoot + "/VH_Boss_BloodProjectile.prefab";
@@ -117,6 +124,8 @@ namespace VampireHunt.Editor.Boss
             GameObject sweepAttack = CreateOrUpdateSweepAttackVfx();
             GameObject laserMarker = CreateOrUpdateLaserTargetMarkerVfx();
             GameObject laserBeam = CreateOrUpdateLaserBeamVfx();
+            GameObject gridWarning = CreateOrUpdateGridWarningVfx();
+            GameObject gridBurst = CreateOrUpdateGridBurstVfx();
 
             var abilities = new Dictionary<uint, BossAbilityAsset>();
             foreach (AbilitySpec spec in CreateAbilitySpecs())
@@ -128,7 +137,9 @@ namespace VampireHunt.Editor.Boss
                     sweepWarning,
                     sweepAttack,
                     laserMarker,
-                    laserBeam);
+                    laserBeam,
+                    gridWarning,
+                    gridBurst);
 
             BossPhaseAsset phase1 = CreateOrUpdatePhase(1, "第一阶段",
                 new PhaseEntry(abilities[2010], 1f, initialCooldown: 0.4f),
@@ -193,7 +204,11 @@ namespace VampireHunt.Editor.Boss
                 p.FindPropertyRelative("DissolveDuration").floatValue = .35f;
                 p.FindPropertyRelative("VfxHeight").floatValue = 1.2f;
             };
-            Action<SerializedProperty> grid = p => SetTuning(p, 26, 0, 0, 14, .65f, 2, 3, .42f, 1, 1, 1, 1, 0, 1.5f, 0, 2);
+            Action<SerializedProperty> grid = p =>
+            {
+                SetTuning(p, 26, 0, 30, 60, .8f, 2, 3, .75f, 1, 1, 1, 1, 0, 1.55f, 0, 2);
+                p.FindPropertyRelative("GridLineCount").intValue = 6;
+            };
             Action<SerializedProperty> laser = p => SetTuning(p, 17, 6, 0, 16, 1.2f, 2, 1, .4f, 1, 1, 1, 1, 30, 3, 0, 2);
             Action<SerializedProperty> shock = p => SetTuning(p, 20, 8, 13, 1, 1, 2, 5, .22f, 1, 1, 1, 1, 0, 1.1f, 0, 2);
             Action<SerializedProperty> frenzy = p => SetTuning(p, 0, 0, 0, 1, 1, 1, 1, .2f, 1, 1, 1, 1, 0, 1, 0, 2);
@@ -208,7 +223,7 @@ namespace VampireHunt.Editor.Boss
                 new AbilitySpec("VH_Boss_RadialVolley", "弹幕", 2020, typeof(BossRadialVolleyAbilityLogic), 1, 2.5f, .8f, 2f, .8f, false, false, 0, 1, volley),
                 new AbilitySpec("VH_Boss_Bombardment", "轰炸", 2030, typeof(BossBombardmentAbilityLogic), 2, 2.5f, 1.2f, .12f, .6f, true, false, 0, 1, bomb, eachLockedArea: true),
                 new AbilitySpec("VH_Boss_ChargeSlash", "斩击", 2040, typeof(BossChargeSlashAbilityLogic), 3, 2.25f, 1f, .12f, .7f, true, false, 0, 1, slash),
-                new AbilitySpec("VH_Boss_GridCut", "网格", 2050, typeof(BossGridCutAbilityLogic), 4, 3f, 1.1f, 1.5f, .7f, false, false, 0, 1, grid),
+                new AbilitySpec("VH_Boss_GridCut", "网格", 2050, typeof(BossGridCutAbilityLogic), 4, 3f, .75f, 1.55f, .7f, false, false, 0, 1, grid),
                 new AbilitySpec("VH_Boss_Frenzy", "狂暴", 2060, typeof(BossFrenzyAbilityLogic), 7, 0, 1.5f, .1f, .6f, false, true, 0, .2f, frenzy),
                 new AbilitySpec("VH_Boss_LaserSweep", "激光", 2070, typeof(BossLaserSweepAbilityLogic), 5, 4f, .8f, 3f, .8f, true, false, 0, 1, laser),
                 new AbilitySpec("VH_Boss_PhaseTransitionAura", "阶段转换·黄金血辉", 2090, typeof(BossPhaseAuraAbilityLogic), 8, 0, 0, 1.2f, .4f, false, false, 0, 1, frenzy),
@@ -225,7 +240,9 @@ namespace VampireHunt.Editor.Boss
             GameObject sweepWarning,
             GameObject sweepAttack,
             GameObject laserMarker,
-            GameObject laserBeam)
+            GameObject laserBeam,
+            GameObject gridWarning,
+            GameObject gridBurst)
         {
             string path = $"{SkillRoot}/{spec.FileName}.asset";
             BossAbilityAsset asset = GetOrCreateAsset<BossAbilityAsset>(path);
@@ -271,6 +288,25 @@ namespace VampireHunt.Editor.Boss
                 ConfigureCue(cues.GetArrayElementAtIndex(1), $"{spec.DisplayName}·移动剑气与终点消解", spec.Telegraph,
                     BossAbilityAnchorId.Ground, chargeSlashSwordQi, Vector3.one * 1.25f,
                     .8f, BossAbilityCueSpawnMode.DirectionalTravel);
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+                return asset;
+            }
+            if (spec.Id == 2050)
+            {
+                SerializedProperty warningCue = cues.GetArrayElementAtIndex(0);
+                ConfigureCue(warningCue, $"{spec.DisplayName}·三轮六横六竖预警", 0f,
+                    BossAbilityAnchorId.Ground, gridWarning, Vector3.one,
+                    spec.Telegraph + spec.Resolve, BossAbilityCueSpawnMode.GridCutWarning);
+                warningCue.FindPropertyRelative("localPosition").vector3Value = Vector3.up * .05f;
+                warningCue.FindPropertyRelative("followAnchor").boolValue = false;
+
+                SerializedProperty burstCue = cues.GetArrayElementAtIndex(1);
+                ConfigureCue(burstCue, $"{spec.DisplayName}·三轮六横六竖斩击", spec.Telegraph,
+                    BossAbilityAnchorId.Ground, gridBurst, Vector3.one,
+                    spec.Resolve + .3f, BossAbilityCueSpawnMode.GridCutBurst);
+                burstCue.FindPropertyRelative("localPosition").vector3Value = Vector3.up * .07f;
+                burstCue.FindPropertyRelative("followAnchor").boolValue = false;
                 so.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(asset);
                 return asset;
@@ -455,6 +491,7 @@ namespace VampireHunt.Editor.Boss
                 GameObject sparkObject = new GameObject("BloodSparks");
                 sparkObject.transform.SetParent(root.transform, false);
                 ParticleSystem particles = sparkObject.AddComponent<ParticleSystem>();
+                particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 var main = particles.main;
                 main.duration = 1f; main.loop = true; main.startLifetime = new ParticleSystem.MinMaxCurve(.25f, .8f);
                 main.startSpeed = new ParticleSystem.MinMaxCurve(.4f, 2.2f);
@@ -560,6 +597,61 @@ namespace VampireHunt.Editor.Boss
                 SetObject(presenter, "beamShader",
                     AssetDatabase.LoadAssetAtPath<Shader>(LaserBeamShaderPath));
                 return PrefabUtility.SaveAsPrefabAsset(root, LaserBeamPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateGridWarningVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_GridCut_CrossGridWarning_VFX");
+            try
+            {
+                GameObject strips = new GameObject("WarningStrips_MeshMaterial_6x6");
+                strips.transform.SetParent(root.transform, false);
+                BossGridCutWarningVfxPresenter presenter =
+                    root.AddComponent<BossGridCutWarningVfxPresenter>();
+                SetObject(presenter, "warningShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(GridWarningShaderPath));
+                SetObject(presenter, "warningStripsRoot", strips.transform);
+                return PrefabUtility.SaveAsPrefabAsset(root, GridWarningPrefabPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        private static GameObject CreateOrUpdateGridBurstVfx()
+        {
+            GameObject root = new GameObject("VH_BossSkill_GridCut_CrossGridBurst_VFX");
+            try
+            {
+                GameObject strips = new GameObject("DamageStrips_MeshMaterial_6x6");
+                strips.transform.SetParent(root.transform, false);
+
+                GameObject particles = new GameObject("GridCutBloodSparks_ParticleSystem");
+                particles.transform.SetParent(root.transform, false);
+                ParticleSystem particleSystem = particles.AddComponent<ParticleSystem>();
+                particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                ParticleSystem.MainModule main = particleSystem.main;
+                main.playOnAwake = false;
+                main.loop = false;
+                particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+                GameObject flash = new GameObject("GridCutImpactFlash_PointLight");
+                flash.transform.SetParent(root.transform, false);
+                flash.transform.localPosition = Vector3.up * .6f;
+                Light light = flash.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = new Color(1f, .015f, .01f);
+                light.shadows = LightShadows.None;
+                light.intensity = 0f;
+
+                BossGridCutBurstVfxPresenter presenter =
+                    root.AddComponent<BossGridCutBurstVfxPresenter>();
+                SetObject(presenter, "burstShader",
+                    AssetDatabase.LoadAssetAtPath<Shader>(GridBurstShaderPath));
+                SetObject(presenter, "damageStripsRoot", strips.transform);
+                SetObject(presenter, "impactSparks", particleSystem);
+                SetObject(presenter, "impactLight", light);
+                return PrefabUtility.SaveAsPrefabAsset(root, GridBurstPrefabPath);
             }
             finally { Object.DestroyImmediate(root); }
         }
@@ -674,6 +766,22 @@ namespace VampireHunt.Editor.Boss
                 SetObject(hands, "leftAnchor", left); SetObject(hands, "rightAnchor", right); SetObject(hands, "bodyState", body);
                 BossHudBinder hud = GetOrAdd<BossHudBinder>(root);
                 SetObject(hud, "config", config); SetObject(hud, "stateSource", encounterReplicator);
+                BossDebugController debugController = GetOrAdd<BossDebugController>(root);
+                SetObject(debugController, "networkObject", root.GetComponent<NetworkObject>());
+                SetObject(debugController, "encounterDirector", director);
+                SetObject(debugController, "abilityDriver", driver);
+                SetObject(debugController, "roamingMovement", movement);
+                SetObject(debugController, "phaseProvider", phaseProvider);
+                UIDocument debugDocument = GetOrAdd<UIDocument>(root);
+                debugDocument.panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
+                debugDocument.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(BossDebugUxmlPath);
+                debugDocument.sortingOrder = 1000;
+                BossDebugPanel debugPanel = GetOrAdd<BossDebugPanel>(root);
+                SetObject(debugPanel, "document", debugDocument);
+                SetObject(debugPanel, "controller", debugController);
+                SetObject(debugPanel, "encounterState", encounterReplicator);
+                SetObject(debugPanel, "abilityState", abilityReplicator);
+                SetObject(debugPanel, "phaseProvider", phaseProvider);
 
                 BossAbilityAnchorRegistry anchors = GetOrAdd<BossAbilityAnchorRegistry>(root);
                 anchors.EditorSetBindings(new[]
@@ -694,6 +802,8 @@ namespace VampireHunt.Editor.Boss
                 SetObject(sweepVfx, "source", sweepTelegraph); SetObject(sweepVfx, "phaseProvider", phaseProvider);
                 BossTrackingLaserVfxPresenter laserVfx = GetOrAdd<BossTrackingLaserVfxPresenter>(root);
                 SetObject(laserVfx, "source", laserPresentation); SetObject(laserVfx, "phaseProvider", phaseProvider);
+                BossGridCutVfxPresenter gridVfx = GetOrAdd<BossGridCutVfxPresenter>(root);
+                SetObject(gridVfx, "cueSource", presenter); SetObject(gridVfx, "phaseProvider", phaseProvider);
                 BossAbilityAnimatorPresenter animator = GetOrAdd<BossAbilityAnimatorPresenter>(root);
                 SetObject(animator, "cueSource", presenter); SetObject(animator, "animator", root.GetComponentInChildren<Animator>());
                 AudioSource audioSource = GetOrAdd<AudioSource>(root); audioSource.spatialBlend = 1f; audioSource.playOnAwake = false;

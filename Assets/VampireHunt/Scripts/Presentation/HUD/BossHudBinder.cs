@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Boss.Encounter;
 using VampireHunt.Infrastructure.Netcode;
@@ -14,6 +15,7 @@ namespace VampireHunt.Presentation.HUD
         [SerializeField] private BossEncounterStateReplicator stateSource;
         private VampireHuntHudPresenter m_Hud;
         private float m_NextHudLookup;
+        private bool m_HasRenderedCurrentBinding;
 
         private void Awake()
         {
@@ -28,28 +30,55 @@ namespace VampireHunt.Presentation.HUD
         private void OnDisable()
         {
             if (stateSource != null) stateSource.StateChanged -= Render;
-            m_Hud?.SetBossState(string.Empty, 0f, 1f, false);
+            if (m_Hud != null && m_Hud.IsPresentationReady)
+                m_Hud.SetBossState(string.Empty, 0f, 1f, false);
+            m_Hud = null;
+            m_HasRenderedCurrentBinding = false;
         }
 
         private void Update()
         {
-            if (m_Hud == null && Time.unscaledTime >= m_NextHudLookup)
+            if (m_Hud != null && m_Hud.IsPresentationReady && m_HasRenderedCurrentBinding) return;
+            if (Time.unscaledTime < m_NextHudLookup) return;
+
+            m_NextHudLookup = Time.unscaledTime + 0.25f;
+            VampireHuntHudPresenter localHud = ResolveLocalPlayerHud();
+            if (localHud != m_Hud)
             {
-                m_NextHudLookup = Time.unscaledTime + 0.5f;
-                m_Hud = FindAnyObjectByType<VampireHuntHudPresenter>();
-                if (m_Hud != null && stateSource != null) Render(stateSource.Current);
+                m_Hud = localHud;
+                m_HasRenderedCurrentBinding = false;
             }
+
+            if (m_Hud == null || !m_Hud.IsPresentationReady || stateSource == null) return;
+            Render(stateSource.Current);
         }
 
         private void Render(BossEncounterNetworkState state)
         {
-            if (m_Hud == null) return;
+            if (m_Hud == null || !m_Hud.IsPresentationReady)
+            {
+                m_HasRenderedCurrentBinding = false;
+                return;
+            }
             bool guardVisible = state.State == BossEncounterState.RoamingIdle ||
                                 state.State == BossEncounterState.RoamingEvade ||
                                 state.State == BossEncounterState.StaggerEffect;
             m_Hud.SetBossEncounterState(config != null ? config.BossName : "猩红之主",
                 state.Health, state.MaxHealth, state.GuardHealth, state.MaxGuardHealth,
                 state.StageNumber, GetStatusText(state.State), state.HudVisible, guardVisible);
+            m_HasRenderedCurrentBinding = true;
+        }
+
+        private static VampireHuntHudPresenter ResolveLocalPlayerHud()
+        {
+            NetworkManager manager = NetworkManager.Singleton;
+            if (manager == null || !manager.IsListening || manager.SpawnManager == null)
+                return FindAnyObjectByType<VampireHuntHudPresenter>();
+
+            NetworkObject localPlayer = manager.SpawnManager.GetPlayerNetworkObject(manager.LocalClientId);
+            return localPlayer != null
+                ? localPlayer.GetComponent<VampireHuntHudPresenter>()
+                : null;
         }
 
         private static string GetStatusText(BossEncounterState state)

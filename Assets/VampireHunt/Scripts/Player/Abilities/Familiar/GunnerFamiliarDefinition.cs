@@ -20,71 +20,29 @@ namespace VampireHunt.Player.Abilities.Familiar
     }
 
     /// <summary>
-    /// 射击僚机使魔某一档武器的全部参数（weapon profile）。<br/>
-    /// 字段口径<b>对标玩家武器系统</b>（<c>ProjectileWeaponAbilityAsset</c>）：
-    /// 伤害倍率、射程、散布、穿透、击退、元素、命中状态都一一对应，
-    /// 再补上使魔专属的连发（burst）与冷却（cooldown）参数。
+    /// 射击使魔某一档武器的运行时玩法数据。这里只保存状态机和伤害结算所需的数据，
+    /// 不保存 GameObject、材质或 VFX；这些资源由 Infrastructure 配置并交给 Presenter 使用。
     /// </summary>
-    [Serializable]
-    public sealed class GunnerFamiliarWeaponProfile
+    public sealed class GunnerFamiliarWeaponDefinition
     {
-        [Header("身份")]
-        [Tooltip("武器档位 id：血契升级时按这个 id 查找并切换。")]
         public FamiliarWeaponId weaponId = FamiliarWeaponId.Pistol;
-        [Tooltip("显示名（仅备注用，不参与逻辑）。")]
-        public string displayName = "手枪";
-
-        [Header("伤害")]
-        [Tooltip("每发子弹的伤害倍率：单发伤害 = 玩家基础伤害 × 基础伤害继承系数 × 此倍率。")]
         public float damageMultiplier = 2f;
-        [Tooltip("击退倍率（× 全局击退力）。方向 = 使魔射击方向。")]
         public float knockbackMultiplier = 1f;
-        [Tooltip("元素（影响状态挂载的元素归属）。")]
         public ElementId element = ElementId.None;
-        [Tooltip("命中附加状态。")]
         public StatusEffectSpec[] onHitStatuses = Array.Empty<StatusEffectSpec>();
-        [Tooltip("附加伤害标签（damage tags）。\n⚠️ 不要填玩家武器标签（Sniper/AutoRifle/Laser...）：那是给玩家的，填了会让玩家的命中被使魔误判成自触发而漏登记候选目标。留 None 最安全。")]
         public DamageTags extraDamageTags = DamageTags.None;
-
-        [Header("站位与射程")]
-        [Tooltip("交战距离（米）：使魔会飞到距目标这个距离的位置开火。狙击远、手枪近。")]
         public float range = 10f;
-        [Tooltip("开火射线的最大长度（米）。通常 ≥ 交战距离，留出目标移动的余量。")]
         public float maxFireDistance = 14f;
-        [Tooltip("枪口前移距离（米）：射线起点从使魔中心往前挪，避免起点穿进使魔自己的碰撞体。")]
         public float muzzleForwardOffset = 0.5f;
-
-        [Header("开火节奏")]
-        [Tooltip("一套（volley）打几发。手枪 2 / 步枪 4 / 狙击 1。")]
         public int burstCount = 2;
-        [Tooltip("连发间隔（秒）：一套之内两发之间的间隔。")]
         public float burstInterval = 0.12f;
-        [Tooltip("射击冷却（秒）：打完一整套之后的冷却，冷却结束才允许打下一套或换目标。")]
         public float fireCooldown = 0.8f;
-
-        [Header("弹道")]
-        [Tooltip("散布角（度）：每发在朝向上随机偏转的角度上限。0 = 精准。")]
         public float spreadAngle = 2f;
-        [Tooltip("穿透目标数：一条射线最多结算几个敌人（1 = 只打第一个）。")]
         public int pierceCount = 1;
-        [Tooltip("射线判定半径（米）：用球形扫描（sphere cast）代替细射线，宽容度更高。")]
         public float projectileRadius = 0.25f;
-        [Tooltip("曳光弹视觉飞行速度（米/秒）。仅表现用，伤害是即时结算（hitscan）。\n" +
-                 "调慢更容易看清弹道（35 左右很明显），调快更接近真实枪感。不影响伤害。")]
+        // 这两个数值随网络表现 Cue 发送，但仍不包含具体表现资源引用。
         public float projectileSpeed = 40f;
-        [Tooltip("曳光弹缩放：在预制体自身尺寸上再乘一层。狙击/激光想做成细长光束就调大 Z 方向的观感（等比缩放）。\n" +
-                 "最终缩放 = 预制体尺寸 × 控制器 Tracer Scale Multiplier × 此值。")]
         public float tracerScale = 1f;
-
-        [Header("表现（可留空）")]
-        [Tooltip("枪口闪光特效预制体（prefab），留空则没有。")]
-        public GameObject muzzleVfxPrefab;
-        [Tooltip("曳光弹预制体（prefab），留空则没有弹道表现。")]
-        public GameObject tracerPrefab;
-
-        /// <summary>单发伤害 = 玩家基础伤害 × 继承系数 × 武器倍率（由控制器调用）。</summary>
-        public float ComputeDamage(float playerBaseDamage, float inheritRatio) =>
-            playerBaseDamage * inheritRatio * damageMultiplier;
     }
 
     /// <summary>
@@ -191,7 +149,7 @@ namespace VampireHunt.Player.Abilities.Familiar
 
         // ── 当前武器档位 ──────────────────────────────────────
         /// <summary>当前武器档位（profile）：血契升级时整体替换这个引用。</summary>
-        public GunnerFamiliarWeaponProfile Weapon { get; }
+        public GunnerFamiliarWeaponDefinition Weapon { get; }
 
         // ── 表现 ──────────────────────────────────────────────
         /// <summary>使魔视觉的整体缩放。</summary>
@@ -224,7 +182,7 @@ namespace VampireHunt.Player.Abilities.Familiar
             float returnArriveDistance,
             float baseDamageInheritRatio,
             float buffTriggerCountMultiplier,
-            GunnerFamiliarWeaponProfile weapon,
+            GunnerFamiliarWeaponDefinition weapon,
             float visualScale)
         {
             AbilityId = abilityId;
@@ -258,6 +216,6 @@ namespace VampireHunt.Player.Abilities.Familiar
         }
 
         /// <summary>资产没配武器档位时的兜底：一把最朴素的手枪，保证逻辑不会空引用。</summary>
-        public static GunnerFamiliarWeaponProfile CreateFallbackWeapon() => new GunnerFamiliarWeaponProfile();
+        public static GunnerFamiliarWeaponDefinition CreateFallbackWeapon() => new GunnerFamiliarWeaponDefinition();
     }
 }

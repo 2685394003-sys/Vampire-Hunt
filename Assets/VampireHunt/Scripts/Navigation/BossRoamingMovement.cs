@@ -24,6 +24,9 @@ namespace VampireHunt.Navigation
         private float m_BattleOrbitSwitchTimer;
         private float m_BattleDistanceDriftTimer;
         private bool m_BattleInitialized;
+        private bool m_DebugPaused;
+
+        public bool DebugPaused => m_DebugPaused;
 
         private void Awake()
         {
@@ -33,9 +36,16 @@ namespace VampireHunt.Navigation
 
         public void SetConfig(BossEncounterConfigAsset value) => config = value;
 
+        public void SetDebugPaused(bool paused)
+        {
+            if (m_DebugPaused == paused) return;
+            m_DebugPaused = paused;
+            ResetSamples();
+        }
+
         public bool TrySpawnInPlayerAnnulusServer(uint seed)
         {
-            if (config == null) return false;
+            if (m_DebugPaused || config == null) return false;
             ResolveTargetPort();
             if (m_Targets == null || !m_Targets.TryGetNearest(ToFloat3(transform.position), float.MaxValue,
                     out BossPlayerTarget target)) return false;
@@ -61,7 +71,8 @@ namespace VampireHunt.Navigation
 
         public void TickServer(bool shouldEvade)
         {
-            m_BattleInitialized = false;  // 退出 Battle 移动模式时重置随机状态
+            if (m_DebugPaused) return;
+            m_BattleInitialized = false;
 
             if (config == null || characterController == null || !characterController.enabled)
             {
@@ -69,7 +80,6 @@ namespace VampireHunt.Navigation
                 return;
             }
 
-            // 目标速度：默认 0（停止）；evade 且有目标时 = 玩家普通速度
             float targetSpeed = 0f;
             Vector3 moveDirection = m_MoveDirection;
             Vector3 faceDirection = -m_MoveDirection;
@@ -88,7 +98,6 @@ namespace VampireHunt.Navigation
                     moveDirection = away;
                     faceDirection = -away;
 
-                    // Boss 速度 = 玩家普通速度 × 距离倍率（玩家越近 Boss 越快，最高 BossMoveProximityMaxMultiplier）
                     float baseSpeed = target.NormalMoveSpeed > 0.001f
                         ? target.NormalMoveSpeed
                         : config.NormalMoveSpeed;
@@ -101,15 +110,10 @@ namespace VampireHunt.Navigation
             ApplyMovement(moveDirection, faceDirection, targetSpeed);
         }
 
-        /// <summary>
-        /// 漫游期（未进 Boss 战）受击逃离：朝【伤害来源的反方向】跑。
-        /// 与 <see cref="TickServer(bool)"/> 的关键区别：<b>不依赖 DetectionRange 去找玩家</b>，
-        /// 而是直接用已知的威胁坐标算方向 —— 这样玩家站在 DetectionRange 外远程输出时 Boss 也会躲。
-        /// </summary>
-        /// <param name="threatPosition">伤害来源坐标（通常是玩家位置）。</param>
-        /// <param name="maxFleeDistance">与威胁点的距离上限，超过则停下；0 或负 = 不限。</param>
+        /// <summary>漫游期受击后，朝已知伤害来源的反方向逃离。</summary>
         public void TickFleeServer(in Float3 threatPosition, float maxFleeDistance)
         {
+            if (m_DebugPaused) return;
             m_BattleInitialized = false;
 
             if (config == null || characterController == null || !characterController.enabled)
@@ -124,14 +128,12 @@ namespace VampireHunt.Navigation
             if (away.sqrMagnitude < 0.001f) away = -transform.forward;
             away.Normalize();
 
-            // 已经跑够远 → 停下（仍保持朝向，让玩家能追上），避免 Boss 越跑越远导致关卡卡死。
             if (maxFleeDistance > 0f && distanceToThreat >= maxFleeDistance)
             {
                 ApplyMovement(away, -away, 0f);
                 return;
             }
 
-            // 速度基准：能取到真实玩家速度就用它（Boss 与玩家同源），否则退回配置值。
             float baseSpeed = config.NormalMoveSpeed;
             ResolveTargetPort();
             if (m_Targets != null && m_Targets.TryGetNearest(ToFloat3(transform.position), config.DetectionRange,
@@ -140,12 +142,12 @@ namespace VampireHunt.Navigation
 
             float proximityT = Mathf.Clamp01(distanceToThreat / config.BossMoveProximityRadius);
             float proximityMultiplier = Mathf.Lerp(config.BossMoveProximityMaxMultiplier, 1f, proximityT);
-
             ApplyMovement(away, -away, baseSpeed * proximityMultiplier);
         }
 
         public void TickBattleServer(in BossPlayerTarget target)
         {
+            if (m_DebugPaused) return;
             if (config == null || characterController == null || !characterController.enabled)
             {
                 ApplyGravityOnly();
@@ -157,18 +159,17 @@ namespace VampireHunt.Navigation
             float distanceToPlayer = outward.magnitude;
             if (outward.sqrMagnitude < 0.001f) outward = transform.forward;
             else outward /= Mathf.Max(0.001f, distanceToPlayer);
-            // outward = 从玩家指向 Boss 的单位方向
 
             if (!m_BattleInitialized)
             {
                 m_BattleInitialized = true;
                 m_BattleOrbitSign = UnityEngine.Random.value < 0.5f ? 1f : -1f;
-                m_BattleDesiredDistance = UnityEngine.Random.Range(config.BattleDesiredDistanceMin, config.BattleDesiredDistanceMax);
+                m_BattleDesiredDistance = UnityEngine.Random.Range(
+                    config.BattleDesiredDistanceMin, config.BattleDesiredDistanceMax);
                 m_BattleOrbitSwitchTimer = config.BattleOrbitSwitchInterval;
                 m_BattleDistanceDriftTimer = config.BattleDistanceDriftInterval;
             }
 
-            // 随机切换顺/逆时针
             m_BattleOrbitSwitchTimer -= Time.deltaTime;
             if (m_BattleOrbitSwitchTimer <= 0f)
             {
@@ -176,30 +177,26 @@ namespace VampireHunt.Navigation
                 m_BattleOrbitSign = UnityEngine.Random.value < 0.5f ? 1f : -1f;
             }
 
-            // 期望距离随机漂移
             m_BattleDistanceDriftTimer -= Time.deltaTime;
             if (m_BattleDistanceDriftTimer <= 0f)
             {
                 m_BattleDistanceDriftTimer = config.BattleDistanceDriftInterval;
-                m_BattleDesiredDistance = UnityEngine.Random.Range(config.BattleDesiredDistanceMin, config.BattleDesiredDistanceMax);
+                m_BattleDesiredDistance = UnityEngine.Random.Range(
+                    config.BattleDesiredDistanceMin, config.BattleDesiredDistanceMax);
             }
 
-            // 移动方向 = 切线（绕圈）+ 径向（拉回期望距离，距离抖动）
             Vector3 tangent = Vector3.Cross(Vector3.up, outward) * m_BattleOrbitSign;
             float distanceError = distanceToPlayer - m_BattleDesiredDistance;
             float radial = Mathf.Clamp(distanceError / config.BattleDistanceSpring, -1f, 1f);
             Vector3 moveDirection = (tangent - outward * radial).normalized;
-
             float baseSpeed = target.NormalMoveSpeed > 0.001f
                 ? target.NormalMoveSpeed
                 : config.NormalMoveSpeed;
-
             ApplyMovement(moveDirection, -outward, baseSpeed);
         }
 
         private void ApplyMovement(Vector3 moveDirection, Vector3 faceDirection, float targetSpeed)
         {
-            // 惯性：起步加速用 AccelerationSeconds（灵敏），停下减速用 DecelerationSeconds（滑行更远）
             if (targetSpeed > m_ReferenceMaxSpeed) m_ReferenceMaxSpeed = targetSpeed;
             if (m_ReferenceMaxSpeed < 0.001f) m_ReferenceMaxSpeed = Mathf.Max(config.NormalMoveSpeed, 0.1f);
             float rampSeconds = targetSpeed >= m_CurrentSpeed
@@ -214,7 +211,6 @@ namespace VampireHunt.Navigation
             }
 
             m_MoveDirection = moveDirection;
-
             Vector3 movement = moveDirection * m_CurrentSpeed;
             if (characterController.isGrounded && m_VerticalVelocity < 0f) m_VerticalVelocity = -2f;
             else m_VerticalVelocity += Physics.gravity.y * Time.deltaTime;
@@ -228,7 +224,7 @@ namespace VampireHunt.Navigation
             }
         }
 
-        public bool TryTeleportAwayServer(uint seed) => TrySpawnInPlayerAnnulusServer(seed);
+        public bool TryTeleportAwayServer(uint seed) => !m_DebugPaused && TrySpawnInPlayerAnnulusServer(seed);
 
         private void ApplyGravityOnly()
         {

@@ -17,7 +17,7 @@ namespace VampireHunt.Presentation.Combat
     /// 球挂到敌人 transform 下、跟随移动；同状态叠层先清旧球再生成新的。
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class StatusEffectVfxDriver : MonoBehaviour, ICombatVfxDriver
+    public sealed class StatusEffectVfxDriver : MonoBehaviour, ICombatVfxDriver, ILightningChainPresentationSink
     {
         [Header("占位发光球")]
         [Tooltip("发光球直径（米），大致包住敌人上半身。")]
@@ -38,6 +38,11 @@ namespace VampireHunt.Presentation.Combat
 
         /// <summary>占位：元素测试暂不需要受击表现，留空。</summary>
         public void PlayDamage(in DamagePresentationPayload payload, Transform anchor) { }
+
+        public void PlayLightningChain(in LightningChainPresentationCue cue)
+        {
+            LightningChainVisual.Play(ToVector3(cue.From), ToVector3(cue.To), cue.Intensity);
+        }
 
         public void ApplyStatus(in StatusEffectPresentationPayload payload, Transform anchor)
         {
@@ -146,6 +151,8 @@ namespace VampireHunt.Presentation.Combat
                 default: return ElementId.None;
             }
         }
+
+        private static Vector3 ToVector3(in Float3 value) => new Vector3(value.X, value.Y, value.Z);
 
         private void OnDestroy()
         {

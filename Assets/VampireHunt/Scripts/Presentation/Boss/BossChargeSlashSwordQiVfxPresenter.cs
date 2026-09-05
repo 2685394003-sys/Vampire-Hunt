@@ -42,6 +42,9 @@ namespace VampireHunt.Presentation.Boss
             GameObject particleObject = new GameObject("SwordQiParticle");
             particleObject.transform.SetParent(transform, false);
             m_Particles = particleObject.AddComponent<ParticleSystem>();
+            // A newly added ParticleSystem starts immediately with Unity's defaults.
+            // Duration and other structural settings may only be changed while stopped.
+            m_Particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             ParticleSystem.MainModule main = m_Particles.main;
             main.playOnAwake = false;
             main.loop = false;

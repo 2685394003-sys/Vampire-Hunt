@@ -7,6 +7,7 @@ using Unity.Netcode.Components;
 using UnityEngine;
 using VampireHunt.Contracts;
 using VampireHunt.Infrastructure.Integration;
+using VampireHunt.Infrastructure.Unity.Combat;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode

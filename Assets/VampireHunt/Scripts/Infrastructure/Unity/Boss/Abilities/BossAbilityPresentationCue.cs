@@ -11,7 +11,9 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         SweepWaveWarning = 3,
         SweepWaveAttack = 4,
         TrackingLaserTargetMarker = 5,
-        TrackingLaserBeam = 6
+        TrackingLaserBeam = 6,
+        GridCutWarning = 7,
+        GridCutBurst = 8
     }
 
     [Serializable]

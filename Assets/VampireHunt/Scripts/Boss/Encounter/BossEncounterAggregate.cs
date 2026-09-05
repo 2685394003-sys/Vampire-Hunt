@@ -77,8 +77,8 @@ namespace VampireHunt.Boss.Encounter
         }
 
         /// <summary>
-        /// 服务器权威结算玩家伤害。格挡条（Guard）在漫游期可被打空；打空即进入踉跄，
-        /// <b>不要求玩家靠近 Boss</b>（原 StaggerTriggerDistance 距离门槛已移除）。
+        /// 服务器权威结算玩家伤害。格挡条在漫游期可被打空；打空即进入踉跄，
+        /// 不再额外要求玩家贴近 Boss。
         /// </summary>
         public BossDamageOutcome ApplyDamage(float amount)
         {
@@ -124,7 +124,7 @@ namespace VampireHunt.Boss.Encounter
             return true;
         }
 
-        /// <summary>踉跄表演结束 → 直接进入 Boss 战（不再经过处决窗口）。</summary>
+        /// <summary>踉跄表演结束后直接进入 Boss 战。</summary>
         public bool CompleteStaggerEffect()
         {
             if (State != BossEncounterState.StaggerEffect) return false;
@@ -157,6 +157,23 @@ namespace VampireHunt.Boss.Encounter
         {
             if (amount <= 0f || GuardHealth >= MaxGuardHealth) return false;
             GuardHealth = Math.Min(MaxGuardHealth, GuardHealth + amount);
+            IncrementRevision();
+            return true;
+        }
+
+        /// <summary>
+        /// Authoritative tooling hook used by the in-game Boss debug controller. It reloads
+        /// the requested stage at full health and enters battle without simulating fake damage.
+        /// Production encounter flow never calls this method.
+        /// </summary>
+        public bool ForceStageForDebug(int stageNumber)
+        {
+            if (stageNumber < 1 || stageNumber > m_Rules.Stages.Length) return false;
+            m_StageIndex = stageNumber - 1;
+            GuardHealth = CurrentRules.GuardHealth;
+            Health = CurrentRules.BattleHealth;
+            HudVisible = true;
+            State = BossEncounterState.Battle;
             IncrementRevision();
             return true;
         }

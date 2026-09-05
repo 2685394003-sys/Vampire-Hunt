@@ -9,17 +9,17 @@ namespace VampireHunt.Infrastructure.Netcode
 {
     /// <summary>
     /// Server-side executor for the cone flamethrower. Each tick overlaps a sphere, keeps only
-    /// targets inside the forward cone, submits trusted hits (with burning), and spawns a
-    /// short-lived flame visual. Fixed Fire element.
+    /// targets inside the forward cone and submits trusted hits (with burning). Fixed Fire element.
+    /// Presentation is replicated by <see cref="CombatAbilityNetworkBridge"/> after execution.
     /// </summary>
     public sealed class FlameThrowerAbilityExecutor : MonoBehaviour, ICombatAbilityNetworkExecutor
     {
         [SerializeField] private uint abilityId = 150;
-        [SerializeField] private GameObject flameVfxPrefab;
         [SerializeField] private LayerMask targetMask = 1 << 8;
-        [SerializeField] private float vfxLifetime = 0.15f;
 
         private readonly Collider[] m_HitBuffer = new Collider[64];
+        private readonly HashSet<MonoBehaviour> m_HitSet = new HashSet<MonoBehaviour>();
+        private readonly CombatHitTargetResolver m_TargetResolver = new CombatHitTargetResolver();
 
         public uint AbilityId => abilityId;
 
@@ -37,15 +37,19 @@ namespace VampireHunt.Infrastructure.Netcode
 
             int overlapCount = Physics.OverlapSphereNonAlloc(origin, range, m_HitBuffer, targetMask,
                 QueryTriggerInteraction.Collide);
-            var hitSet = new HashSet<MonoBehaviour>();
+            m_HitSet.Clear();
+            int statusCount = Mathf.Min(4, message.OnHitStatuses.Count);
+            var statuses = new StatusEffectSpec[statusCount];
+            for (int s = 0; s < statusCount; s++)
+                statuses[s] = message.OnHitStatuses.Get(s).ToDomain();
 
             for (int i = 0; i < overlapCount; i++)
             {
                 Collider hitCollider = m_HitBuffer[i];
                 if (hitCollider == null ||
-                    !TryFindTarget(hitCollider, out MonoBehaviour target,
+                    !m_TargetResolver.TryResolve(hitCollider, out MonoBehaviour target,
                         out ITrustedCombatHitTarget trustedTarget, out IHittable fallback)) continue;
-                if (!hitSet.Add(target)) continue;
+                if (!m_HitSet.Add(target)) continue;
 
                 // Keep only targets inside the forward cone (planar, top-down).
                 Vector3 toTarget = hitCollider.ClosestPoint(origin) - origin;
@@ -56,11 +60,6 @@ namespace VampireHunt.Infrastructure.Netcode
                 var request = new DamageRequest(
                     new GameplayEntityId(senderClientId + 1UL), GameplayEntityId.None,
                     message.AbilityId, message.Sequence, message.Damage, (DamageTags)message.Tags);
-
-                int statusCount = Mathf.Min(4, message.OnHitStatuses.Count);
-                var statuses = new StatusEffectSpec[statusCount];
-                for (int s = 0; s < statusCount; s++)
-                    statuses[s] = message.OnHitStatuses.Get(s).ToDomain();
 
                 Vector3 force = direction * message.Knockback;
 
@@ -82,65 +81,7 @@ namespace VampireHunt.Infrastructure.Netcode
                 }
             }
 
-            if (flameVfxPrefab != null)
-            {
-                GameObject flame = Instantiate(flameVfxPrefab, origin, Quaternion.LookRotation(direction, Vector3.up));
-                BindFlameRange(flame, range);
-            }
-
             return true;
-        }
-
-        /// <summary>
-        /// Keeps the flame particle throw distance in sync with the runtime range: the prefab's
-        /// <see cref="ParticleSystem.MainModule.startSpeed"/> stays as authored (fire feel), while
-        /// <see cref="ParticleSystem.MainModule.startLifetime"/> is recomputed so
-        /// speed x lifetime == range. The visual then matches the damage cone automatically.
-        /// </summary>
-        private void BindFlameRange(GameObject flame, float range)
-        {
-            var ps = flame != null ? flame.GetComponentInChildren<ParticleSystem>() : null;
-            if (ps == null)
-            {
-                if (flame != null) Destroy(flame, vfxLifetime);
-                return;
-            }
-
-            var main = ps.main;
-            float speed = main.startSpeed.constant;
-            float lifetime = speed > 0.01f ? range / speed : vfxLifetime;
-            main.startLifetime = lifetime;
-            Destroy(flame, lifetime + 0.05f);
-        }
-
-        private static bool TryFindTarget(Collider collider, out MonoBehaviour target,
-            out ITrustedCombatHitTarget trustedTarget, out IHittable fallback)
-        {
-            MonoBehaviour[] behaviours = collider.GetComponentsInParent<MonoBehaviour>();
-            for (int i = 0; i < behaviours.Length; i++)
-            {
-                if (behaviours[i] is ITrustedCombatHitTarget trusted)
-                {
-                    target = behaviours[i];
-                    trustedTarget = trusted;
-                    fallback = null;
-                    return true;
-                }
-            }
-            for (int i = 0; i < behaviours.Length; i++)
-            {
-                if (behaviours[i] is IHittable hittable)
-                {
-                    target = behaviours[i];
-                    trustedTarget = null;
-                    fallback = hittable;
-                    return true;
-                }
-            }
-            target = null;
-            trustedTarget = null;
-            fallback = null;
-            return false;
         }
     }
 }

@@ -48,6 +48,12 @@ namespace VampireHunt.Presentation.HUD
         private readonly Label[] m_ItemQuantities = new Label[ItemSlotCount];
         private bool m_ScarletWasFull;
 
+        /// <summary>
+        /// True only after the owner HUD has queried its UI Toolkit tree. External
+        /// read-model binders must wait for this before applying their first snapshot.
+        /// </summary>
+        public bool IsPresentationReady => m_HudRoot != null && m_BossPanel != null;
+
         [Header("Inventory HUD")]
         [SerializeField] private PlayerInventoryNetworkState inventory;
         [SerializeField] private ItemCatalogAsset itemCatalog;

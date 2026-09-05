@@ -111,6 +111,57 @@ namespace VampireHunt.Tests.Editor
         }
 
         [Test]
+        public void MultiplayerScaling_LeavesSoloUntouched()
+        {
+            var scaling = new BossAbilityMultiplayerScaling
+            {
+                DamageCoefficient = 3f,
+                QuantityCoefficient = 3f,
+                TelegraphCoefficient = 3f,
+                CooldownCoefficient = 3f
+            };
+
+            BossAbilityCastModifiers modifiers = scaling.CreateModifiers(1);
+            Assert.That(modifiers.ParticipantCount, Is.EqualTo(1));
+            Assert.That(modifiers.DamageMultiplier, Is.EqualTo(1f));
+            Assert.That(modifiers.QuantityUnits, Is.EqualTo(1));
+            Assert.That(modifiers.TelegraphMultiplier, Is.EqualTo(1f));
+            Assert.That(modifiers.CooldownMultiplier, Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void Controller_FreezesServerSampledMultiplayerTimelineForCast()
+        {
+            var scaling = new BossAbilityMultiplayerScaling
+            {
+                DamageCoefficient = 1f,
+                QuantityCoefficient = 1f,
+                TelegraphCoefficient = 1f,
+                CooldownCoefficient = 1f
+            };
+            BossAbilityDefinition ability = new BossAbilityDefinition(
+                41, "Scaled", 1f, 1d, 0f, 100f, 0f, 1f, false, false,
+                .5d, .25d, .25d, () => new TestNoOpLogic(),
+                multiplayerScaling: scaling);
+            var controller = new BossAbilityController();
+            controller.LoadPhase(new BossPhaseDefinition(
+                1, "Phase 1", new[] { new BossPhaseAbilityEntry(ability, 1f, 0, 0d) }), 0d);
+
+            Float3 zero = Float3.Zero;
+            var selection = new BossAbilitySelectionContext(1f, 1f, true);
+            controller.Tick(0d, selection, 0, zero, zero, 1, true, participantCount: 2);
+            BossAbilitySnapshot started = controller.CaptureSnapshot();
+            Assert.That(started.ParticipantCount, Is.EqualTo(2));
+            Assert.That(started.TelegraphDuration, Is.EqualTo(1d));
+            Assert.That(started.CastEndServerTime, Is.EqualTo(1.5d));
+
+            controller.Tick(.75d, selection, 0, zero, zero, 2, false, participantCount: 4);
+            BossAbilitySnapshot inProgress = controller.CaptureSnapshot();
+            Assert.That(inProgress.ParticipantCount, Is.EqualTo(2));
+            Assert.That(inProgress.CastPhase, Is.EqualTo(BossAbilityCastPhase.Telegraph));
+        }
+
+        [Test]
         public void BossContentAssets_HaveLoadableMonoScripts()
         {
             AssertHasLoadableMonoScript<BossAbilityAsset>();

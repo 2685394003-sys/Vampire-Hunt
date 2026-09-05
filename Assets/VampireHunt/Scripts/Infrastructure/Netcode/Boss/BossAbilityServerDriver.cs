@@ -3,7 +3,7 @@ using UnityEngine;
 using VampireHunt.Boss.Abilities;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity.Boss;
-using VampireHunt.Systems;
+using VampireHunt.Infrastructure.Unity;
 
 namespace VampireHunt.Infrastructure.Netcode
 {
@@ -139,7 +139,9 @@ namespace VampireHunt.Infrastructure.Netcode
             double serverTime = NetworkManager.ServerTime.Time;
             BossAbilityExecutionInput input = contextProvider.Capture();
             uint seed = HashSeed(unchecked((uint)runSeed), ++m_SelectionOrdinal);
-            if (!host.TryStartAbilityServer(ability.CreateDefinition(), serverTime, input, seed)) return false;
+            int participantCount = CountSpawnedParticipants();
+            if (!host.TryStartAbilityServer(
+                    ability.CreateDefinition(), serverTime, input, seed, participantCount)) return false;
             stateReplicator.PublishServer(host.Snapshot, force: true);
             return true;
         }
@@ -164,8 +166,26 @@ namespace VampireHunt.Infrastructure.Netcode
             if (contextProvider == null || stateReplicator == null) return;
             BossAbilityExecutionInput input = contextProvider.Capture();
             uint seed = HashSeed(unchecked((uint)runSeed), ++m_SelectionOrdinal);
-            bool changed = host.TickServer(serverTime, input, seed, allowAutomaticCasts);
+            int participantCount = publishOffline ? 1 : CountSpawnedParticipants();
+            bool changed = host.TickServer(
+                serverTime, input, seed, allowAutomaticCasts, participantCount);
             if (changed) Publish(host.Snapshot, publishOffline, force: false);
+        }
+
+        private int CountSpawnedParticipants()
+        {
+            NetworkManager manager = NetworkManager;
+            if (manager == null || !manager.IsListening) return 1;
+
+            int count = 0;
+            var clients = manager.ConnectedClientsList;
+            for (int i = 0; i < clients.Count; i++)
+            {
+                NetworkObject playerObject = clients[i]?.PlayerObject;
+                if (playerObject != null && playerObject.IsSpawned) count++;
+            }
+
+            return Mathf.Clamp(count, 1, 64);
         }
 
         private void Publish(in BossAbilitySnapshot snapshot, bool offline, bool force)

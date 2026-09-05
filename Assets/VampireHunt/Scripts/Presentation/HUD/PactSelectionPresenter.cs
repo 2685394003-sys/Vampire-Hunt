@@ -7,7 +7,6 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
-using VampireHunt.Systems;
 
 namespace VampireHunt.Presentation.HUD
 {

@@ -8,9 +8,7 @@ using VampireHunt.Enemies;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Navigation;
-using VampireHunt.Presentation.Enemies;
 using VampireHunt.Progression;
-using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -36,7 +34,8 @@ namespace VampireHunt.Infrastructure.Netcode
         [Header("Unity Adapters")]
         [SerializeField] private CharacterController characterController;
         [SerializeField] private EnemyNavigationAgent navigationAgent;
-        [SerializeField] private EnemyPresenter presenter;
+        [Tooltip("Presentation component implementing IEnemyPresentationSink.")]
+        [SerializeField] private MonoBehaviour presenter;
         [SerializeField] private CombatModifierHost modifierHost;
         [SerializeField] private CombatStatusHost statusHost;
         [SerializeField] private GameplayEffectHost effectHost;
@@ -81,6 +80,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private bool m_WasMovementBlocked;
         private double m_BlockStartedTime;
         private IEnemyAttackExecutor m_AttackExecutor;
+        private IEnemyPresentationSink m_PresentationSink;
         private EnemyMovementIntent m_MovementIntent;
         private Vector3 m_AttackAimDirection;
         private bool m_MissingAttackExecutorReported;
@@ -108,7 +108,18 @@ namespace VampireHunt.Infrastructure.Netcode
         {
             if (characterController == null) characterController = GetComponent<CharacterController>();
             if (navigationAgent == null) navigationAgent = GetComponent<EnemyNavigationAgent>();
-            if (presenter == null) presenter = GetComponentInChildren<EnemyPresenter>();
+            m_PresentationSink = presenter as IEnemyPresentationSink;
+            if (m_PresentationSink == null)
+            {
+                MonoBehaviour[] presentationBehaviours = GetComponentsInChildren<MonoBehaviour>(true);
+                for (int i = 0; i < presentationBehaviours.Length; i++)
+                {
+                    if (!(presentationBehaviours[i] is IEnemyPresentationSink sink)) continue;
+                    presenter = presentationBehaviours[i];
+                    m_PresentationSink = sink;
+                    break;
+                }
+            }
             if (modifierHost == null) modifierHost = GetComponent<CombatModifierHost>();
             if (statusHost == null) statusHost = GetComponent<CombatStatusHost>();
             if (effectHost == null) effectHost = GetComponent<GameplayEffectHost>();
@@ -846,10 +857,16 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private void ApplyReplicatedState(in EnemyNetworkState state)
         {
-            if (presenter != null)
-            {
-                presenter.Apply(state);
-            }
+            var presentationState = new EnemyPresentationState(
+                state.EntityId,
+                (byte)state.State,
+                state.CurrentHealth,
+                state.MaxHealth,
+                state.StateEndServerTime,
+                state.AttackSequence,
+                new Float3(state.AttackAimDirection.x, state.AttackAimDirection.y, state.AttackAimDirection.z),
+                state.Revision);
+            m_PresentationSink?.Apply(presentationState);
             if (characterController != null)
             {
                 characterController.enabled = state.State != EnemyState.Dead;

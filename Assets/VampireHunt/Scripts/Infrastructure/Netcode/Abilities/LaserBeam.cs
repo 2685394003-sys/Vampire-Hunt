@@ -3,6 +3,7 @@ using Blocks.Gameplay.Core;
 using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Contracts;
+using VampireHunt.Infrastructure.Unity.Combat;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode

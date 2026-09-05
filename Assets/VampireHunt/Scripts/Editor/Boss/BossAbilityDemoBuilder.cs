@@ -148,6 +148,7 @@ namespace VampireHunt.Editor.Boss
             try
             {
                 ParticleSystem particleSystem = root.AddComponent<ParticleSystem>();
+                particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 var main = particleSystem.main;
                 main.duration = 0.8f;
                 main.loop = false;

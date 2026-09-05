@@ -24,8 +24,8 @@ MonoBehaviour:
   maxNormalizedHealth: 1
   requiresTarget: 0
   oneShot: 0
-  telegraphDuration: 1.1
-  resolveDuration: 1.5
+  telegraphDuration: 0.75
+  resolveDuration: 1.55
   recoverDuration: 0.7
   logicScript: {fileID: 11500000, guid: f32a55da7e2f130498279966b4339d5d, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossGridCutAbilityLogic, Assembly-CSharp,
@@ -33,43 +33,46 @@ MonoBehaviour:
   tuning:
     Damage: 26
     Knockback: 0
-    Radius: 0
-    Range: 14
-    Width: 0.65
+    Radius: 30
+    Range: 60
+    Width: 0.8
     Height: 2
     Repetitions: 3
-    Interval: 0.42
+    Interval: 0.75
     ProjectileId: 1
     ProjectileCount: 1
     ProjectileSpeed: 1
     ProjectileScale: 1
     RotationSpeed: 0
-    Duration: 1.5
+    Duration: 1.55
     StatusId: 0
     StatusDuration: 1
     ClockDrainRate: 2
+    GridLineCount: 6
   presentationCues:
   - timeFromCastStart: 0
-    cueName: "\u7F51\u683C\xB7\u9884\u8B66"
+    cueName: "\u7F51\u683C\xB7\u4E09\u8F6E\u4EA4\u53C9\u7F51\u683C\u9884\u8B66"
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 0.7, y: 0.7, z: 0.7}
+    localScale: {x: 1, y: 1, z: 1}
     followAnchor: 0
-    lifetime: 1.3000001
+    spawnMode: 7
+    lifetime: 2.3
     animatorTrigger: 
-    vfxPrefab: {fileID: 9113643889000888147, guid: 8f6466cc64d87644db35e0731e56cf1a, type: 3}
+    vfxPrefab: {fileID: 630000000000000001, guid: 5e91d6ae11f5461c87cc59f5a551b206, type: 3}
     audioClip: {fileID: 0}
     audioVolume: 1
-  - timeFromCastStart: 1.1
-    cueName: "\u7F51\u683C\xB7\u91CA\u653E"
+  - timeFromCastStart: 0.75
+    cueName: "\u7F51\u683C\xB7\u4E09\u8F6E\u4EA4\u53C9\u7F51\u683C\u65A9\u51FB"
     anchor: 5
-    localPosition: {x: 0, y: 0.05, z: 0}
+    localPosition: {x: 0, y: 0.07, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    localScale: {x: 1, y: 1, z: 1}
     followAnchor: 0
+    spawnMode: 8
     lifetime: 1.85
     animatorTrigger: 
-    vfxPrefab: {fileID: 9113643889000888147, guid: 8f6466cc64d87644db35e0731e56cf1a, type: 3}
+    vfxPrefab: {fileID: 640000000000000001, guid: 5e91d6ae11f5461c87cc59f5a551b207, type: 3}
     audioClip: {fileID: 0}
     audioVolume: 1

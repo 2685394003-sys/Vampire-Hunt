@@ -7,10 +7,10 @@ namespace VampireHunt.Infrastructure.Integration
     /// 圆型领域的常驻驱动（aura driver）：挂在玩家身上，激活后每帧请求一次 Special 槽施法，
     /// 由 CircleFieldAbilityRuntime 的 TickInterval 节流成固定节奏的全向伤害。
     /// 圆心固定取玩家自身位置（不用枪口），因此领域始终以玩家为中心。
-    /// 同时负责客户端本地的常驻领域表现（跟随玩家的圆盘/圆环）。
+    /// 常驻领域表现由 Presentation 层的 CircleFieldAuraPresenter 消费本组件只读状态。
     /// </summary>
     /// <remarks>
-    /// 血契接线点：荒芜之契（pactId 309）等「获得领域」类血契在生效时调用 <see cref="SetActive"/>(true)。
+    /// 血契接线点：荒芜之契（pactId 6001）等「获得领域」类血契在生效时调用 <see cref="SetActive"/>(true)。
     /// 血契运行时尚未实装时，可勾选 activeOnStart 做单机验证。
     /// </remarks>
     public sealed class CircleFieldAuraDriver : MonoBehaviour, IFieldActivationTarget
@@ -18,19 +18,16 @@ namespace VampireHunt.Infrastructure.Integration
         [SerializeField] private CombatAbilityHost host;
         [SerializeField] private CircleFieldAbilityProvider provider;
         [SerializeField] private AbilitySlot slot = AbilitySlot.Special;
+        [Tooltip("领域持久表现状态的发布端口。留空时自动从同物体查找。")]
+        [SerializeField] private MonoBehaviour statePublisher;
         [Tooltip("开局即激活：血契系统未接线时用于单机/调试验证。")]
         [SerializeField] private bool activeOnStart;
 
-        [Header("常驻表现（客户端本地）")]
-        [Tooltip("领域视觉预制体（prefab，可选）：跟随玩家的常驻圆形表现。")]
-        [SerializeField] private GameObject fieldVisualPrefab;
-        [Tooltip("领域视觉预制体的基准直径（米）：实际按 直径 / 基准直径 缩放。")]
-        [SerializeField, Min(0.01f)] private float visualBaseDiameter = 1f;
-        [Tooltip("领域视觉相对玩家脚下的高度（米），避免与地面 z-fighting。")]
-        [SerializeField, Min(0f)] private float visualHeightOffset = 0.05f;
-
         private bool m_Active;
-        private GameObject m_Visual;
+        private ICircleFieldAuraStatePublisher m_StatePublisher;
+        private bool m_HasPublishedState;
+        private bool m_LastPublishedActive;
+        private float m_LastPublishedRadius;
 
         /// <summary>领域是否处于激活状态。</summary>
         public bool IsActive => m_Active;
@@ -42,6 +39,7 @@ namespace VampireHunt.Infrastructure.Integration
         {
             if (host == null) host = GetComponent<CombatAbilityHost>();
             if (provider == null) provider = GetComponent<CircleFieldAbilityProvider>();
+            ResolveStatePublisher();
         }
 
         private void Start()
@@ -51,28 +49,17 @@ namespace VampireHunt.Infrastructure.Integration
 
         private void Update()
         {
+            PublishPresentationStateIfChanged();
             if (!m_Active || host == null) return;
             // 每帧请求，节流交给 runtime 的 TickInterval；非 owner / 未 spawn 时 host 内部直接拒绝。
             host.TryActivate(slot, transform);
-            SyncVisual();
-        }
-
-        private void OnDestroy()
-        {
-            DestroyVisual();
         }
 
         /// <summary>开关领域（血契获得/失效时调用）。</summary>
         public void SetActive(bool active)
         {
             m_Active = active;
-            if (!m_Active)
-            {
-                DestroyVisual();
-                return;
-            }
-            EnsureVisual();
-            SyncVisual();
+            PublishPresentationStateIfChanged();
         }
 
         /// <summary>
@@ -100,32 +87,37 @@ namespace VampireHunt.Infrastructure.Integration
         public void SetRadiusScale(float scale)
         {
             provider?.SetRadiusScale(scale);
-            SyncVisual();
+            PublishPresentationStateIfChanged();
         }
 
-        private void EnsureVisual()
+        private void ResolveStatePublisher()
         {
-            if (fieldVisualPrefab == null || m_Visual != null) return;
-            // 不做父子绑定：领域视觉保持在世界空间，由 SyncVisual 每帧贴到玩家脚下。
-            m_Visual = Instantiate(fieldVisualPrefab, transform.position, Quaternion.identity);
+            m_StatePublisher = statePublisher as ICircleFieldAuraStatePublisher;
+            if (m_StatePublisher != null) return;
+            MonoBehaviour[] behaviours = GetComponents<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                if (!(behaviours[i] is ICircleFieldAuraStatePublisher publisher)) continue;
+                statePublisher = behaviours[i];
+                m_StatePublisher = publisher;
+                break;
+            }
         }
 
-        private void DestroyVisual()
+        private void PublishPresentationStateIfChanged()
         {
-            if (m_Visual == null) return;
-            Destroy(m_Visual);
-            m_Visual = null;
-        }
+            if (m_StatePublisher == null) ResolveStatePublisher();
+            if (m_StatePublisher == null) return;
 
-        /// <summary>把常驻表现的位置与半径同步到当前运行时状态。</summary>
-        private void SyncVisual()
-        {
-            if (m_Visual == null) return;
             float radius = CurrentRadius;
-            if (radius <= 0f) return;
-            m_Visual.transform.position = transform.position + Vector3.up * visualHeightOffset;
-            float scale = radius * 2f / Mathf.Max(0.01f, visualBaseDiameter);
-            m_Visual.transform.localScale = new Vector3(scale, m_Visual.transform.localScale.y, scale);
+            if (m_HasPublishedState && m_LastPublishedActive == m_Active &&
+                Mathf.Approximately(m_LastPublishedRadius, radius)) return;
+
+            var state = new CircleFieldAuraPresentationState(m_Active, radius);
+            if (!m_StatePublisher.TryPublish(state)) return;
+            m_LastPublishedActive = m_Active;
+            m_LastPublishedRadius = radius;
+            m_HasPublishedState = true;
         }
     }
 }

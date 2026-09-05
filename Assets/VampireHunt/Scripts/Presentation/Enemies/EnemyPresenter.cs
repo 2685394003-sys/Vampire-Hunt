@@ -1,12 +1,12 @@
 using UnityEngine;
+using VampireHunt.Contracts;
 using VampireHunt.Enemies;
-using VampireHunt.Infrastructure.Netcode;
 
 namespace VampireHunt.Presentation.Enemies
 {
     /// <summary>Presentation-only consumer of replicated enemy state.</summary>
     [DisallowMultipleComponent]
-    public sealed class EnemyPresenter : MonoBehaviour
+    public sealed class EnemyPresenter : MonoBehaviour, IEnemyPresentationSink
     {
         [SerializeField] private Animator animator;
         [SerializeField] private Renderer targetRenderer;
@@ -75,11 +75,12 @@ namespace VampireHunt.Presentation.Enemies
                 animator.SetFloat(s_LegacyMoveId, speed, 0.1f, Time.deltaTime);
         }
 
-        public void Apply(in EnemyNetworkState state)
+        public void Apply(in EnemyPresentationState state)
         {
-            bool isTelegraphing = state.State == EnemyState.Telegraphing;
-            bool isDead = state.State == EnemyState.Dead;
-            m_CurrentState = state.State;
+            EnemyState enemyState = (EnemyState)state.State;
+            bool isTelegraphing = enemyState == EnemyState.Telegraphing;
+            bool isDead = enemyState == EnemyState.Dead;
+            m_CurrentState = enemyState;
             // UnityEngine.Object uses a custom null comparison. The null-
             // conditional operator bypasses it and can throw for an unassigned
             // optional serialized reference.
@@ -91,14 +92,14 @@ namespace VampireHunt.Presentation.Enemies
 
             if (animator == null) return;
 
-            if (m_HasState) animator.SetInteger(s_StateId, (int)state.State);
+            if (m_HasState) animator.SetInteger(s_StateId, state.State);
             if (m_HasDead) animator.SetBool(s_DeadId, isDead);
             if (m_HasHealthNormalized)
                 animator.SetFloat(s_HealthNormalizedId, state.MaxHealth > 0f ? state.CurrentHealth / state.MaxHealth : 0f);
 
             if (m_HasAttack && m_AttackParameterType == AnimatorControllerParameterType.Bool)
             {
-                animator.SetBool(s_AttackTriggerId, state.State == EnemyState.Attacking);
+                animator.SetBool(s_AttackTriggerId, enemyState == EnemyState.Attacking);
             }
             else if (m_HasAttack && state.AttackSequence > m_LastAttackSequence)
             {

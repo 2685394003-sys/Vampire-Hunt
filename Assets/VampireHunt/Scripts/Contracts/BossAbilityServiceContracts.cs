@@ -164,13 +164,15 @@ namespace VampireHunt.Contracts
         public Float3 Forward { get; }
         public Float3 Size { get; }
         public Float3[] Centers { get; }
+        public double TelegraphDuration { get; }
 
         public BossAreaTelegraphRequest(
             uint abilityId,
             ulong castSequence,
             double startServerTime,
             float radius,
-            Float3[] centers)
+            Float3[] centers,
+            double telegraphDuration = 0d)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
@@ -180,6 +182,7 @@ namespace VampireHunt.Contracts
             Forward = Float3.Zero;
             Size = Float3.Zero;
             Centers = centers ?? Array.Empty<Float3>();
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
         }
 
         private BossAreaTelegraphRequest(
@@ -190,7 +193,8 @@ namespace VampireHunt.Contracts
             float radius,
             in Float3 forward,
             in Float3 size,
-            Float3[] centers)
+            Float3[] centers,
+            double telegraphDuration)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
@@ -200,6 +204,7 @@ namespace VampireHunt.Contracts
             Forward = forward.Normalized();
             Size = new Float3(Math.Max(.01f, size.X), Math.Max(.01f, size.Y), Math.Max(.01f, size.Z));
             Centers = centers ?? Array.Empty<Float3>();
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
         }
 
         public static BossAreaTelegraphRequest Box(
@@ -208,7 +213,8 @@ namespace VampireHunt.Contracts
             double startServerTime,
             in Float3 center,
             in Float3 forward,
-            in Float3 size) =>
+            in Float3 size,
+            double telegraphDuration = 0d) =>
             new BossAreaTelegraphRequest(
                 abilityId,
                 castSequence,
@@ -217,7 +223,8 @@ namespace VampireHunt.Contracts
                 0f,
                 forward,
                 size,
-                new[] { center });
+                new[] { center },
+                telegraphDuration);
     }
 
     /// <summary>
@@ -271,15 +278,18 @@ namespace VampireHunt.Contracts
         public uint AbilityId { get; }
         public ulong CastSequence { get; }
         public BossSweepTelegraphPass[] Passes { get; }
+        public double TelegraphDuration { get; }
 
         public BossSweepTelegraphRequest(
             uint abilityId,
             ulong castSequence,
-            BossSweepTelegraphPass[] passes)
+            BossSweepTelegraphPass[] passes,
+            double telegraphDuration = 0d)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
             Passes = passes ?? Array.Empty<BossSweepTelegraphPass>();
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
         }
     }
 
@@ -299,23 +309,28 @@ namespace VampireHunt.Contracts
     {
         public uint AbilityId { get; }
         public ulong CastSequence { get; }
+        public uint BeamIndex { get; }
         public double StartServerTime { get; }
         public EntityId TargetEntityId { get; }
         public Float3 InitialDirection { get; }
         public Float3 Size { get; }
         public float RotationSpeed { get; }
+        public double TelegraphDuration { get; }
 
         public BossTrackingLaserPresentationRequest(
             uint abilityId,
             ulong castSequence,
+            uint beamIndex,
             double startServerTime,
             EntityId targetEntityId,
             in Float3 initialDirection,
             in Float3 size,
-            float rotationSpeed)
+            float rotationSpeed,
+            double telegraphDuration)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
+            BeamIndex = beamIndex;
             StartServerTime = startServerTime;
             TargetEntityId = targetEntityId;
             InitialDirection = initialDirection.Normalized();
@@ -324,6 +339,7 @@ namespace VampireHunt.Contracts
                 Math.Max(.01f, size.Y),
                 Math.Max(.01f, size.Z));
             RotationSpeed = Math.Max(0f, rotationSpeed);
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
         }
     }
 
@@ -331,6 +347,12 @@ namespace VampireHunt.Contracts
     public interface IBossTrackingLaserPresentationService
     {
         bool TryPublish(in BossTrackingLaserPresentationRequest request);
+        bool TryUpdate(
+            uint abilityId,
+            ulong castSequence,
+            uint beamIndex,
+            in Float3 direction,
+            bool snap);
         bool TryCancel(uint abilityId, ulong castSequence);
     }
 

@@ -34,7 +34,8 @@ namespace VampireHunt.Boss.Abilities.Logic
                     context.StartServerTime,
                     m_LockedCenter,
                     m_LockedDirection,
-                    new Float3(Tuning.Width, Tuning.Height, Tuning.Range))) ?? false;
+                    new Float3(Tuning.Width, Tuning.Height, Tuning.Range),
+                    context.TelegraphDuration)) ?? false;
         }
 
         protected override void Resolve(double serverTime)

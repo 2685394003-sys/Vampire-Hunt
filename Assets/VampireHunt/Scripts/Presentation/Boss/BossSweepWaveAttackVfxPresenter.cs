@@ -41,6 +41,7 @@ namespace VampireHunt.Presentation.Boss
             GameObject particleObject = new GameObject("RectangularSweepParticle");
             particleObject.transform.SetParent(transform, false);
             m_Particles = particleObject.AddComponent<ParticleSystem>();
+            m_Particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             ParticleSystem.MainModule main = m_Particles.main;
             main.playOnAwake = false;
             main.loop = false;

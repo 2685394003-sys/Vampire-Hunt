@@ -8,7 +8,6 @@ using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Progression;
 using VampireHunt.Run;
-using VampireHunt.Systems;
 
 namespace VampireHunt.Spawning
 {

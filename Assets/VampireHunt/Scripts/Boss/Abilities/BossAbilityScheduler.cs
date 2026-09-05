@@ -66,11 +66,15 @@ namespace VampireHunt.Boss.Abilities
             return false;
         }
 
-        internal static void CommitCast(BossAbilityScheduleSlot slot, double serverTime)
+        internal static void CommitCast(
+            BossAbilityScheduleSlot slot,
+            double serverTime,
+            double castDuration,
+            double cooldown)
         {
             if (slot?.Entry?.Ability == null) return;
             slot.Uses++;
-            slot.NextReadyTime = serverTime + slot.Entry.Ability.TotalDuration + slot.Entry.Ability.Cooldown;
+            slot.NextReadyTime = serverTime + Math.Max(0d, castDuration) + Math.Max(0d, cooldown);
         }
 
         private static bool CanUse(

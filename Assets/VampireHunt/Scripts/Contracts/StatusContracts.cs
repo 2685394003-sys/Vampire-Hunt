@@ -91,4 +91,25 @@ namespace VampireHunt.Contracts
     {
         EntityId CombatEntityId { get; }
     }
+
+    /// <summary>闪电链的纯表现请求。只描述结果，不包含 Unity 对象或玩法写入能力。</summary>
+    public readonly struct LightningChainPresentationCue
+    {
+        public Float3 From { get; }
+        public Float3 To { get; }
+        public float Intensity { get; }
+
+        public LightningChainPresentationCue(in Float3 from, in Float3 to, float intensity)
+        {
+            From = from;
+            To = to;
+            Intensity = intensity;
+        }
+    }
+
+    /// <summary>由 Presentation 实现、供网络适配器单向投递闪电链表现。</summary>
+    public interface ILightningChainPresentationSink
+    {
+        void PlayLightningChain(in LightningChainPresentationCue cue);
+    }
 }

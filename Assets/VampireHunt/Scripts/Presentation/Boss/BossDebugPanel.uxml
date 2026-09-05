@@ -1,0 +1,28 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/VampireHunt/Scripts/Presentation/Boss/BossDebugPanel.uss?fileID=7433441132597879392&amp;guid=6f81a4c2d3e547fab614be8b47d8d104&amp;type=3#BossDebugPanel"/>
+    <ui:VisualElement name="boss-debug-panel" class="boss-debug">
+        <ui:VisualElement class="boss-debug__header">
+            <ui:Label text="BOSS DEBUG" class="boss-debug__title"/>
+            <ui:Label text="仅 Host 生效" class="boss-debug__badge"/>
+        </ui:VisualElement>
+        <ui:Label name="boss-debug-status" text="等待 Boss 网络初始化" class="boss-debug__status"/>
+        <ui:Toggle name="boss-debug-enabled" label="启用 Debug 控制" class="boss-debug__master"/>
+        <ui:Toggle name="boss-debug-pause-movement" label="暂停 Boss 位移与传送" class="boss-debug__toggle"/>
+
+        <ui:Label text="切换阶段（重载该阶段血量并进入战斗）" class="boss-debug__section-title"/>
+        <ui:VisualElement class="boss-debug__row">
+            <ui:Button name="boss-debug-stage-1" text="阶段 1" class="boss-debug__stage-button"/>
+            <ui:Button name="boss-debug-stage-2" text="阶段 2" class="boss-debug__stage-button"/>
+            <ui:Button name="boss-debug-stage-3" text="阶段 3" class="boss-debug__stage-button"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement class="boss-debug__section-header">
+            <ui:Label text="强制释放技能" class="boss-debug__section-title boss-debug__section-title--inline"/>
+            <ui:Button name="boss-debug-cancel-ability" text="取消当前技能" class="boss-debug__cancel-button"/>
+        </ui:VisualElement>
+        <ui:ScrollView name="boss-debug-ability-scroll" class="boss-debug__scroll" horizontal-scroller-visibility="Hidden">
+            <ui:VisualElement name="boss-debug-ability-list" class="boss-debug__ability-list"/>
+        </ui:ScrollView>
+        <ui:Label name="boss-debug-feedback" text="关闭总开关会恢复 Boss 正常行为" class="boss-debug__feedback"/>
+    </ui:VisualElement>
+</ui:UXML>

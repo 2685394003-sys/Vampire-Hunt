@@ -7,8 +7,6 @@ using VampireHunt.Contracts;
 using VampireHunt.Effects;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Unity;
-using VampireHunt.Presentation.Combat;
-using VampireHunt.Systems;
 using GameplayEntityId = VampireHunt.SharedKernel.EntityId;
 
 namespace VampireHunt.Infrastructure.Netcode
@@ -61,11 +59,16 @@ namespace VampireHunt.Infrastructure.Netcode
         private readonly List<StatusEffectSnapshot> m_Snapshots = new List<StatusEffectSnapshot>();
         private readonly List<StatusEffectSnapshot> m_Expired = new List<StatusEffectSnapshot>();
         private readonly List<EffectCommand> m_Commands = new List<EffectCommand>();
+        private readonly Collider[] m_ChainHitBuffer = new Collider[128];
+        private readonly List<EnemyNetworkActor> m_ChainTargets = new List<EnemyNetworkActor>(32);
+        private readonly HashSet<ulong> m_ChainTargetIds = new HashSet<ulong>();
+        private readonly List<StatusEffectSpec> m_ChainConduction = new List<StatusEffectSpec>(4);
         private readonly NetworkList<StatusEffectNetworkState> m_ReplicatedStatuses =
             new NetworkList<StatusEffectNetworkState>();
 
         private IDamageReceiver m_DamageReceiver;
         private ICombatEntityIdentity m_Identity;
+        private ILightningChainPresentationSink m_LightningCueSink;
         private ElementReactionResolver m_Reactions;
         private uint m_LastPublishedRevision;
         private ulong m_PeriodicSequence;
@@ -84,6 +87,8 @@ namespace VampireHunt.Infrastructure.Netcode
             {
                 if (m_DamageReceiver == null && behaviours[i] is IDamageReceiver receiver) m_DamageReceiver = receiver;
                 if (m_Identity == null && behaviours[i] is ICombatEntityIdentity identity) m_Identity = identity;
+                if (m_LightningCueSink == null && behaviours[i] is ILightningChainPresentationSink lightningSink)
+                    m_LightningCueSink = lightningSink;
             }
         }
 
@@ -345,21 +350,26 @@ namespace VampireHunt.Infrastructure.Netcode
             in EffectRuntimeState state, int jumps, float radius, float decay, float chainDamage, float elementMastery)
         {
             if (!IsServer || m_Identity == null || jumps <= 0 || radius <= 0f) return;
-            Collider[] hits = Physics.OverlapSphere(transform.position, radius);
-            var targets = new List<EnemyNetworkActor>();
+            int hitCount = Physics.OverlapSphereNonAlloc(
+                transform.position, radius, m_ChainHitBuffer, ~0, QueryTriggerInteraction.Collide);
+            m_ChainTargets.Clear();
+            m_ChainTargetIds.Clear();
             EnemyNetworkActor self = GetComponent<EnemyNetworkActor>();
-            for (int i = 0; i < hits.Length; i++)
+            for (int i = 0; i < hitCount; i++)
             {
-                EnemyNetworkActor actor = hits[i].GetComponentInParent<EnemyNetworkActor>();
+                Collider candidate = m_ChainHitBuffer[i];
+                if (candidate == null) continue;
+                EnemyNetworkActor actor = candidate.GetComponentInParent<EnemyNetworkActor>();
                 if (actor == null || actor == self) continue;
-                targets.Add(actor);
+                ulong targetId = actor.CombatEntityId.Value;
+                if (targetId == 0 || !m_ChainTargetIds.Add(targetId)) continue;
+                m_ChainTargets.Add(actor);
             }
-            if (targets.Count == 0) return;
-            targets.Sort((a, b) => (a.transform.position - transform.position).sqrMagnitude
-                .CompareTo((b.transform.position - transform.position).sqrMagnitude));
+            if (m_ChainTargets.Count == 0) return;
+            SortChainTargetsByDistance(transform.position);
 
             // 捕获源怪（自身）的可传导状态，按「源层数 × 可传导性」生成复制规格（源怪状态保留）。
-            var conduction = new List<StatusEffectSpec>(4);
+            m_ChainConduction.Clear();
             m_Statuses.Capture(m_Snapshots);
             for (int i = 0; i < m_Snapshots.Count; i++)
             {
@@ -367,15 +377,16 @@ namespace VampireHunt.Infrastructure.Netcode
                 if (!IsConductionStatus(snapshot.StatusId)) continue;
                 float transferStacks = snapshot.Stacks * elementMastery;
                 if (transferStacks <= 0f) continue;
-                conduction.Add(new StatusEffectSpec(snapshot.StatusId, transferStacks, 0f, 0f, ElementId.None));
+                m_ChainConduction.Add(new StatusEffectSpec(
+                    snapshot.StatusId, transferStacks, 0f, 0f, ElementId.None));
             }
 
-            int count = Math.Min(jumps, targets.Count);
+            int count = Math.Min(jumps, m_ChainTargets.Count);
             float amount = chainDamage * elementMastery;
             float visualIntensity = 1f;
             for (int i = 0; i < count; i++)
             {
-                EnemyNetworkActor target = targets[i];
+                EnemyNetworkActor target = m_ChainTargets[i];
 
                 // 广播闪电传导表现（源怪 → 被链目标），让玩家看见传导链路；强度随逐跳衰减。
                 LightningChainVisualClientRpc(transform.position, target.transform.position, visualIntensity);
@@ -390,14 +401,31 @@ namespace VampireHunt.Infrastructure.Netcode
                 }
                 amount *= decay;
                 visualIntensity *= decay;
-                if (conduction.Count > 0 && target.TryGetComponent(out CombatStatusHost targetStatus))
+                if (m_ChainConduction.Count > 0 && target.TryGetComponent(out CombatStatusHost targetStatus))
                 {
-                    for (int k = 0; k < conduction.Count; k++)
+                    for (int k = 0; k < m_ChainConduction.Count; k++)
                     {
                         targetStatus.TryApplyStatus(new StatusApplicationRequest(
-                            state.Source, target.CombatEntityId, conduction[k]));
+                            state.Source, target.CombatEntityId, m_ChainConduction[k]));
                     }
                 }
+            }
+        }
+
+        private void SortChainTargetsByDistance(Vector3 origin)
+        {
+            for (int i = 1; i < m_ChainTargets.Count; i++)
+            {
+                EnemyNetworkActor current = m_ChainTargets[i];
+                float currentDistance = (current.transform.position - origin).sqrMagnitude;
+                int j = i - 1;
+                while (j >= 0 &&
+                       (m_ChainTargets[j].transform.position - origin).sqrMagnitude > currentDistance)
+                {
+                    m_ChainTargets[j + 1] = m_ChainTargets[j];
+                    j--;
+                }
+                m_ChainTargets[j + 1] = current;
             }
         }
 
@@ -405,7 +433,11 @@ namespace VampireHunt.Infrastructure.Netcode
         [ClientRpc]
         private void LightningChainVisualClientRpc(Vector3 from, Vector3 to, float intensity)
         {
-            LightningChainVisual.Play(from, to, intensity);
+            var cue = new LightningChainPresentationCue(
+                new Float3(from.x, from.y, from.z),
+                new Float3(to.x, to.y, to.z),
+                intensity);
+            m_LightningCueSink?.PlayLightningChain(cue);
         }
 
         /// <summary>可被闪电传导的状态集合：灼烧/霜寒/碎裂/炸裂（层数型元素状态）。</summary>

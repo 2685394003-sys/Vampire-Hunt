@@ -10,7 +10,6 @@ using VampireHunt.Contracts;
 using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
-using VampireHunt.Systems;
 using VampireHunt.Boss.Encounter;
 using VampireHunt.Spawning;
 

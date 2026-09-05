@@ -6,6 +6,60 @@ using VampireHunt.Player.Abilities.Familiar;
 
 namespace VampireHunt.Infrastructure.Unity
 {
+    [Serializable]
+    public sealed class GunnerFamiliarStatusEntry
+    {
+        public uint statusId;
+        [Min(0f)] public float stacks = 1f;
+        [Min(0f)] public float duration;
+        [Min(0f)] public float magnitude;
+        public ElementId element = ElementId.None;
+        [Min(0f)] public float elementMastery = 1f;
+
+        public StatusEffectSpec ToSpec() =>
+            new StatusEffectSpec(statusId, stacks, duration, magnitude, element, elementMastery);
+    }
+
+    /// <summary>
+    /// Inspector-facing weapon row. It owns authoring labels and VFX prefab references;
+    /// <see cref="GunnerFamiliarAsset"/> maps its gameplay fields into a runtime definition.
+    /// </summary>
+    [Serializable]
+    public sealed class GunnerFamiliarWeaponProfile
+    {
+        [Header("身份")]
+        public FamiliarWeaponId weaponId = FamiliarWeaponId.Pistol;
+        public string displayName = "手枪";
+
+        [Header("伤害")]
+        [Min(0f)] public float damageMultiplier = 2f;
+        [Min(0f)] public float knockbackMultiplier = 1f;
+        public ElementId element = ElementId.None;
+        public GunnerFamiliarStatusEntry[] onHitStatuses = Array.Empty<GunnerFamiliarStatusEntry>();
+        public DamageTags extraDamageTags = DamageTags.None;
+
+        [Header("站位与射程")]
+        [Min(0.1f)] public float range = 10f;
+        [Min(0.1f)] public float maxFireDistance = 14f;
+        [Min(0f)] public float muzzleForwardOffset = 0.5f;
+
+        [Header("开火节奏")]
+        [Min(1)] public int burstCount = 2;
+        [Min(0f)] public float burstInterval = 0.12f;
+        [Min(0f)] public float fireCooldown = 0.8f;
+
+        [Header("弹道")]
+        [Min(0f)] public float spreadAngle = 2f;
+        [Min(1)] public int pierceCount = 1;
+        [Min(0.01f)] public float projectileRadius = 0.25f;
+        [Min(0.1f)] public float projectileSpeed = 40f;
+        [Min(0.05f)] public float tracerScale = 1f;
+
+        [Header("表现（可留空）")]
+        public GameObject muzzleVfxPrefab;
+        public GameObject tracerPrefab;
+    }
+
     /// <summary>
     /// 射击僚机使魔（gunner familiar）的配置资产：Inspector 上的全部可调槽位，
     /// 组装成 <see cref="GunnerFamiliarDefinition"/> 交给控制器使用。
@@ -146,27 +200,28 @@ namespace VampireHunt.Infrastructure.Unity
                 returnArriveDistance,
                 baseDamageInheritRatio,
                 buffTriggerCountMultiplier,
-                CloneWeapon(FindWeapon(weaponId)),
+                CreateWeaponDefinition(FindWeapon(weaponId)),
                 visualScale);
         }
 
         /// <summary>
-        /// 拷贝一份武器档位：Definition 里存拷贝而非资产引用，
-        /// 这样血契运行期改倍率不会写回资产（改档位走 SetWeapon 换引用）。
+        /// 将 Inspector 行映射为运行时玩法定义。运行时拿到的是独立副本，
+        /// 血契修改倍率时不会写回 ScriptableObject，也拿不到任何 VFX 引用。
         /// </summary>
-        private static GunnerFamiliarWeaponProfile CloneWeapon(GunnerFamiliarWeaponProfile source)
+        private static GunnerFamiliarWeaponDefinition CreateWeaponDefinition(GunnerFamiliarWeaponProfile source)
         {
-            if (source == null) return new GunnerFamiliarWeaponProfile();
-            var copy = new GunnerFamiliarWeaponProfile
+            if (source == null) return new GunnerFamiliarWeaponDefinition();
+            var statuses = new StatusEffectSpec[source.onHitStatuses?.Length ?? 0];
+            for (int i = 0; i < statuses.Length; i++)
+                statuses[i] = source.onHitStatuses[i] != null ? source.onHitStatuses[i].ToSpec() : default;
+
+            return new GunnerFamiliarWeaponDefinition
             {
                 weaponId = source.weaponId,
-                displayName = source.displayName,
                 damageMultiplier = source.damageMultiplier,
                 knockbackMultiplier = source.knockbackMultiplier,
                 element = source.element,
-                onHitStatuses = source.onHitStatuses != null
-                    ? (StatusEffectSpec[])source.onHitStatuses.Clone()
-                    : Array.Empty<StatusEffectSpec>(),
+                onHitStatuses = statuses,
                 extraDamageTags = source.extraDamageTags,
                 range = source.range,
                 maxFireDistance = source.maxFireDistance,
@@ -178,11 +233,8 @@ namespace VampireHunt.Infrastructure.Unity
                 pierceCount = source.pierceCount,
                 projectileRadius = source.projectileRadius,
                 projectileSpeed = source.projectileSpeed,
-                tracerScale = source.tracerScale,
-                muzzleVfxPrefab = source.muzzleVfxPrefab,
-                tracerPrefab = source.tracerPrefab
+                tracerScale = source.tracerScale
             };
-            return copy;
         }
 
         /// <summary>四档基础武器：手枪（初始）/ 狙击 / 步枪 / 激光。数值可按实机测试在 Inspector 里改。</summary>

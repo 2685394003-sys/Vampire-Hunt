@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using VampireHunt.Contracts;
 using VampireHunt.Player.Abilities.Familiar;
@@ -11,6 +12,20 @@ namespace VampireHunt.Infrastructure.Unity
     [CreateAssetMenu(menuName = "Vampire Hunt/Combat/Impact Familiar", fileName = "ImpactFamiliar")]
     public sealed class ImpactFamiliarAsset : ScriptableObject
     {
+        [Serializable]
+        private sealed class StatusEntry
+        {
+            public uint statusId;
+            [Min(0f)] public float stacks = 1f;
+            [Min(0f)] public float duration;
+            [Min(0f)] public float magnitude;
+            public ElementId element = ElementId.None;
+            [Min(0f)] public float elementMastery = 1f;
+
+            public StatusEffectSpec ToSpec() =>
+                new StatusEffectSpec(statusId, stacks, duration, magnitude, element, elementMastery);
+        }
+
         [Header("身份")]
         [Tooltip("能力 id（使魔默认 161；圆型领域是 160）。用于伤害来源标记与监控过滤。")]
         [SerializeField] private uint abilityId = 161;
@@ -89,7 +104,7 @@ namespace VampireHunt.Infrastructure.Unity
         [Tooltip("元素（影响状态挂载的元素归属）。")]
         [SerializeField] private ElementId element = ElementId.None;
         [Tooltip("命中附加状态。")]
-        [SerializeField] private StatusEffectSpec[] onHitStatuses = System.Array.Empty<StatusEffectSpec>();
+        [SerializeField] private StatusEntry[] onHitStatuses = Array.Empty<StatusEntry>();
         [Tooltip("buff 触发数量系数：每次触发挂载层数 = 配置层数 × 此系数（四舍五入、最少 1）。")]
         [SerializeField, Min(0f)] private float buffTriggerCountMultiplier = 1f;
 
@@ -102,6 +117,10 @@ namespace VampireHunt.Infrastructure.Unity
         /// <summary>组装成运行时使用的纯数据定义。</summary>
         public ImpactFamiliarDefinition CreateDefinition()
         {
+            var statusSpecs = new StatusEffectSpec[onHitStatuses?.Length ?? 0];
+            for (int i = 0; i < statusSpecs.Length; i++)
+                statusSpecs[i] = onHitStatuses[i] != null ? onHitStatuses[i].ToSpec() : default;
+
             return new ImpactFamiliarDefinition(
                 abilityId,
                 weaponTag,
@@ -134,7 +153,7 @@ namespace VampireHunt.Infrastructure.Unity
                 knockbackMultiplier,
                 hitCooldownPerTarget,
                 element,
-                onHitStatuses,
+                statusSpecs,
                 buffTriggerCountMultiplier,
                 visualScale,
                 stretchFactor);
