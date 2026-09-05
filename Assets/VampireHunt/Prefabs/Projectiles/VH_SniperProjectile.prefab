@@ -52,7 +52,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3147211802
+  GlobalObjectIdHash: 1779628697
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -211,12 +211,14 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   hitRadius: 0.65
   scaleVisualToHitRadius: 1
+  buildFanVisual: 0
   targetMask:
     serializedVersion: 2
     m_Bits: 256
+  hitEventName: 
+  pierceCost: {fileID: 11400000, guid: e07329a85e124839902c4d413fecdbe9, type: 2}
   defaultMaximumDistance: 12
   maximumLifetime: 2
-  pierceCost: {fileID: 11400000, guid: e07329a85e124839902c4d413fecdbe9, type: 2}
 --- !u!96 &6955436164046290067
 TrailRenderer:
   serializedVersion: 4

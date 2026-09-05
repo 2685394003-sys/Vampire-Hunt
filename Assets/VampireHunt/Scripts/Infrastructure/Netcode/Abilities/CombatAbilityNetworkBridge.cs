@@ -20,6 +20,10 @@ namespace VampireHunt.Infrastructure.Netcode
         [SerializeField, Min(1f)] private float maxOriginDistance = 25f;
         [Tooltip("兼容期客户端计划中单项数值的硬上限，只拦截异常或恶意极值，不参与正常数值平衡。")]
         [SerializeField, Min(1f)] private float maxCompatibilityScalar = 1000000f;
+        [Tooltip("兼容期单次技能请求允许的最大弹体数量。它是网络安全上限，不是武器平衡数值。")]
+        [SerializeField, Min(1)] private int maxCompatibilityProjectileCount = 128;
+        [Tooltip("兼容期技能请求允许的最大穿透数。狙击枪使用 999，因此该安全上限必须高于正式配置。")]
+        [SerializeField, Min(1)] private int maxCompatibilityPierceCount = 4096;
         [Tooltip("已获服务器接受的技能表现中继器；它不依赖服务器本机是否安装 Presenter。")]
         [SerializeField] private CombatAbilityPresentationNetworkRelay presentationRelay;
 
@@ -35,7 +39,7 @@ namespace VampireHunt.Infrastructure.Netcode
                 if (behaviours[i] is ICombatAbilityNetworkExecutor executor) executors.Add(executor);
             }
             m_Executors = executors.ToArray();
-            m_RequestValidator = new CombatAbilityRequestValidator(maxOriginDistance, maxCompatibilityScalar);
+            m_RequestValidator = CreateRequestValidator();
             if (presentationRelay == null) presentationRelay = GetComponent<CombatAbilityPresentationNetworkRelay>();
         }
 
@@ -54,7 +58,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private void RequestExecuteRpc(AbilityCastNetworkMessage message, RpcParams rpcParams = default)
         {
             if (m_Executors == null) return;
-            m_RequestValidator ??= new CombatAbilityRequestValidator(maxOriginDistance, maxCompatibilityScalar);
+            m_RequestValidator ??= CreateRequestValidator();
             if (!m_RequestValidator.IsValid(
                     NetworkObject, rpcParams.Receive.SenderClientId, message, out string rejectionReason))
             {
@@ -75,5 +79,12 @@ namespace VampireHunt.Infrastructure.Netcode
                 return;
             }
         }
+
+        private CombatAbilityRequestValidator CreateRequestValidator() =>
+            new CombatAbilityRequestValidator(
+                maxOriginDistance,
+                maxCompatibilityScalar,
+                maxCompatibilityProjectileCount,
+                maxCompatibilityPierceCount);
     }
 }

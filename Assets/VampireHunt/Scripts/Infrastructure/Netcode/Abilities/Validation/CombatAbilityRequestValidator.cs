@@ -11,11 +11,19 @@ namespace VampireHunt.Infrastructure.Netcode
     {
         private readonly float m_MaxOriginDistance;
         private readonly float m_MaxScalar;
+        private readonly int m_MaxProjectileCount;
+        private readonly int m_MaxPierceCount;
 
-        public CombatAbilityRequestValidator(float maxOriginDistance, float maxScalar)
+        public CombatAbilityRequestValidator(
+            float maxOriginDistance,
+            float maxScalar,
+            int maxProjectileCount,
+            int maxPierceCount)
         {
             m_MaxOriginDistance = Mathf.Max(1f, maxOriginDistance);
             m_MaxScalar = Mathf.Max(1f, maxScalar);
+            m_MaxProjectileCount = Mathf.Max(1, maxProjectileCount);
+            m_MaxPierceCount = Mathf.Max(1, maxPierceCount);
         }
 
         public bool IsValid(
@@ -51,8 +59,8 @@ namespace VampireHunt.Infrastructure.Netcode
                    IsFiniteNonNegative(message.ProjectileSize) && message.ProjectileSize <= m_MaxScalar &&
                    IsFiniteNonNegative(message.SpreadAngle) && message.SpreadAngle <= 360f &&
                    IsFiniteNonNegative(message.FanAngle) && message.FanAngle <= 360f &&
-                   message.ProjectileCount >= 0 && message.ProjectileCount <= 128 &&
-                   message.PierceCount >= 0 && message.PierceCount <= 128;
+                   message.ProjectileCount >= 0 && message.ProjectileCount <= m_MaxProjectileCount &&
+                   message.PierceCount >= 0 && message.PierceCount <= m_MaxPierceCount;
         }
 
         private static bool IsFinite(Vector3 value) =>
