@@ -1,5 +1,37 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-5939886245926123825
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dee46978aa088f64b99d56709feb1102, type: 3}
+  m_Name: VH Split Depth Of Field
+  m_EditorClassIdentifier: Assembly-CSharp::VHSplitDepthOfFieldFeature
+  m_Active: 1
+  m_Enabled: 1
+  m_Shader: {fileID: 0}
+  m_AutoTrackPlayer: 1
+  m_SplitScreenY: 0.5
+  m_SplitScreenX: 0.5
+  m_SplitSoftness: 0.02
+  m_FeetHeightOffset: 0
+  m_InvertScreenAxis: 0
+  m_FrontStart: 7.5
+  m_FrontEnd: 10
+  m_BackStart: 3.49
+  m_BackEnd: 4.41
+  m_DepthStrength: 1
+  m_LateralStart: 15
+  m_LateralEnd: 16
+  m_LateralStrength: 1
+  m_MaxBlurRadius: 1
+  m_DebugView: 0
+  m_ApplyToSceneView: 0
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27,8 +59,9 @@ MonoBehaviour:
   m_RendererFeatures:
   - {fileID: 7833122117494664109}
   - {fileID: 1182820653582025065}
-  m_RendererFeatureMap: ad6b866f10d7b46c6981c0191e396a10
-  m_UseNativeRenderPass: 1
+  - {fileID: -5939886245926123825}
+  - {fileID: 7407252895324743502}
+  m_RendererFeatureMap: ad6b866f10d7b46c6981c0191e396a10cf465821ee4891ad4ea7505343d9cb66
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3
@@ -56,9 +89,10 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
+  m_TileOnlyMode: 0
 --- !u!114 &1182820653582025065
 MonoBehaviour:
-  m_ObjectHideFlags: 0
+  m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -308,9 +342,46 @@ MonoBehaviour:
     m_NumColorKeys: 8
     m_NumAlphaKeys: 2
   m_ApplyToSceneView: 0
+--- !u!114 &7407252895324743502
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ad10d8c02241cf4089c42f43fe56a0c, type: 3}
+  m_Name: VH Cloud Shadow
+  m_EditorClassIdentifier: Assembly-CSharp::VHCloudShadowFeature
+  m_Active: 1
+  m_Enabled: 1
+  m_Shader: {fileID: 0}
+  m_Strength: 0.741
+  m_Contrast: 3.11
+  m_CloudScale: 13.8
+  m_DriftSpeed: {x: -0.13, y: -0.15}
+  m_Layer2Weight: 0.45
+  m_Layer2ScaleRatio: 0.37
+  m_Layer2SpeedRatio: 1.6
+  m_Threshold: 0.559
+  m_Softness: 0.333
+  m_ShadowColor: {r: 0.62, g: 0.67, b: 0.78, a: 1}
+  m_EnableGapLight: 1
+  m_GapLightStrength: 0.008
+  m_GapLightThreshold: 0.285
+  m_GapLightSoftness: 0.507
+  m_GapLightContrast: 1
+  m_GapLightStretch: 2.13
+  m_GapLightScaleRatio: 0.423
+  m_GapLightAngleDegrees: 292
+  m_GapLightColor: {r: 0.7, g: 0.78, b: 0.9, a: 1}
+  m_UseUnscaledTime: 1
+  m_DebugView: 0
+  m_ApplyToSceneView: 0
 --- !u!114 &7833122117494664109
 MonoBehaviour:
-  m_ObjectHideFlags: 0
+  m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}

@@ -303,6 +303,7 @@ MonoBehaviour:
   effectHost: {fileID: 8241606859826594899}
   onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
   onStatusRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  elementResist: 1
 --- !u!114 &3610589536497221505
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -337,7 +338,7 @@ MonoBehaviour:
   scatterRadius: 0.75
   groundMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   groundProbeHeight: 4
   groundOffset: 0.1
 --- !u!114 &2928057320886987452
@@ -367,7 +368,7 @@ MonoBehaviour:
   attackOrigin: {fileID: 6642164271069414549}
   attackBlockingMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   deathDespawnDelay: 1.25
   noTargetDespawnDelay: 3
 --- !u!114 &4308755639961819023

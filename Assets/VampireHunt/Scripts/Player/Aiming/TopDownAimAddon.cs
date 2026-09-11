@@ -18,7 +18,9 @@ namespace VampireHunt.Player.Aiming
     public sealed class TopDownAimAddon : NetworkBehaviour, IPlayerAddon, ICombatAimSource
     {
         [Header("World Projection")]
-        [SerializeField] private LayerMask groundLayers = 1 << 0;
+        // Ground(9) = 地形专用层。用 1<<0(Default) 会把地图道具（桶/车/箱）也算进来，
+        // 瞄准点会落在道具表面而不是地面。
+        [SerializeField] private LayerMask groundLayers = 1 << 9;
         [SerializeField, Min(1f)] private float maximumRayDistance = 1000f;
         [SerializeField] private bool usePlayerPlaneFallback = true;
 

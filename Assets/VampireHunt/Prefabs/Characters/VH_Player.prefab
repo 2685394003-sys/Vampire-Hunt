@@ -102,6 +102,7 @@ Transform:
   m_Children:
   - {fileID: 8338988566280778637}
   - {fileID: 7774902449294704529}
+  - {fileID: 6636447581638131523}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &4416926081852918491
@@ -340,7 +341,7 @@ MonoBehaviour:
   groundedRadius: 0.28
   groundLayers:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   slopeForce: 5
   slopeForceRayLength: 1.5
   isMovementEnabled: 1
@@ -658,6 +659,8 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   maxOriginDistance: 25
   maxCompatibilityScalar: 1000000
+  maxCompatibilityProjectileCount: 128
+  maxCompatibilityPierceCount: 4096
   presentationRelay: {fileID: -700000000000000036}
 --- !u!114 &-700000000000000036
 MonoBehaviour:
@@ -669,7 +672,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: be0217f327ee4054acbdf61bf715ad16, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.CombatAbilityPresentationNetworkRelay
   ShowTopMostFoldoutHeaderGroup: 1
   presenter: {fileID: -700000000000000035}
@@ -920,7 +923,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   groundLayers:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 512
   maximumRayDistance: 1000
   usePlayerPlaneFallback: 1
   rotationDegreesPerSecond: 1080
@@ -1194,26 +1197,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e23b6065b25144cc91902b93db74856f, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.CircleFieldAuraStateNetworkBridge
   ShowTopMostFoldoutHeaderGroup: 1
   maxPresentationRadius: 100
---- !u!114 &-700000000000000032
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4416926081852918481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b7a1ad66548c4d71bd13dd91f46f3e2b, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.CircleFieldAuraPresenter
-  source: {fileID: -700000000000000037}
-  fieldVisualPrefab: {fileID: 745290203764341760, guid: 5c4cab7b414e47fdb12673679d6e438a, type: 3}
-  visualBaseDiameter: 1
-  visualHeightOffset: 0.05
 --- !u!114 &-700000000000000029
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1255,20 +1242,6 @@ MonoBehaviour:
   resolutionHost: {fileID: 0}
   coreStats: {fileID: 0}
   logToConsole: 1
---- !u!114 &-700000000000000033
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4416926081852918481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98bcba1f68214d0eaf64702f845996a5, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.ImpactFamiliarPresenter
-  familiarVisualPrefab: {fileID: 771245003188462011, guid: 0221d6c749f44fb5ab368764097b86d2, type: 3}
-  visualFollowLerp: 20
 --- !u!114 &4187387311122350085
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1296,6 +1269,52 @@ MonoBehaviour:
   coreStats: {fileID: 0}
   logToConsole: 1
   debugDrawShots: 1
+--- !u!114 &-700000000000000031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54d9197586ef47a29dd754a0cf5674a4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.Abilities.Familiar.FamiliarPointerCommand
+  ShowTopMostFoldoutHeaderGroup: 1
+  aimSourceBehaviour: {fileID: 0}
+  networkSendRate: 20
+  logToConsole: 0
+--- !u!114 &-700000000000000032
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7a1ad66548c4d71bd13dd91f46f3e2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.CircleFieldAuraPresenter
+  source: {fileID: -700000000000000037}
+  fieldVisualPrefab: {fileID: 745290203764341760, guid: 5c4cab7b414e47fdb12673679d6e438a, type: 3}
+  visualBaseDiameter: 1
+  visualHeightOffset: 0.05
+--- !u!114 &-700000000000000033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98bcba1f68214d0eaf64702f845996a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.ImpactFamiliarPresenter
+  familiarVisualPrefab: {fileID: 771245003188462011, guid: 0221d6c749f44fb5ab368764097b86d2, type: 3}
+  visualFollowLerp: 20
 --- !u!114 &-700000000000000034
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1306,7 +1325,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9dbcaa7340f94ad39f8402ac4b461e20, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.GunnerFamiliarPresenter
   definitionAsset: {fileID: 11400000, guid: 8f954dd19956ad640a8cc2646f0e41d4, type: 2}
   familiarVisualPrefab: {fileID: 781562394710592770, guid: b3c665c923c783a44b77095f5910f772, type: 3}
@@ -1326,7 +1345,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6dd1f871a42841249588790cd4a83a57, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.Abilities.Familiar.FamiliarPresentationNetworkBridge
   ShowTopMostFoldoutHeaderGroup: 1
   impactPresenter: {fileID: -700000000000000033}
@@ -1343,7 +1362,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b968d69e292a489b844f144edff89ec9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.CombatAbilityExecutionPresenter
   circleFieldAbilityId: 160
   circleFieldVfxPrefab: {fileID: 0}
@@ -1352,21 +1371,6 @@ MonoBehaviour:
   flameThrowerAbilityId: 150
   flameThrowerVfxPrefab: {fileID: 0}
   flameThrowerFallbackLifetime: 0.15
---- !u!114 &-700000000000000031
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4416926081852918481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 54d9197586ef47a29dd754a0cf5674a4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.Abilities.Familiar.FamiliarPointerCommand
-  ShowTopMostFoldoutHeaderGroup: 1
-  aimSourceBehaviour: {fileID: 0}
-  logToConsole: 0
 --- !u!114 &946511594756907663
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1546,4 +1550,66 @@ MonoBehaviour:
 Transform:
   m_CorrespondingSourceObject: {fileID: 4560480999191295774, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
   m_PrefabInstance: {fileID: 6101275629619071119}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &6113376428529912961
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 3893294197879345259}
+    m_Modifications:
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6758398583481440820, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+      propertyPath: m_Name
+      value: VH_AmbientDust
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+--- !u!4 &6636447581638131523 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 634574970211529666, guid: a439d6a8b6da983449c0cc7ee6547977, type: 3}
+  m_PrefabInstance: {fileID: 6113376428529912961}
   m_PrefabAsset: {fileID: 0}

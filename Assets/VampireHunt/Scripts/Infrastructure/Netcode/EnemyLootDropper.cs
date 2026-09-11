@@ -15,7 +15,8 @@ namespace VampireHunt.Infrastructure.Netcode
 
         [Header("Spawn Placement")]
         [SerializeField, Min(0f)] private float scatterRadius = 0.75f;
-        [SerializeField] private LayerMask groundMask = 1;
+        // Default(0) = 地图道具/建筑，Ground(9) = 地形专用层。取并集避免丢失任何可落地面。
+        [SerializeField] private LayerMask groundMask = 1 | (1 << 9);
         [SerializeField, Min(0.1f)] private float groundProbeHeight = 4f;
         [SerializeField, Min(0f)] private float groundOffset = 0.1f;
 

@@ -296,7 +296,8 @@ namespace VampireHunt.EditorTools
             serialized.FindProperty("archetype").objectReferenceValue = archetype;
             serialized.FindProperty("attackExecutorBehaviour").objectReferenceValue = executor;
             serialized.FindProperty("attackOrigin").objectReferenceValue = origin;
-            serialized.FindProperty("attackBlockingMask").intValue = 1 << 0;
+            // Default(0) 道具/建筑 + Ground(9) 地形，与运行时预制体保持一致。
+            serialized.FindProperty("attackBlockingMask").intValue = (1 << 0) | (1 << 9);
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
