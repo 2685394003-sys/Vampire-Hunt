@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: M_Vefects_Extra_Grid_01
-  m_Shader: {fileID: 4800000, guid: f5359265e7c260446ab00cd48110be54, type: 3}
+  m_Shader: {fileID: 4800000, guid: bdec76083a39a714aa7f996f954d5c23, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -24,7 +24,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _Texture:
-        m_Texture: {fileID: 2800000, guid: 3f714c4a1943e8a49ab4cb3989a45290, type: 3}
+        m_Texture: {fileID: 2800000, guid: 42d8d36a2bc0d624d97c7aa3fcd8a8db, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _texcoord:
@@ -51,8 +51,8 @@ Material:
     - _QueueOffset: 0
     - _ReceiveShadows: 1
     - _SpecularHighlights: 1
+    - __dirty: 0
     m_Colors:
     - _Color: {r: 0.22, g: 0.22, b: 0.22, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
-  m_AllowLocking: 1
