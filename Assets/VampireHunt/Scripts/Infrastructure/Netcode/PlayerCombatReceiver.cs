@@ -56,6 +56,9 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result)
         {
+            result = default;
+            if (!IsSpawned || !IsServer || coreStats == null || !coreStats.IsAlive) return false;
+            ServerCombatActivity.Interaction(NetworkManager, request.Source, CombatEntityId, request.AttackId, request.Sequence);
             result = modifierHost != null
                 ? modifierHost.ResolveIncoming(request)
                 : new DamageContext(request).ToResult();

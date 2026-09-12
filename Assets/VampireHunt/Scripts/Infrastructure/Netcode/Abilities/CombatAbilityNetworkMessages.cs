@@ -113,6 +113,7 @@ namespace VampireHunt.Infrastructure.Netcode
         public Vector3 Origin;
         public Vector3 Direction;
         public float Damage;
+        public bool EffectsSuppressed;
         public float TravelDistance;
         public float ProjectileSpeed;
         public float Knockback;
@@ -134,6 +135,7 @@ namespace VampireHunt.Infrastructure.Netcode
                 Origin = new Vector3(plan.Origin.X, plan.Origin.Y, plan.Origin.Z),
                 Direction = new Vector3(plan.Direction.X, plan.Direction.Y, plan.Direction.Z),
                 Damage = plan.Damage,
+                EffectsSuppressed = plan.IsCancelled,
                 TravelDistance = plan.TravelDistance,
                 ProjectileSpeed = plan.ProjectileSpeed,
                 Knockback = plan.Knockback,
@@ -155,6 +157,7 @@ namespace VampireHunt.Infrastructure.Netcode
             serializer.SerializeValue(ref Origin);
             serializer.SerializeValue(ref Direction);
             serializer.SerializeValue(ref Damage);
+            serializer.SerializeValue(ref EffectsSuppressed);
             serializer.SerializeValue(ref TravelDistance);
             serializer.SerializeValue(ref ProjectileSpeed);
             serializer.SerializeValue(ref Knockback);
@@ -170,7 +173,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool Equals(AbilityCastNetworkMessage other) =>
             AbilityId == other.AbilityId && Sequence == other.Sequence && Origin.Equals(other.Origin) &&
-            Direction.Equals(other.Direction) && Damage.Equals(other.Damage) &&
+            Direction.Equals(other.Direction) && EffectsSuppressed == other.EffectsSuppressed && Damage.Equals(other.Damage) &&
             TravelDistance.Equals(other.TravelDistance) && ProjectileSpeed.Equals(other.ProjectileSpeed) &&
             Knockback.Equals(other.Knockback) && ProjectileSize.Equals(other.ProjectileSize) &&
             ProjectileCount == other.ProjectileCount && PierceCount == other.PierceCount &&

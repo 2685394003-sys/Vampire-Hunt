@@ -55,7 +55,6 @@ GameObject:
   - component: {fileID: 435459713146104146}
   - component: {fileID: 2467075975766133047}
   - component: {fileID: 4550663314123374883}
-  - component: {fileID: 1807576333572006399}
   - component: {fileID: 5715040062473686256}
   - component: {fileID: 7729371544334539656}
   - component: {fileID: 894097534315327857}
@@ -362,7 +361,6 @@ MonoBehaviour:
   statsConfig: {fileID: 11400000, guid: 94565d492faf05d4ca051369cf36504f, type: 2}
   onStatChangedEvent: {fileID: 11400000, guid: 3c76cce5664154d7fadbc8eaf8987962, type: 2}
   onStatDepletedEvent: {fileID: 11400000, guid: aced99a6f7f354e5c87c8fab171c4c31, type: 2}
-  dashStaminaRegenDelay: 0.2
 --- !u!114 &1738836199841815264
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -974,22 +972,6 @@ MonoBehaviour:
   uiDocument: {fileID: 7994092233411356452}
   shopBridge: {fileID: 2467075975766133047}
   catalog: {fileID: 11400000, guid: 1ab5076a2266b364b8f1bdcdb88718f9, type: 2}
---- !u!114 &1807576333572006399
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4416926081852918481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 64654f947cb7a3d468bc84c9b81d03c1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.Player.StaminaRegenBoost
-  ShowTopMostFoldoutHeaderGroup: 1
-  noEnemyRadius: 25
-  noEnemyRegenMultiplier: 2
-  scanInterval: 0.25
 --- !u!114 &5715040062473686256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1380,12 +1362,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 4416926081852918481}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e5502595a8584794eb26be6f1caf2c0d, type: 3}
+  m_Script: {fileID: 11500000, guid: cb77bb8daeb548d08e68c02478332932, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.Player.PlayerHealthRegen
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.Player.PlayerCombatStateHost
   ShowTopMostFoldoutHeaderGroup: 1
-  regenDelaySeconds: 5
-  regenFractionPerSecond: 0.016666668
+  combatExitDelay: 5
+  outOfCombatHealthFraction: 0.016666668
+  outOfCombatStaminaMultiplier: 2
+  dashRecoveryDelay: 0.2
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

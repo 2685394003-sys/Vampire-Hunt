@@ -21,7 +21,16 @@ namespace VampireHunt.Infrastructure.Netcode
         private readonly HashSet<MonoBehaviour> m_HitSet = new HashSet<MonoBehaviour>();
         private readonly CombatHitTargetResolver m_TargetResolver = new CombatHitTargetResolver();
 
+        [SerializeField] private CombatIntentPolicy combatIntentPolicy = CombatIntentPolicy.Combat;
+        public CombatIntentPolicy IntentPolicy => combatIntentPolicy;
+
         public uint AbilityId => abilityId;
+
+        public bool CanExecuteServer(NetworkManager manager, ulong senderClientId, in AbilityCastNetworkMessage message)
+        {
+            if (manager == null || !manager.IsServer || message.AbilityId != abilityId) return false;
+            return true;
+        }
 
         public bool ExecuteServer(NetworkManager manager, ulong senderClientId, in AbilityCastNetworkMessage message)
         {

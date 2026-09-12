@@ -280,7 +280,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private bool ApplyTrustedHit(in TrustedCombatHit hit)
         {
-            if (!IsServer || m_Aggregate == null || m_Aggregate.IsDead || hit.Damage.BaseDamage <= 0f) return false;
+            if (!IsServer || m_Aggregate == null || m_Aggregate.IsDead) return false;
             ElementReactionResult reaction = statusHost != null
                 ? statusHost.ResolveElementReaction(hit.Element)
                 : ElementReactionResult.None();
@@ -336,6 +336,9 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result)
         {
+            result = default;
+            if (!IsSpawned || !IsServer || m_Aggregate == null || m_Aggregate.IsDead) return false;
+            ServerCombatActivity.Interaction(NetworkManager, request.Source, CombatEntityId, request.AttackId, request.Sequence);
             result = modifierHost != null
                 ? modifierHost.ResolveIncoming(request)
                 : new DamageContext(request).ToResult();
@@ -493,7 +496,12 @@ namespace VampireHunt.Infrastructure.Netcode
 
             m_MovementIntent = tick.MovementIntent;
             if (stateBeforeTick != m_Aggregate.State && m_Aggregate.State == EnemyState.Telegraphing)
+            {
                 CaptureAttackAimDirection();
+                if (hasTarget) ServerCombatActivity.Interaction(NetworkManager, CombatEntityId,
+                    new GameplayEntityId(m_TargetPlayer.OwnerClientId + 1UL),
+                    m_Aggregate.Definition.AttackId, m_Aggregate.AttackSequence);
+            }
 
             if (tick.ShouldCommitAttack && m_Aggregate.TryCommitAttack())
             {
@@ -668,6 +676,10 @@ namespace VampireHunt.Infrastructure.Netcode
         private void CommitAttack()
         {
             if (!IsTargetValid(m_TargetPlayer)) return;
+            ServerCombatActivity.Interaction(NetworkManager, CombatEntityId,
+                new GameplayEntityId(m_TargetPlayer.OwnerClientId + 1UL),
+                m_Aggregate.Definition.AttackId, m_Aggregate.AttackSequence,
+                CombatActivityKind.Action);
             if (m_AttackExecutor == null)
             {
                 ReportMissingAttackExecutor();

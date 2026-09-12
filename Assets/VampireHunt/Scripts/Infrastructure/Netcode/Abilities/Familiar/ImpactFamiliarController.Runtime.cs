@@ -1,3 +1,4 @@
+using VampireHunt.Infrastructure.Integration;
 using System.Collections.Generic;
 using Blocks.Gameplay.Core;
 using Unity.Netcode;
@@ -76,6 +77,7 @@ namespace VampireHunt.Infrastructure.Netcode.Abilities.Familiar
                 if (brain.WantsEngage && TryResolveTarget(brain.PendingTargetId, ownerPosition, out MonoBehaviour target))
                 {
                     brain.BeginDash(target, brain.PendingTargetId);
+                    ServerCombatActivity.Action(networkObject != null ? networkObject.NetworkManager : null, m_OwnerEntityId, m_Definition.AbilityId, ++m_Sequence);
                     if (logToConsole)
                         Debug.Log($"[ImpactFamiliar] #{i} 起飞 → entity={brain.PendingTargetId.Value}", this);
                 }

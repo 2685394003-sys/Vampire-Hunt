@@ -1,4 +1,5 @@
 using System;
+using VampireHunt.Contracts;
 using UnityEngine;
 using VampireHunt.Economy;
 using VampireHunt.Infrastructure.Unity.Items;
@@ -8,6 +9,8 @@ namespace VampireHunt.Infrastructure.Unity
     [CreateAssetMenu(fileName = "UsableItemDefinition", menuName = "Vampire Hunt/Items/Usable Item")]
     public sealed class UsableItemDefinitionAsset : ItemDefinitionAsset
     {
+        [SerializeField] private CombatIntentPolicy combatIntentPolicy = CombatIntentPolicy.NonCombat;
+        public CombatIntentPolicy CombatIntent => combatIntentPolicy;
         [Header("Storage and Use")]
         [SerializeField] private UseConsumptionPolicy consumptionPolicy =
             UseConsumptionPolicy.ConsumeOnSuccess;

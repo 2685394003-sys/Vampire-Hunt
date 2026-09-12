@@ -114,7 +114,8 @@ namespace VampireHunt.Infrastructure.Netcode
         public bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result)
         {
             result = default;
-            if (!IsServer || !IsFunctional || request.BaseDamage <= 0f) return false;
+            if (!IsSpawned || !IsServer || !IsFunctional) return false;
+            ServerCombatActivity.Interaction(NetworkManager, request.Source, CombatEntityId, request.AttackId, request.Sequence);
             var validated = new DamageRequest(request.Source, CombatEntityId, request.AttackId,
                 request.Sequence, request.BaseDamage, request.Tags);
             float healthBefore = m_Health.Value;

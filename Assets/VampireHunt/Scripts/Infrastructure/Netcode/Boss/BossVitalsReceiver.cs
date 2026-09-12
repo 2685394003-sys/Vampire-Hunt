@@ -91,6 +91,7 @@ namespace VampireHunt.Infrastructure.Netcode
             var validated = new DamageRequest(incoming.Source, CombatEntityId, incoming.AttackId,
                 incoming.Sequence, incoming.BaseDamage, incoming.Tags);
 
+            ServerCombatActivity.Interaction(NetworkManager, validated.Source, CombatEntityId, validated.AttackId, validated.Sequence);
             if ((validated.Tags & DamageTags.Parry) != 0)
             {
                 bool cancelled = abilityDriver != null && abilityDriver.TryParryActiveAbilityServer();

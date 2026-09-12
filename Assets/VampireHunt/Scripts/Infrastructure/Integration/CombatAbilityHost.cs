@@ -128,14 +128,14 @@ namespace VampireHunt.Infrastructure.Integration
 
             if (!ability.TryBuildCast(context, out AbilityCastPlan plan)) return false;
             m_AbilityModifiers.Resolve(plan);
-            if (plan.IsCancelled || plan.Damage <= 0f) return false;
+            if (plan.IsCancelled) return networkSink.TryExecute(plan);
 
             var request = new DamageRequest(plan.Caster, GameplayEntityId.None, plan.AbilityId,
                 plan.Sequence, plan.Damage, plan.Tags);
             ResolvedDamage damage = damageModifiers != null
                 ? damageModifiers.ResolveOutgoing(request)
                 : new DamageContext(request).ToResult();
-            if (damage.IsCancelled || damage.Amount <= 0f) return false;
+            plan.IsCancelled = damage.IsCancelled;
 
             plan.Damage = damage.Amount;
             plan.Tags = damage.Tags;

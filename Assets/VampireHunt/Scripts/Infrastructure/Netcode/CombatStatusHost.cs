@@ -129,7 +129,10 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool TryApplyStatus(in StatusApplicationRequest request)
         {
-            if (!IsServer) return false;
+            if (!IsSpawned || !IsServer || m_Identity == null || request.Spec.StatusId == 0 ||
+                catalog == null || !catalog.TryGet(request.Spec.StatusId, out _)) return false;
+            ServerCombatActivity.Interaction(NetworkManager, request.Source, m_Identity.CombatEntityId,
+                request.Spec.StatusId, ++m_PeriodicSequence, CombatActivityKind.Periodic);
             // 传导减免：外部传导（武器命中、闪电连锁复制）来的状态，挂层数 × 目标抗性（普通怪 1，Boss/手 0.05）。
             // 内部触发状态（燃爆/冻结等经 ProcessCommands 直接走 ApplyStatusInternal）不在此减免。
             if (elementResist <= 0f) return false;

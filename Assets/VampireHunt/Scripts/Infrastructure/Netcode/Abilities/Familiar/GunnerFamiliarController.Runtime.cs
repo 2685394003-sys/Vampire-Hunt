@@ -1,3 +1,4 @@
+using VampireHunt.Infrastructure.Integration;
 using System.Collections.Generic;
 using Blocks.Gameplay.Core;
 using Unity.Netcode;
@@ -165,6 +166,7 @@ namespace VampireHunt.Infrastructure.Netcode.Abilities.Familiar
         /// <summary>结算一次射击：球形扫描 → 按穿透数取前 N 个敌人 → 逐个走可信命中。</summary>
         private void ResolveShot(GunnerFamiliarBrain brain, Vector3 origin, Vector3 direction)
         {
+            ServerCombatActivity.Action(networkObject != null ? networkObject.NetworkManager : null, m_OwnerEntityId, m_Definition.AbilityId, ++m_Sequence);
             GunnerFamiliarWeaponDefinition weapon = m_Definition.Weapon;
             if (m_HitBuffer == null || m_HitBuffer.Length < m_Definition.MaxTargets)
                 m_HitBuffer = new RaycastHit[Mathf.Max(1, m_Definition.MaxTargets)];

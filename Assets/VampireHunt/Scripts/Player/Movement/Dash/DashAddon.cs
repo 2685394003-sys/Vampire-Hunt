@@ -80,7 +80,7 @@ public class DashAddon : NetworkBehaviour, IPlayerAddon
         // Attempt Dash
         if (dashAbility.TryActivate())
         {
-            // 冲刺消耗体力：打断恢复，冲刺后 0.2s（DashStaminaRegenDelay）才恢复
+            // 冲刺消耗体力：恢复策略使用独立的短延迟（玩家预制体默认 0.2 秒）。
             m_StatsHandler.ConsumeDashStamina(staminaCost, m_PlayerManager.OwnerClientId);
         }
     }
