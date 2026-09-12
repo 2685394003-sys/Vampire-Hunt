@@ -47,6 +47,10 @@ namespace VampireHunt.Presentation.HUD
         private readonly Label[] m_ItemNames = new Label[ItemSlotCount];
         private readonly Label[] m_ItemQuantities = new Label[ItemSlotCount];
         private bool m_ScarletWasFull;
+        private VisualElement m_ScarletFill;
+        private float m_ScarletAmount;
+        private float m_UpgradeCost = 100f;
+        private bool m_LevelMaxed;
 
         /// <summary>
         /// True only after the owner HUD has queried its UI Toolkit tree. External
@@ -82,6 +86,7 @@ namespace VampireHunt.Presentation.HUD
             m_BossStatus = root.Q<Label>("boss-status");
             m_PactCount = root.Q<Label>("pact-count");
             m_BuildName = root.Q<Label>("build-name");
+            m_ScarletFill = root.Q<VisualElement>("scarlet-fill");
             for (int i = 0; i < ItemSlotCount; i++)
             {
                 m_ItemSlots[i] = root.Q<VisualElement>($"item-slot-{i}");
@@ -144,6 +149,8 @@ namespace VampireHunt.Presentation.HUD
             if (IsStat(payload, ScarletStatName))
             {
                 SetVital(m_ScarletBar, m_ScarletValue, payload.currentValue, payload.maxValue);
+                m_ScarletAmount = payload.currentValue;
+                RefreshScarletProgress();
                 bool isFull = payload.maxValue > 0f && payload.currentValue >= payload.maxValue;
                 if (isFull && !m_ScarletWasFull)
                 {
@@ -197,6 +204,22 @@ namespace VampireHunt.Presentation.HUD
                 m_BossGuardRow.style.display = guardVisible ? DisplayStyle.Flex : DisplayStyle.None;
             if (m_BossStage != null) m_BossStage.text = $"阶段 {Mathf.Clamp(stageNumber, 1, 3)} / 3";
             if (m_BossStatus != null) m_BossStatus.text = status ?? string.Empty;
+        }
+
+        /// <summary>Updates the compact blood-pact build summary.</summary>
+        public void SetUpgradeCost(float cost, bool levelMaxed)
+        {
+            m_UpgradeCost = Mathf.Max(0f, cost);
+            m_LevelMaxed = levelMaxed;
+            RefreshScarletProgress();
+        }
+
+        private void RefreshScarletProgress()
+        {
+            float ratio = m_UpgradeCost > 0f ? Mathf.Clamp01(m_ScarletAmount / m_UpgradeCost) : 0f;
+            if (m_ScarletFill != null)
+                m_ScarletFill.style.height = Length.Percent(m_LevelMaxed ? 100f : ratio * 100f);
+            m_HudRoot?.EnableInClassList("hud--upgrade-ready", !m_LevelMaxed && m_ScarletAmount >= m_UpgradeCost);
         }
 
         /// <summary>Updates the compact blood-pact build summary.</summary>
@@ -335,16 +358,15 @@ namespace VampireHunt.Presentation.HUD
 
         private void ApplyThemeColors()
         {
-            SetProgressColor(m_HealthBar, new Color(0.67f, 0.14f, 0.22f, 1f));
-            SetProgressColor(m_StaminaBar, new Color(0.75f, 0.62f, 0.28f, 1f));
-            SetProgressColor(m_ScarletBar, new Color(0.85f, 0.19f, 0.33f, 1f));
-            SetProgressColor(m_BossHealthBar, new Color(0.50f, 0.07f, 0.15f, 1f));
+            // Theme colors belong to USS, including the low-health state.
+            ClearTemplateProgressColor(m_HealthBar);
+            ClearTemplateProgressColor(m_StaminaBar);
         }
 
-        private static void SetProgressColor(ProgressBar bar, Color color)
+        private static void ClearTemplateProgressColor(ProgressBar bar)
         {
             VisualElement fill = bar?.Q<VisualElement>(className: "unity-progress-bar__progress");
-            if (fill != null) fill.style.backgroundColor = color;
+            if (fill != null) fill.style.backgroundColor = StyleKeyword.Null;
         }
     }
 }
