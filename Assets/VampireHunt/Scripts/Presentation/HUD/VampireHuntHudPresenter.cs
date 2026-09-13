@@ -55,6 +55,12 @@ namespace VampireHunt.Presentation.HUD
         private bool m_WasLowHealth;
         private bool m_HasTimeWarning;
         private bool m_TimeWarningArmed;
+        private float m_LastScarletValue;
+        private bool m_HasLastScarletValue;
+        private float m_LastHealthValue;
+        private bool m_HasLastHealthValue;
+        private float m_NextScarletPickupSoundTime;
+        private VisualElement m_ClickBoundRoot;
 
         /// <summary>
         /// True only after the owner HUD has queried its UI Toolkit tree. External
@@ -71,6 +77,14 @@ namespace VampireHunt.Presentation.HUD
         [SerializeField] private string timeWarningEventName = "Play_UI_BloodContractWarn";
         [Tooltip("剩余时间预警阈值（秒）")]
         [SerializeField, Min(1f)] private float timeWarningSeconds = 60f;
+        [Tooltip("猩红入账（数值上升）时播放，带节流。例如「Play_UI_ScarletPickup」")]
+        [SerializeField] private string scarletPickupEventName = "Play_UI_ScarletPickup";
+        [Tooltip("两次猩红入账音之间的最小间隔（秒），避免每杀一只怪都响")]
+        [SerializeField, Min(0f)] private float scarletPickupSoundInterval = 0.1f;
+        [Tooltip("血量从 0 恢复时播放一次（复活）。例如「Play_Player_Revive」")]
+        [SerializeField] private string reviveEventName = "Play_Player_Revive";
+        [Tooltip("点击任意 UI 按钮时播放。例如「Play_UI_ButtonClick」")]
+        [SerializeField] private string buttonClickEventName = "Play_UI_ButtonClick";
 
         [Header("Inventory HUD")]
         [SerializeField] private PlayerInventoryNetworkState inventory;
@@ -101,6 +115,7 @@ namespace VampireHunt.Presentation.HUD
             m_PactCount = root.Q<Label>("pact-count");
             m_BuildName = root.Q<Label>("build-name");
             m_ScarletFill = root.Q<VisualElement>("scarlet-fill");
+            BindGlobalClick(root);
             for (int i = 0; i < ItemSlotCount; i++)
             {
                 m_ItemSlots[i] = root.Q<VisualElement>($"item-slot-{i}");
@@ -149,6 +164,11 @@ namespace VampireHunt.Presentation.HUD
             if (IsStat(payload, HealthStatName))
             {
                 SetVital(m_HealthBar, m_HealthValue, payload.currentValue, payload.maxValue);
+                // 复活：血量由 0 恢复为正。客户端能拿到的复活信号只有血量变化，这也是最可靠的一条。
+                if (m_HasLastHealthValue && m_LastHealthValue <= 0f && payload.currentValue > 0f)
+                    AudioCue.Post(reviveEventName, gameObject);
+                m_LastHealthValue = payload.currentValue;
+                m_HasLastHealthValue = true;
                 float normalized = payload.maxValue > 0f ? payload.currentValue / payload.maxValue : 0f;
                 UpdateLowHealthPresentation(normalized);
                 return;
@@ -165,6 +185,15 @@ namespace VampireHunt.Presentation.HUD
                 SetVital(m_ScarletBar, m_ScarletValue, payload.currentValue, payload.maxValue);
                 m_ScarletAmount = payload.currentValue;
                 RefreshScarletProgress();
+                // 猩红入账：数值上升时发声。击杀极频繁，必须节流，否则会响成一片。
+                if (m_HasLastScarletValue && payload.currentValue > m_LastScarletValue &&
+                    Time.unscaledTime >= m_NextScarletPickupSoundTime)
+                {
+                    m_NextScarletPickupSoundTime = Time.unscaledTime + scarletPickupSoundInterval;
+                    AudioCue.Post(scarletPickupEventName, gameObject);
+                }
+                m_LastScarletValue = payload.currentValue;
+                m_HasLastScarletValue = true;
                 bool isFull = payload.maxValue > 0f && payload.currentValue >= payload.maxValue;
                 if (isFull && !m_ScarletWasFull)
                 {
@@ -394,6 +423,34 @@ namespace VampireHunt.Presentation.HUD
             if (!m_TimeWarningArmed || m_HasTimeWarning) return;
             m_HasTimeWarning = true;
             AudioCue.Post(timeWarningEventName, gameObject);
+        }
+
+        /// <summary>
+        /// 给 HUD 根挂一个全局点击监听：UI Toolkit 的 ClickEvent 会向上冒泡，
+        /// 所以一处注册即可覆盖全部按钮，不必逐个 Presenter 去挂。
+        /// </summary>
+        private void BindGlobalClick(VisualElement root)
+        {
+            if (root == null || root == m_ClickBoundRoot) return;
+            if (m_ClickBoundRoot != null)
+                m_ClickBoundRoot.UnregisterCallback<ClickEvent>(HandleGlobalClick);
+            m_ClickBoundRoot = root;
+            root.RegisterCallback<ClickEvent>(HandleGlobalClick);
+        }
+
+        private void HandleGlobalClick(ClickEvent evt)
+        {
+            // 按钮内部的文字 / 图标子元素才是真正的 target，所以要向上找到 Button 祖先。
+            VisualElement node = evt.target as VisualElement;
+            while (node != null)
+            {
+                if (node is Button)
+                {
+                    AudioCue.Post(buttonClickEventName, gameObject);
+                    return;
+                }
+                node = node.parent;
+            }
         }
 
         private void ApplyThemeColors()

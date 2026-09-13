@@ -1,3 +1,4 @@
+using Blocks.Gameplay.Core;
 using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Contracts;
@@ -18,6 +19,12 @@ namespace VampireHunt.Infrastructure.Netcode
         [Min(0f)] [SerializeField] private float handRestoreDelaySeconds = 20f;
         [Tooltip("Boss 手的状态宿主（CombatStatusHost）；命中时把武器元素状态挂上去，并受其 elementResist 减免。")]
         [SerializeField] private CombatStatusHost statusHost;
+
+        [Header("音效（留空则不发声）")]
+        [Tooltip("手被击破时播放一次。例如「Play_Boss_HandBreak」")]
+        [SerializeField] private string handBreakEventName = "Play_Boss_HandBreak";
+        [Tooltip("手恢复（默认 20 秒后自动复原）时播放一次。例如「Play_Boss_HandRestore」")]
+        [SerializeField] private string handRestoreEventName = "Play_Boss_HandRestore";
 
         private readonly NetworkVariable<float> m_Health = new NetworkVariable<float>(0f,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -52,11 +59,34 @@ namespace VampireHunt.Infrastructure.Netcode
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
+            // m_Health 是 ReadPermission.Everyone ⇒ 各客户端都收得到变化，
+            // 因此击破 / 恢复音不需要额外的网络通道。
+            m_Health.OnValueChanged += HandleHealthChanged;
             if (IsServer)
             {
                 if (m_MaxHealth <= 0f) m_MaxHealth = defaultMaxHealth;
                 m_Health.Value = m_MaxHealth;
             }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            m_Health.OnValueChanged -= HandleHealthChanged;
+            base.OnNetworkDespawn();
+        }
+
+        private void HandleHealthChanged(float previous, float current)
+        {
+            if (previous > 0f && current <= 0f) PostAudio(handBreakEventName);
+            else if (previous <= 0f && current > 0f) PostAudio(handRestoreEventName);
+        }
+
+        // 这里刻意直接用 Core 的 WwiseAudioBridge，而不是表现层的 AudioCue：
+        // 本类在 Infrastructure 层，引用 Presentation 会造成反向依赖。
+        private void PostAudio(string eventName)
+        {
+            if (string.IsNullOrEmpty(eventName)) return;
+            WwiseAudioBridge.PostEvent(eventName, gameObject);
         }
 
         private void Update()
