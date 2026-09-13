@@ -24,9 +24,16 @@ MonoBehaviour:
   maxNormalizedHealth: 1
   requiresTarget: 0
   oneShot: 0
+  parryableDuringTelegraph: 0
   telegraphDuration: 0.8
   resolveDuration: 2
   recoverDuration: 0.8
+  multiplayerScaling:
+    Enabled: 1
+    DamageCoefficient: 1
+    QuantityCoefficient: 1
+    TelegraphCoefficient: 1
+    CooldownCoefficient: 1
   logicScript: {fileID: 11500000, guid: 3412d470642d6f043ab611c241e353b9, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossRadialVolleyAbilityLogic, Assembly-CSharp,
     Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
@@ -48,6 +55,12 @@ MonoBehaviour:
     StatusId: 0
     StatusDuration: 1
     ClockDrainRate: 2
+    TravelDuration: 0.45
+    DissolveDuration: 0.3
+    VfxHeight: 1.2
+    LaserBeamCount: 1
+    VolleyArmCount: 2
+    GridLineCount: 6
   presentationCues:
   - timeFromCastStart: 0
     cueName: "\u5F39\u5E55\xB7\u9884\u8B66"
@@ -56,9 +69,11 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 0.7, y: 0.7, z: 0.7}
     followAnchor: 0
+    spawnMode: 0
     lifetime: 1
     animatorTrigger: 
     vfxPrefab: {fileID: 2189668589748153124, guid: 327d8d6bc9a678741b6a48f9926473e6, type: 3}
+    audioEvent: 
     audioClip: {fileID: 0}
     audioVolume: 1
   - timeFromCastStart: 0.8
@@ -68,8 +83,10 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1.25, y: 1.25, z: 1.25}
     followAnchor: 0
+    spawnMode: 0
     lifetime: 2.35
     animatorTrigger: 
     vfxPrefab: {fileID: 2189668589748153124, guid: 327d8d6bc9a678741b6a48f9926473e6, type: 3}
+    audioEvent: Play_Boss_DanmakuSpawn
     audioClip: {fileID: 0}
     audioVolume: 1

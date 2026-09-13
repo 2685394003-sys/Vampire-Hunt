@@ -357,19 +357,19 @@ MonoBehaviour:
   m_Active: 1
   m_Enabled: 1
   m_Shader: {fileID: 0}
-  m_Strength: 0.741
-  m_Contrast: 3.11
-  m_CloudScale: 13.8
+  m_Strength: 1
+  m_Contrast: 3.32
+  m_CloudScale: 19.6
   m_DriftSpeed: {x: -0.13, y: -0.15}
   m_Layer2Weight: 0.45
   m_Layer2ScaleRatio: 0.37
   m_Layer2SpeedRatio: 1.6
   m_Threshold: 0.559
   m_Softness: 0.333
-  m_ShadowColor: {r: 0.62, g: 0.67, b: 0.78, a: 1}
+  m_ShadowColor: {r: 0.2758989, g: 0.3097188, b: 0.3773585, a: 1}
   m_EnableGapLight: 1
-  m_GapLightStrength: 0.008
-  m_GapLightThreshold: 0.285
+  m_GapLightStrength: 0.004
+  m_GapLightThreshold: 0.423
   m_GapLightSoftness: 0.507
   m_GapLightContrast: 1
   m_GapLightStretch: 2.13

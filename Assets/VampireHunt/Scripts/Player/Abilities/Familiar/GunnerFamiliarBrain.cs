@@ -299,6 +299,9 @@ namespace VampireHunt.Player.Abilities.Familiar
             if (m_LockedTarget == null) { FinishEngagement(); return; }
 
             HoldStation(deltaTime);
+            // 位移途中也让机头跟着目标转：否则有朝向的模型会一路侧着平移过去，到位后才猛地回头。
+            // 只改朝向，不影响站位与判定（m_Facing 用于枪口位置，而枪口只在 Fire 阶段取用，那时早已对准）。
+            AimAt(m_LockedTarget.transform.position, deltaTime);
 
             // 水平距离进入容差带即视为到位（不比高度：高个子 Boss 的 transform.position
             // 与使魔飞行高度差很多，用三维距离会导致永远判不到「到位」）。

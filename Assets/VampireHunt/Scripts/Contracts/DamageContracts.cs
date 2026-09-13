@@ -32,7 +32,11 @@ namespace VampireHunt.Contracts
         /// 使魔（familiar）：非玩家发射型，撞击水滴使魔的穿透撞击伤害。
         /// 带此标签的伤害不会被使魔控制器登记回候选目标，避免「使魔打中怪 → 又记成新候选」的自触发循环。
         /// </summary>
-        Familiar = 1 << 14
+        Familiar = 1 << 14,
+        /// <summary>元素反应·炸裂（冰打火 → AOE + 击退）。仅用于让表现层识别反应类型，不参与玩法结算。</summary>
+        ReactionDetonate = 1 << 15,
+        /// <summary>元素反应·碎裂（火打冰 → 百分比伤害）。仅用于让表现层识别反应类型，不参与玩法结算。</summary>
+        ReactionShatter = 1 << 16
     }
 
     /// <summary>Pure combat input. Unity hit data stays in the adapter layer.</summary>

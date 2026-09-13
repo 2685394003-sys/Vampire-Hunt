@@ -8,7 +8,7 @@ namespace Blocks.Gameplay.Core
     /// Handles core player input using Unity's Input System and broadcasts actions via GameEvents.
     /// This component handles core movement inputs (Move, Look, Jump, Sprint).
     /// </summary>
-    public class CoreInputHandler : NetworkBehaviour
+    public class CoreInputHandler : NetworkBehaviour, IPlayerInputGate
     {
         #region Fields
 
@@ -115,6 +115,33 @@ namespace Blocks.Gameplay.Core
         private void HandlePrimaryActionPressed(InputAction.CallbackContext context) => onPrimaryActionPressed?.Raise();
         private void HandlePrimaryActionReleased(InputAction.CallbackContext context) => onPrimaryActionReleased?.Raise();
         private void HandleMenuPressed(InputAction.CallbackContext context) => onMenuPressed?.Raise();
+
+        #endregion
+
+        #region 玩家输入闸门 (IPlayerInputGate)
+
+        /// <summary>
+        /// 统一开关玩家输入（供自由相机观察模式等外部系统通过 IPlayerInputGate 调用）。
+        /// 关闭后 Move / Look / Jump / Sprint / 主操作 / 菜单 均不再派发事件，角色不再响应操作。
+        /// 恢复时只对本地拥有者生效，非本地对象不作处理。
+        /// </summary>
+        /// <param name="enabled">true 恢复输入，false 屏蔽输入。</param>
+        public void SetPlayerInputEnabled(bool enabled)
+        {
+            if (m_InputActions == null) return;
+
+            // 只有本地拥有者才有「恢复输入」的资格；非拥有者本就未启用，关闭时是空操作。
+            if (enabled && (!IsOwner || !IsSpawned)) return;
+
+            if (enabled)
+            {
+                m_InputActions.Player.Enable();
+            }
+            else
+            {
+                m_InputActions.Player.Disable();
+            }
+        }
 
         #endregion
     }

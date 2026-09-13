@@ -24,9 +24,16 @@ MonoBehaviour:
   maxNormalizedHealth: 1
   requiresTarget: 1
   oneShot: 0
+  parryableDuringTelegraph: 0
   telegraphDuration: 0.45
   resolveDuration: 0.65
   recoverDuration: 0.7
+  multiplayerScaling:
+    Enabled: 1
+    DamageCoefficient: 1
+    QuantityCoefficient: 1
+    TelegraphCoefficient: 1
+    CooldownCoefficient: 1
   logicScript: {fileID: 11500000, guid: 3622571c36ebec74295aa34e2ebda6da, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossSweepAbilityLogic, Assembly-CSharp,
     Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
@@ -51,6 +58,9 @@ MonoBehaviour:
     TravelDuration: 0.28
     DissolveDuration: 0.2
     VfxHeight: 1.4
+    LaserBeamCount: 1
+    VolleyArmCount: 2
+    GridLineCount: 6
   presentationCues:
   - timeFromCastStart: 0
     cueName: "\u6A2A\u626B\xB7\u9884\u8B66"
@@ -63,6 +73,7 @@ MonoBehaviour:
     lifetime: 0.47
     animatorTrigger: 
     vfxPrefab: {fileID: 6478828412250354100, guid: 1fd41f55e88e4a338fe06080ddcd5091, type: 3}
+    audioEvent: 
     audioClip: {fileID: 0}
     audioVolume: 1
   - timeFromCastStart: 0.45
@@ -76,5 +87,6 @@ MonoBehaviour:
     lifetime: 0.42
     animatorTrigger: 
     vfxPrefab: {fileID: 7489939523361465200, guid: a47b769d7c2f4ad1ac7726d97943c63f, type: 3}
+    audioEvent: Play_Boss_SweepSlash
     audioClip: {fileID: 0}
     audioVolume: 1

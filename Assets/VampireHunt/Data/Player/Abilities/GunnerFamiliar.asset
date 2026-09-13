@@ -47,6 +47,7 @@ MonoBehaviour:
     damageMultiplier: 2
     knockbackMultiplier: 1
     element: 0
+    onHitStatuses: []
     extraDamageTags: 0
     range: 10
     maxFireDistance: 14
@@ -58,14 +59,15 @@ MonoBehaviour:
     pierceCount: 1
     projectileRadius: 0.25
     projectileSpeed: 40
-    tracerScale: 1
+    tracerScale: 2
     muzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}
-    tracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
+    tracerPrefab: {fileID: 7723737878087426877, guid: b0d434f3250dd3741a6905f14516598f, type: 3}
   - weaponId: 1
     displayName: "\u72D9\u51FB"
     damageMultiplier: 4.5
     knockbackMultiplier: 1
     element: 0
+    onHitStatuses: []
     extraDamageTags: 0
     range: 16
     maxFireDistance: 22
@@ -77,14 +79,15 @@ MonoBehaviour:
     pierceCount: 999
     projectileRadius: 0.25
     projectileSpeed: 70
-    tracerScale: 1.5
+    tracerScale: 3
     muzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}
-    tracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
+    tracerPrefab: {fileID: 5329818613557963271, guid: cdee1e9c31ac5b24a8ded88d59a3bebd, type: 3}
   - weaponId: 2
     displayName: "\u6B65\u67AA"
     damageMultiplier: 0.9
     knockbackMultiplier: 1
     element: 0
+    onHitStatuses: []
     extraDamageTags: 0
     range: 9
     maxFireDistance: 13
@@ -96,14 +99,15 @@ MonoBehaviour:
     pierceCount: 5
     projectileRadius: 0.25
     projectileSpeed: 50
-    tracerScale: 0.8
+    tracerScale: 1.6
     muzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}
-    tracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
+    tracerPrefab: {fileID: 7723737878087426877, guid: b0d434f3250dd3741a6905f14516598f, type: 3}
   - weaponId: 3
     displayName: "\u6FC0\u5149"
     damageMultiplier: 0.7
     knockbackMultiplier: 1
     element: 0
+    onHitStatuses: []
     extraDamageTags: 0
     range: 12
     maxFireDistance: 18
@@ -115,7 +119,7 @@ MonoBehaviour:
     pierceCount: 10
     projectileRadius: 0.25
     projectileSpeed: 85
-    tracerScale: 2.2
+    tracerScale: 4.4
     muzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}
     tracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
-  visualScale: 1
+  visualScale: 2

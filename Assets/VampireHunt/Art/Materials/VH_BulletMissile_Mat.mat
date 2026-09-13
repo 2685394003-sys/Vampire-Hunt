@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: VH_BulletMissile_Mat
+  m_Shader: {fileID: 4800000, guid: 5e49b3668f6518748a04eb6c110df5ac, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Alpha: 0.362
+    - _BumpDistance: 1.238
+    - _BumpNoiseDetail: 3.2
+    - _BumpNoiseLacunarity: 1.5
+    - _BumpNoiseRoughness: 0.7071
+    - _BumpNoiseScale: 13.7
+    - _BumpStrength: 0.91
+    - _Cull: 0
+    - _EmNoiseDetail: 2
+    - _EmNoiseLacunarity: 2
+    - _EmNoiseRoughness: 0.5
+    - _EmNoiseScale: 3.4
+    - _EmissionMix: 0.204
+    - _EmissionStrength: 6.45
+    - _FresnelBias: 0.38
+    - _FresnelPower: 4
+    - _MathLogValue: 0.98
+    - _MathMinClamp: 0.96
+    - _Metallic: 0
+    - _MixFactor: 0.529
+    - _RampPos0: 0.191
+    - _RampPos1: 0.795
+    - _Smoothness: 1
+    - _SpecularStrength: 1.76
+    - _VoronoiRandomness: 1
+    - _VoronoiScale: 9.8
+    m_Colors:
+    - _BaseColor: {r: 0.8, g: 0.0014, b: 0, a: 1}
+    - _BoundsMin: {r: -0.001999997, g: -0.0019999999, b: -0.0020000008, a: 0}
+    - _BoundsSize: {r: 0.003999998, g: 0.003999999, b: 0.0040000007, a: 0}
+    - _BumpMapLoc: {r: 0, g: 0.152, b: 0, a: 0}
+    - _BumpMapScale: {r: 1, g: 0.9, b: 2.4, a: 0}
+    - _EmissionColor: {r: 1, g: 0.12, b: 0.06, a: 1}
+    - _RampColor0: {r: 0, g: 0, b: 0, a: 1}
+    - _RampColor1: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

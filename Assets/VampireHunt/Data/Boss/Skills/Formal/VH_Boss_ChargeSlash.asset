@@ -28,6 +28,12 @@ MonoBehaviour:
   telegraphDuration: 1
   resolveDuration: 0.12
   recoverDuration: 0.7
+  multiplayerScaling:
+    Enabled: 1
+    DamageCoefficient: 1
+    QuantityCoefficient: 1
+    TelegraphCoefficient: 1
+    CooldownCoefficient: 1
   logicScript: {fileID: 11500000, guid: cd330db5a90f62947a362b88c2342476, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossChargeSlashAbilityLogic, Assembly-CSharp,
     Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
@@ -52,6 +58,9 @@ MonoBehaviour:
     TravelDuration: 0.45
     DissolveDuration: 0.35
     VfxHeight: 1.2
+    LaserBeamCount: 1
+    VolleyArmCount: 2
+    GridLineCount: 6
   presentationCues:
   - timeFromCastStart: 0
     cueName: "\u65A9\u51FB\xB7\u9884\u8B66"
@@ -64,6 +73,7 @@ MonoBehaviour:
     lifetime: 1.12
     animatorTrigger: 
     vfxPrefab: {fileID: 5833481278753091560, guid: 6de4aae10d8546208721521909b3922c, type: 3}
+    audioEvent: 
     audioClip: {fileID: 0}
     audioVolume: 1
   - timeFromCastStart: 1
@@ -77,5 +87,6 @@ MonoBehaviour:
     lifetime: 0.8
     animatorTrigger: 
     vfxPrefab: {fileID: 8150138881390146300, guid: c4bdf3f713e449f7ba03d7714e5ab4b0, type: 3}
+    audioEvent: Play_Boss_FullChargeSlash
     audioClip: {fileID: 0}
     audioVolume: 1

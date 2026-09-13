@@ -32,6 +32,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [Header("Presentation")]
         [SerializeField] private string animatorTrigger;
         [SerializeField] private GameObject vfxPrefab;
+        [Tooltip("Wwise 事件名，优先于下方的 AudioClip。例如「Play_Boss_SweepSlash」；留空则回退到 AudioClip")]
+        [SerializeField] private string audioEvent;
         [SerializeField] private AudioClip audioClip;
         [Range(0f, 1f)] [SerializeField] private float audioVolume = 1f;
 
@@ -46,6 +48,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public float Lifetime => lifetime;
         public string AnimatorTrigger => animatorTrigger;
         public GameObject VfxPrefab => vfxPrefab;
+        public string AudioEvent => audioEvent;
         public AudioClip AudioClip => audioClip;
         public float AudioVolume => audioVolume;
     }

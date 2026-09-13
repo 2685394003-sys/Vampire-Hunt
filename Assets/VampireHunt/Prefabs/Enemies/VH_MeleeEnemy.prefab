@@ -199,6 +199,8 @@ MonoBehaviour:
   telegraphVisual: {fileID: 0}
   normalColor: {r: 0.35, g: 0.08, b: 0.08, a: 1}
   telegraphColor: {r: 1, g: 0.25, b: 0.05, a: 1}
+  attackEventName: Play_Enemy_Melee_Attack
+  deathEventName: Play_Enemy_Death
 --- !u!114 &810000000000000013
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -286,6 +288,10 @@ MonoBehaviour:
   pulseAmplitude: 0.15
   pulseFrequency: 3
   glowOpacity: 0.4
+  hitPrefab: {fileID: 5086231954563861821, guid: 0ac2bdcf97408c142ad73735d2e77bd6, type: 3}
+  hitScale: 0.3
+  hitInterval: 0.05
+  hitSkipLoopingSystems: 1
 --- !u!1 &810000000000000009
 GameObject:
   m_ObjectHideFlags: 0
