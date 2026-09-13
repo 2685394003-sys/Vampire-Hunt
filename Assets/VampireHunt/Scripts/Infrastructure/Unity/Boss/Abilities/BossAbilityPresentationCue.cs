@@ -25,6 +25,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [SerializeField] private Vector3 localPosition;
         [SerializeField] private Vector3 localEulerAngles;
         [SerializeField] private Vector3 localScale = Vector3.one;
+        [Tooltip("开启后不按伤害判定区域自动缩放；运行时尺寸完全由 VFX 预制体 Scale × Local Scale 决定。")]
+        [SerializeField] private bool useManualScale;
         [SerializeField] private bool followAnchor = true;
         [SerializeField] private BossAbilityCueSpawnMode spawnMode = BossAbilityCueSpawnMode.SingleAnchor;
         [Min(0f)] [SerializeField] private float lifetime = 1f;
@@ -43,6 +45,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public Vector3 LocalPosition => localPosition;
         public Vector3 LocalEulerAngles => localEulerAngles;
         public Vector3 LocalScale => localScale;
+        public bool UseManualScale => useManualScale;
         public bool FollowAnchor => followAnchor;
         public BossAbilityCueSpawnMode SpawnMode => spawnMode;
         public float Lifetime => lifetime;

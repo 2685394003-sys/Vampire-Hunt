@@ -97,11 +97,18 @@ namespace VampireHunt.Presentation.Boss
             Quaternion areaRotation = isBox
                 ? Quaternion.LookRotation(FlattenedForward(), Vector3.up)
                 : Quaternion.identity;
-            Quaternion rotation = areaRotation * Quaternion.Euler(cue.LocalEulerAngles);
+            // The prefab owns its authored visual orientation. Area/cue rotations are
+            // placement offsets, not replacements for the prefab root rotation.
+            Quaternion rotation = areaRotation *
+                                  Quaternion.Euler(cue.LocalEulerAngles) *
+                                  cue.VfxPrefab.transform.localRotation;
             Vector3 areaScale = isBox
                 ? new Vector3(m_Current.Size.x, 1f, m_Current.Size.z)
                 : Vector3.one * Mathf.Max(.01f, m_Current.Radius * 2f);
-            Vector3 scale = Vector3.Scale(cue.LocalScale, areaScale);
+            Vector3 placementScale = cue.UseManualScale ? Vector3.one : areaScale;
+            Vector3 scale = Vector3.Scale(
+                cue.VfxPrefab.transform.localScale,
+                Vector3.Scale(cue.LocalScale, placementScale));
 
             for (int i = 0; i < m_Current.Centers.Length; i++)
             {

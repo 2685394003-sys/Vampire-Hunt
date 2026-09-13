@@ -54,7 +54,8 @@ MonoBehaviour:
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1, y: 1, z: 1}
+    localScale: {x: 6.4, y: 6.4, z: 6.4}
+    useManualScale: 1
     followAnchor: 0
     spawnMode: 1
     lifetime: 0
@@ -67,7 +68,8 @@ MonoBehaviour:
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    localScale: {x: 8, y: 8, z: 8}
+    useManualScale: 1
     followAnchor: 0
     spawnMode: 1
     lifetime: 0.47
