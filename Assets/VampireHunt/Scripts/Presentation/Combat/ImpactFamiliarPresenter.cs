@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VampireHunt.Contracts;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.Combat
 {
@@ -12,17 +13,33 @@ namespace VampireHunt.Presentation.Combat
         [Tooltip("网络姿态之间的视觉追赶速度；只影响平滑，不影响服务器判定位置。")]
         [SerializeField, Min(0.1f)] private float visualFollowLerp = 20f;
 
+        [Header("音效（留空则不发声）")]
+        [Tooltip("使魔数量增加（首次召唤 / 血契叠加）时播放一次。例如「Play_Familiar_Summon」")]
+        [SerializeField] private string summonEventName = "Play_Familiar_Summon";
+        [Tooltip("撞击使魔进入冲刺（交战）时播放。例如「Play_Familiar_Attack」")]
+        [SerializeField] private string attackEventName = "Play_Familiar_Attack";
+
         private readonly List<GameObject> m_Visuals = new List<GameObject>();
         private readonly List<PoseTarget> m_Targets = new List<PoseTarget>();
+        private readonly List<bool> m_Engaged = new List<bool>();
+        private int m_LastCount;
+        private bool m_HasLastCount;
 
         public void Rebuild(int count)
         {
             Clear();
+            // 数量增加 = 新召唤一只使魔；首次召唤与血契叠加都会走到这里。
+            if (count > 0 && (!m_HasLastCount || count > m_LastCount))
+                AudioCue.Post(summonEventName, gameObject);
+            m_LastCount = count;
+            m_HasLastCount = true;
+
             if (familiarVisualPrefab == null) return;
             for (int i = 0; i < count; i++)
             {
                 m_Visuals.Add(Instantiate(familiarVisualPrefab, transform.position, Quaternion.identity));
                 m_Targets.Add(new PoseTarget(transform.position, Quaternion.identity, Vector3.one));
+                m_Engaged.Add(false);
             }
         }
 
@@ -31,6 +48,12 @@ namespace VampireHunt.Presentation.Combat
             if ((uint)pose.Index >= (uint)m_Visuals.Count) return;
             GameObject visual = m_Visuals[pose.Index];
             if (visual == null) return;
+
+            // 服务器用「冲刺时沿飞行方向拉长」表达交战状态（见 ImpactFamiliarController.Presentation），
+            // 所以客户端从 Z/X 比例就能反解出「是否正在冲刺」，据此触发撞击音。
+            bool engaged = pose.Scale.Z > pose.Scale.X * 1.01f;
+            if (engaged && !m_Engaged[pose.Index]) AudioCue.Post(attackEventName, gameObject);
+            m_Engaged[pose.Index] = engaged;
 
             PoseTarget target = m_Targets[pose.Index];
             target.Position = ToVector3(pose.Position);
@@ -67,6 +90,7 @@ namespace VampireHunt.Presentation.Combat
                 if (m_Visuals[i] != null) Destroy(m_Visuals[i]);
             m_Visuals.Clear();
             m_Targets.Clear();
+            m_Engaged.Clear();
         }
 
         private void OnDestroy() => Clear();

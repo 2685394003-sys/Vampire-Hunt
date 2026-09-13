@@ -3,6 +3,7 @@ using UnityEngine;
 using VampireHunt.Contracts;
 using VampireHunt.Infrastructure.Unity;
 using VampireHunt.Player.Abilities.Familiar;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.Combat
 {
@@ -22,15 +23,29 @@ namespace VampireHunt.Presentation.Combat
         [Tooltip("网络姿态之间的视觉追赶速度；只影响平滑，不影响服务器判定位置。")]
         [SerializeField, Min(0.1f)] private float visualFollowLerp = 20f;
 
+        [Header("音效（留空则不发声）")]
+        [Tooltip("使魔数量增加（首次召唤 / 血契叠加）时播放一次。例如「Play_Familiar_Summon」")]
+        [SerializeField] private string summonEventName = "Play_Familiar_Summon";
+        [Tooltip("射击使魔开火时播放。例如「Play_Familiar_Attack」")]
+        [SerializeField] private string shotEventName = "Play_Familiar_Attack";
+
         private readonly List<GameObject> m_Visuals = new List<GameObject>();
         private readonly List<PoseTarget> m_Targets = new List<PoseTarget>();
         private readonly List<Tracer> m_Tracers = new List<Tracer>();
+        private int m_LastCount;
+        private bool m_HasLastCount;
         private bool m_WarnedMissingTracer;
         private Material m_FallbackMaterial;
 
         public void Rebuild(int count)
         {
             Clear();
+            // 数量增加 = 新召唤一只使魔；首次召唤与血契叠加都会走到这里。
+            if (count > 0 && (!m_HasLastCount || count > m_LastCount))
+                AudioCue.Post(summonEventName, gameObject);
+            m_LastCount = count;
+            m_HasLastCount = true;
+
             if (familiarVisualPrefab == null) return;
             for (int i = 0; i < count; i++)
             {
@@ -69,6 +84,7 @@ namespace VampireHunt.Presentation.Combat
                 ? definitionAsset.FindWeapon((FamiliarWeaponId)cue.WeaponId)
                 : null;
 
+            AudioCue.Post(shotEventName, gameObject);
             SpawnMuzzle(profile != null ? profile.muzzleVfxPrefab : null, origin, direction);
             SpawnTracer(profile != null ? profile.tracerPrefab : null, origin, end, direction,
                 cue.TracerSpeed, cue.TracerScale, cue.ShowImpactOnArrival);

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using VampireHunt.Contracts;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.Combat
 {
@@ -56,6 +57,14 @@ namespace VampireHunt.Presentation.Combat
         [Tooltip("勾选后：预制体里 looping = true 的粒子系统不播放，只播一次性层。命中类特效保持勾选；若预制体本身是循环型则取消勾选。")]
         [SerializeField] private bool hitSkipLoopingSystems = true;
 
+        [Header("音效（留空则不发声）")]
+        [Tooltip("元素反应·炸裂（冰打火）时播放。例如「Play_Combat_Reaction_Blast」")]
+        [SerializeField] private string detonateEventName = "Play_Combat_Reaction_Blast";
+        [Tooltip("元素反应·碎裂（火打冰）时播放。例如「Play_Combat_Reaction_Shatter」")]
+        [SerializeField] private string shatterEventName = "Play_Combat_Reaction_Shatter";
+        [Tooltip("引雷（闪电连锁）时播放。例如「Play_Combat_Reaction_Thunder」")]
+        [SerializeField] private string lightningChainEventName = "Play_Combat_Reaction_Thunder";
+
         private readonly Dictionary<uint, GlowOrb> m_Orbs = new Dictionary<uint, GlowOrb>();
         private Material m_FireMaterial;
         private Material m_IceMaterial;
@@ -65,6 +74,13 @@ namespace VampireHunt.Presentation.Combat
         /// <summary>命中瞬间：在命中点播一次受击特效；未配置 <see cref="hitPrefab"/> 时不做任何事。</summary>
         public void PlayDamage(in DamagePresentationPayload payload, Transform anchor)
         {
+            // 元素反应音：反应类型由服务器并入伤害标签下发（见 DamageTags.ReactionDetonate / ReactionShatter），
+            // 所以表现层能直接从 payload 识别，不需要为反应单独开一条网络通道。
+            if ((payload.tags & DamageTags.ReactionShatter) != 0)
+                AudioCue.Post(shatterEventName, gameObject);
+            else if ((payload.tags & DamageTags.ReactionDetonate) != 0)
+                AudioCue.Post(detonateEventName, gameObject);
+
             if (hitPrefab == null) return;
 
             float now = Time.unscaledTime;
@@ -84,6 +100,7 @@ namespace VampireHunt.Presentation.Combat
         public void PlayLightningChain(in LightningChainPresentationCue cue)
         {
             LightningChainVisual.Play(ToVector3(cue.From), ToVector3(cue.To), cue.Intensity);
+            AudioCue.Post(lightningChainEventName, gameObject);
         }
 
         public void ApplyStatus(in StatusEffectPresentationPayload payload, Transform anchor)

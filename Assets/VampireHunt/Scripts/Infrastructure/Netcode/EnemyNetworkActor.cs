@@ -289,8 +289,13 @@ namespace VampireHunt.Infrastructure.Netcode
                 baseDamage = m_Aggregate.RuntimeStats.MaxHealth * reaction.PercentDamage;
             else if (reaction.HasReaction && reaction.DamageMultiplier > 0f)
                 baseDamage *= reaction.DamageMultiplier;
+            // 元素反应类型随伤害标签一起下发：表现层订阅 DamagePresentationPayload 时即可识别
+            // 炸裂 / 碎裂，不必为反应单独开一条网络通道。
+            DamageTags damageTags = hit.Damage.Tags;
+            if (reaction.Type == ElementReactionType.Shatter) damageTags |= DamageTags.ReactionShatter;
+            else if (reaction.Type == ElementReactionType.Detonate) damageTags |= DamageTags.ReactionDetonate;
             var request = new DamageRequest(hit.Damage.Source, m_Aggregate.Id, hit.Damage.AttackId,
-                hit.Damage.Sequence, baseDamage, hit.Damage.Tags);
+                hit.Damage.Sequence, baseDamage, damageTags);
             if (!TryApplyDamage(request, out ResolvedDamage result)) return false;
 
             if (!result.IsCancelled && result.Amount > 0f)
