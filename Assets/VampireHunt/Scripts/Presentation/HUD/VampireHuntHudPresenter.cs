@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -51,12 +52,25 @@ namespace VampireHunt.Presentation.HUD
         private float m_ScarletAmount;
         private float m_UpgradeCost = 100f;
         private bool m_LevelMaxed;
+        private bool m_WasLowHealth;
+        private bool m_HasTimeWarning;
+        private bool m_TimeWarningArmed;
 
         /// <summary>
         /// True only after the owner HUD has queried its UI Toolkit tree. External
         /// read-model binders must wait for this before applying their first snapshot.
         /// </summary>
         public bool IsPresentationReady => m_HudRoot != null && m_BossPanel != null;
+
+        [Header("音效（留空则不发声）")]
+        [Tooltip("血量首次跌破下方阈值时发声一次。例如「Play_UI_LowHealthWarn」")]
+        [SerializeField] private string lowHealthEventName = "Play_UI_LowHealthWarn";
+        [Tooltip("低血量判定阈值（0~1）。血条变红用的是同一个值")]
+        [SerializeField, Range(0.05f, 1f)] private float lowHealthThreshold = 0.3f;
+        [Tooltip("剩余时间首次跌破下方秒数时发声一次。例如「Play_UI_BloodContractWarn」")]
+        [SerializeField] private string timeWarningEventName = "Play_UI_BloodContractWarn";
+        [Tooltip("剩余时间预警阈值（秒）")]
+        [SerializeField, Min(1f)] private float timeWarningSeconds = 60f;
 
         [Header("Inventory HUD")]
         [SerializeField] private PlayerInventoryNetworkState inventory;
@@ -163,6 +177,8 @@ namespace VampireHunt.Presentation.HUD
         /// <summary>Updates the run countdown using a presentation-ready value.</summary>
         public void SetRunTimeRemaining(float seconds)
         {
+            PlayTimeWarningIfCrossed(seconds);
+
             if (m_RunTimer == null) return;
 
             int totalSeconds = Mathf.Max(0, Mathf.CeilToInt(seconds));
@@ -345,15 +361,39 @@ namespace VampireHunt.Presentation.HUD
         private void UpdateLowHealthPresentation(float normalizedHealth)
         {
             float normalized = Mathf.Clamp01(normalizedHealth);
-            bool isLowHealth = normalized <= 0.3f;
+            bool isLowHealth = normalized <= lowHealthThreshold;
+
+            // 边缘触发：只在「由安全转为危险」的瞬间发声，持续低血时不重复播放。
+            if (isLowHealth && !m_WasLowHealth) AudioCue.Post(lowHealthEventName, gameObject);
+            m_WasLowHealth = isLowHealth;
+
             m_HudRoot?.EnableInClassList("hud--low-health", isLowHealth);
 
             if (m_LowHealthVignette != null)
             {
+                float threshold = Mathf.Max(0.0001f, lowHealthThreshold);
                 m_LowHealthVignette.style.opacity = isLowHealth
-                    ? Mathf.Lerp(0.15f, 0.65f, 1f - normalized / 0.3f)
+                    ? Mathf.Lerp(0.15f, 0.65f, 1f - normalized / threshold)
                     : 0f;
             }
+        }
+
+        /// <summary>
+        /// 剩余时间首次跌破 <see cref="timeWarningSeconds"/> 时发声一次。
+        /// 时间高于阈值时（含新一局重置）重新武装，避免开局 0 秒的初始化调用误触发。
+        /// </summary>
+        private void PlayTimeWarningIfCrossed(float seconds)
+        {
+            if (seconds > timeWarningSeconds)
+            {
+                m_TimeWarningArmed = true;
+                m_HasTimeWarning = false;
+                return;
+            }
+
+            if (!m_TimeWarningArmed || m_HasTimeWarning) return;
+            m_HasTimeWarning = true;
+            AudioCue.Post(timeWarningEventName, gameObject);
         }
 
         private void ApplyThemeColors()

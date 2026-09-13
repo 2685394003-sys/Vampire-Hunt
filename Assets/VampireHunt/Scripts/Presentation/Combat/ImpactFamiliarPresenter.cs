@@ -36,7 +36,7 @@ namespace VampireHunt.Presentation.Combat
             target.Position = ToVector3(pose.Position);
             Vector3 facing = ToVector3(pose.Facing);
             if (facing.sqrMagnitude > 0.0001f)
-                target.Rotation = Quaternion.LookRotation(facing);
+                target.Rotation = ResolveRotation(facing);
             target.Scale = ToVector3(pose.Scale);
 
             if (!target.Initialized)
@@ -70,6 +70,21 @@ namespace VampireHunt.Presentation.Combat
         }
 
         private void OnDestroy() => Clear();
+
+        /// <summary>
+        /// 由期望朝向构造旋转，处理「朝向与世界上方共线」的退化情况。
+        /// <para>
+        /// 待机时剑尖垂直向下（<c>Vector3.down</c>），此时
+        /// <see cref="Quaternion.LookRotation(UnityEngine.Vector3)"/> 的 forward 与默认 up 共线会退化。
+        /// 换用世界前方当 up，剑面朝玩家前后方向，剑不会随机翻滚。
+        /// </para>
+        /// </summary>
+        private static Quaternion ResolveRotation(Vector3 facing)
+        {
+            Vector3 direction = facing.normalized;
+            Vector3 up = Mathf.Abs(Vector3.Dot(direction, Vector3.up)) > 0.999f ? Vector3.forward : Vector3.up;
+            return Quaternion.LookRotation(direction, up);
+        }
 
         private static Vector3 ToVector3(in Float3 value) => new Vector3(value.X, value.Y, value.Z);
 

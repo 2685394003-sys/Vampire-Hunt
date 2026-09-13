@@ -22,7 +22,9 @@ MonoBehaviour:
   followLerp: 12
   acquireRange: 30
   pendingTargetLifetime: 3
-  targetMask: 256
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 256
   maxTargets: 32
   dashSpeed: 22
   maxDashDuration: 2.5
@@ -45,5 +47,5 @@ MonoBehaviour:
   element: 0
   onHitStatuses: []
   buffTriggerCountMultiplier: 1
-  visualScale: 0.35
+  visualScale: 0.7
   stretchFactor: 1.6

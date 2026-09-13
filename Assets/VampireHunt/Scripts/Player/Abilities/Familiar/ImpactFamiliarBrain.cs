@@ -40,6 +40,15 @@ namespace VampireHunt.Player.Abilities.Familiar
         /// </summary>
         public const int PriorityCommand = 1;
 
+        /// <summary>
+        /// 掉头结束时判定「朝向已对准目标」的余弦阈值（≈ cos 12°）。
+        /// <para>
+        /// 低于这个阈值就再滑一会儿，避免朝向没转完就加速冲刺导致模型侧着飞出去。
+        /// 水滴球没有朝向时无所谓，换成有朝向的剑 / 矛之后就很显眼。
+        /// </para>
+        /// </summary>
+        private const float TurnAimDot = 0.978f;
+
         public enum FamiliarState
         {
             /// <summary>待机：持续环绕玩家旋转。</summary>
@@ -368,14 +377,23 @@ namespace VampireHunt.Player.Abilities.Familiar
             // 滑行 + 转向：位置沿当前朝向继续走，朝向插值转回目标，形成回摆弧线。
             Vector3 toTarget = m_LockedTarget.transform.position - m_Position;
             toTarget.y = 0f;
-            if (toTarget.sqrMagnitude > 0.0001f)
+            bool hasDirection = toTarget.sqrMagnitude > 0.0001f;
+            Vector3 toTargetDirection = hasDirection ? toTarget.normalized : m_Facing;
+            if (hasDirection)
             {
                 float t = 1f - Mathf.Exp(-m_Definition.TurnLerp * deltaTime);
-                m_Facing = Vector3.Slerp(m_Facing, toTarget.normalized, t).normalized;
+                m_Facing = Vector3.Slerp(m_Facing, toTargetDirection, t).normalized;
             }
             m_Position += m_Facing * (m_Definition.DashSpeed * m_Definition.TurnSpeedRatio * deltaTime);
 
-            if (m_StateTimer >= m_Definition.TurnDuration) StartDashSegment();
+            if (m_StateTimer >= m_Definition.TurnDuration)
+            {
+                // 时间到点，但<b>朝向基本对准目标</b>才允许开冲 ——
+                // 否则模型会侧着飞出去（水滴球时代看不出来，换成有朝向的剑 / 矛就很明显）。
+                // 一直对不准时（目标贴脸绕圈导致朝向抖动）最多再等一倍时长，避免卡在掉头状态。
+                bool aimed = Vector3.Dot(m_Facing, toTargetDirection) >= TurnAimDot;
+                if (aimed || m_StateTimer >= m_Definition.TurnDuration * 2f) StartDashSegment();
+            }
         }
 
         private void TickReturn(float deltaTime)

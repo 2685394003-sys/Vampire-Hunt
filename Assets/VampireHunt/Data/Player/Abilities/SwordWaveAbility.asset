@@ -18,7 +18,7 @@ MonoBehaviour:
   travelDistance: 2
   projectileSpeed: 14
   projectileSize: 1
-  projectileCount: 3
+  projectileCount: 1
   pierceCount: 100
   spreadAngle: 90
   fanAngle: 90

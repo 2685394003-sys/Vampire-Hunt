@@ -24061,6 +24061,10 @@ MonoBehaviour:
   pulseAmplitude: 0.15
   pulseFrequency: 3
   glowOpacity: 0.4
+  hitPrefab: {fileID: 5086231954563861821, guid: 0ac2bdcf97408c142ad73735d2e77bd6, type: 3}
+  hitScale: 0.3
+  hitInterval: 0.05
+  hitSkipLoopingSystems: 1
 --- !u!114 &-4366692229549163065
 MonoBehaviour:
   m_ObjectHideFlags: 0

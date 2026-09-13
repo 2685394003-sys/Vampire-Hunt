@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -24,6 +25,14 @@ namespace VampireHunt.Presentation.HUD
         [SerializeField] private EnemyAffixCatalogAsset enemyAffixCatalog;
         [SerializeField] private EnemyAffixRunState enemyAffixState;
         [SerializeField] private VampireHuntHudPresenter hud;
+
+        [Header("音效（留空则不发声）")]
+        [Tooltip("血契选择面板弹出时播放一次，例如「Play_UI_LevelUpReady」")]
+        [SerializeField] private string panelOpenEventName = "Play_UI_LevelUpReady";
+        [Tooltip("确认选定血契与副契时播放，例如「Play_UI_PactSelected」")]
+        [SerializeField] private string confirmEventName = "Play_UI_PactSelected";
+        [Tooltip("刷新血契选项时播放，例如「Play_UI_Reroll」")]
+        [SerializeField] private string rerollEventName = "Play_UI_Reroll";
 
         private readonly List<PactStackNetworkState> m_Pacts = new List<PactStackNetworkState>();
         private readonly VisualElement[] m_PactCards = new VisualElement[OptionCount];
@@ -202,7 +211,12 @@ namespace VampireHunt.Presentation.HUD
             RenderPactOptions(draft);
             RenderAffixOptions(draft);
             RenderSelectionState(draft);
-            if (newlyOpened) m_PactButtons[0]?.Focus();
+            if (newlyOpened)
+            {
+                // newlyOpened 是既有信号（draft 由不活跃转为活跃），天然只在一轮开始时触发一次。
+                AudioCue.Post(panelOpenEventName, gameObject);
+                m_PactButtons[0]?.Focus();
+            }
 
             if (m_RerollButton != null)
             {
@@ -356,10 +370,16 @@ namespace VampireHunt.Presentation.HUD
         private void ConfirmSelection()
         {
             if (draftBridge == null || m_SelectedPactId == 0 || m_SelectedAffixId == 0) return;
+            AudioCue.Post(confirmEventName, gameObject);
             draftBridge.ConfirmSelection(m_SelectedPactId, m_SelectedAffixId);
         }
 
-        private void Reroll() => draftBridge?.Reroll();
+        private void Reroll()
+        {
+            if (draftBridge == null) return;
+            AudioCue.Post(rerollEventName, gameObject);
+            draftBridge.Reroll();
+        }
 
         private void HandleAffixesChanged()
         {

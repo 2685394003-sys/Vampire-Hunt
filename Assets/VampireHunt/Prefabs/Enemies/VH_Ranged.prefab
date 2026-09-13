@@ -274,6 +274,8 @@ MonoBehaviour:
   telegraphVisual: {fileID: 0}
   normalColor: {r: 0.32, g: 0.08, b: 0.5, a: 1}
   telegraphColor: {r: 0.8, g: 0.2, b: 1, a: 1}
+  attackEventName: Play_Enemy_Ranged_Shoot
+  deathEventName: Play_Enemy_Death
 --- !u!114 &8241606859826594899
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -421,6 +423,10 @@ MonoBehaviour:
   pulseAmplitude: 0.15
   pulseFrequency: 3
   glowOpacity: 0.4
+  hitPrefab: {fileID: 5086231954563861821, guid: 0ac2bdcf97408c142ad73735d2e77bd6, type: 3}
+  hitScale: 0.3
+  hitInterval: 0.05
+  hitSkipLoopingSystems: 1
 --- !u!1 &1031668596334053683
 GameObject:
   m_ObjectHideFlags: 0

@@ -7,6 +7,7 @@ using UnityEngine.UIElements;
 using VampireHunt.Economy;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -17,6 +18,14 @@ namespace VampireHunt.Presentation.HUD
         [SerializeField] private UIDocument uiDocument;
         [SerializeField] private PlayerShopNetworkBridge shopBridge;
         [SerializeField] private ShopCatalogAsset catalog;
+
+        [Header("音效（留空则不发声）")]
+        [Tooltip("交易成功（购买或刷新）时播放，例如「Play_UI_ShopPurchase」")]
+        [SerializeField] private string purchaseEventName = "Play_UI_ShopPurchase";
+        [Tooltip("交易失败（魔币不足等）时播放，例如「Play_UI_ShopDenied」")]
+        [SerializeField] private string deniedEventName = "Play_UI_ShopDenied";
+        [Tooltip("关闭商店时播放，例如「Play_UI_ShopClose」")]
+        [SerializeField] private string closeEventName = "Play_UI_ShopClose";
 
         private readonly Button[] m_BuyButtons = new Button[3];
         private readonly Action[] m_BuyCallbacks = new Action[3];
@@ -145,6 +154,7 @@ namespace VampireHunt.Presentation.HUD
 
         private void HandleShopClosed()
         {
+            AudioCue.Post(closeEventName, gameObject);
             SetVisible(false);
             SetCursorForShop(false);
             if (m_ShopPausedByUs)
@@ -201,6 +211,7 @@ namespace VampireHunt.Presentation.HUD
 
         private void HandleTransactionResolved(ShopTransactionResult result)
         {
+            AudioCue.Post(result.Success ? purchaseEventName : deniedEventName, gameObject);
             m_LastKnownCoin = result.RemainingCoin;
             if (m_Result != null)
             {

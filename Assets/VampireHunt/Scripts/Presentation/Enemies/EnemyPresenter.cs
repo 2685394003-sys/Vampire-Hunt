@@ -1,6 +1,7 @@
 using UnityEngine;
 using VampireHunt.Contracts;
 using VampireHunt.Enemies;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.Enemies
 {
@@ -13,6 +14,12 @@ namespace VampireHunt.Presentation.Enemies
         [SerializeField] private GameObject telegraphVisual;
         [SerializeField] private Color normalColor = new Color(0.35f, 0.08f, 0.08f, 1f);
         [SerializeField] private Color telegraphColor = new Color(1f, 0.25f, 0.05f, 1f);
+
+        [Header("音效（留空则不发声）")]
+        [Tooltip("每次发起攻击时播放。近战与远程在各自的 prefab 上填不同事件名，例如「Play_Enemy_Melee_Attack」或「Play_Enemy_Ranged_Shoot」")]
+        [SerializeField] private string attackEventName = "";
+        [Tooltip("死亡时播放一次，例如「Play_Enemy_Death」")]
+        [SerializeField] private string deathEventName = "Play_Enemy_Death";
 
         private static readonly int s_StateId = Animator.StringToHash("EnemyState");
         private static readonly int s_HealthNormalizedId = Animator.StringToHash("HealthNormalized");
@@ -33,6 +40,8 @@ namespace VampireHunt.Presentation.Enemies
         private bool m_HasLegacyMove;
         private bool m_HasAttack;
         private AnimatorControllerParameterType m_AttackParameterType;
+        private bool m_HasAttackSequence;
+        private bool m_WasDead;
 
         private void Awake()
         {
@@ -81,6 +90,18 @@ namespace VampireHunt.Presentation.Enemies
             bool isTelegraphing = enemyState == EnemyState.Telegraphing;
             bool isDead = enemyState == EnemyState.Dead;
             m_CurrentState = enemyState;
+
+            // 攻击序号在本地推进后立即落值，并保留首次同步的哨兵：
+            // 音频判定不能依赖 Animator（下方有 animator == null 的提前 return），
+            // 否则没有 Animator 的敌人会因序号停滞而每次 Apply 都误判成一次新攻击。
+            bool isNewAttack = m_HasAttackSequence && state.AttackSequence > m_LastAttackSequence;
+            m_LastAttackSequence = state.AttackSequence;
+            m_HasAttackSequence = true;
+
+            if (isNewAttack) AudioCue.Post(attackEventName, gameObject);
+            if (isDead && !m_WasDead) AudioCue.Post(deathEventName, gameObject);
+            m_WasDead = isDead;
+
             // UnityEngine.Object uses a custom null comparison. The null-
             // conditional operator bypasses it and can throw for an unassigned
             // optional serialized reference.
@@ -101,11 +122,10 @@ namespace VampireHunt.Presentation.Enemies
             {
                 animator.SetBool(s_AttackTriggerId, enemyState == EnemyState.Attacking);
             }
-            else if (m_HasAttack && state.AttackSequence > m_LastAttackSequence)
+            else if (m_HasAttack && isNewAttack)
             {
                 animator.SetTrigger(s_AttackTriggerId);
             }
-            m_LastAttackSequence = state.AttackSequence;
         }
 
         private void CacheAnimatorParameters()

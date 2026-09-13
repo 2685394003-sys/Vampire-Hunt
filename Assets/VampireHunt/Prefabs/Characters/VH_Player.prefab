@@ -413,6 +413,10 @@ MonoBehaviour:
   onStatChanged: {fileID: 11400000, guid: 3c76cce5664154d7fadbc8eaf8987962, type: 2}
   onNotification: {fileID: 11400000, guid: d0e3f72c4e5a542f592af1251451389c, type: 2}
   onRespawnStatusChanged: {fileID: 11400000, guid: 71f658fc8f4634328824b9ea768b8d21, type: 2}
+  lowHealthEventName: Play_UI_LowHealthWarn
+  lowHealthThreshold: 0.3
+  timeWarningEventName: Play_UI_BloodContractWarn
+  timeWarningSeconds: 60
   inventory: {fileID: -700000000000000021}
   itemCatalog: {fileID: 11400000, guid: 1b8be6c59de6422c97325a35f8063fab, type: 2}
 --- !u!114 &-700000000000000025
@@ -430,6 +434,8 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   hud: {fileID: 8754785922802519086}
   refreshInterval: 0.1
+  victoryEventName: Play_UI_Victory
+  defeatEventName: Play_UI_Defeat
 --- !u!114 &7994092233411356452
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -688,6 +694,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.SwordWaveAbilityExecutor
   swordWavePrefab: {fileID: 820000000000000003, guid: 07ea4f50e3cb442b80b441f87aa0173d, type: 3}
   fireEventName: 
+  combatIntentPolicy: 0
 --- !u!114 &-700000000000000008
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -877,6 +884,9 @@ MonoBehaviour:
   enemyAffixCatalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
   enemyAffixState: {fileID: 0}
   hud: {fileID: 8754785922802519086}
+  panelOpenEventName: Play_UI_LevelUpReady
+  confirmEventName: Play_UI_PactSelected
+  rerollEventName: Play_UI_Reroll
 --- !u!114 &-700000000000000017
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -972,6 +982,9 @@ MonoBehaviour:
   uiDocument: {fileID: 7994092233411356452}
   shopBridge: {fileID: 2467075975766133047}
   catalog: {fileID: 11400000, guid: 1ab5076a2266b364b8f1bdcdb88718f9, type: 2}
+  purchaseEventName: Play_UI_ShopPurchase
+  deniedEventName: Play_UI_ShopDenied
+  closeEventName: Play_UI_ShopClose
 --- !u!114 &5715040062473686256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1012,8 +1025,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.ProjectileWeaponAbilityExecutor
   abilityId: 110
-  projectilePrefab: {fileID: 820000000000000003, guid: fcc79b46263ed4e4a924ad61e8b4113f, type: 3}
+  projectilePrefab: {fileID: 820000000000000003, guid: 31d1dd063f423594f8c47f52fcfb1991, type: 3}
   fireEventName: 
+  combatIntentPolicy: 0
 --- !u!114 &3249290427059719324
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1054,8 +1068,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.ProjectileWeaponAbilityExecutor
   abilityId: 120
-  projectilePrefab: {fileID: 820000000000000003, guid: 8646825c20f29f147b8de1cd0f3e2ba7, type: 3}
+  projectilePrefab: {fileID: 820000000000000003, guid: f47e95268f80d0140a34be4fe58cc6b6, type: 3}
   fireEventName: 
+  combatIntentPolicy: 0
 --- !u!114 &209588781645992051
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1088,6 +1103,7 @@ MonoBehaviour:
   angleBreakCooldown: 1
   fireEventName: 
   stopEventName: 
+  combatIntentPolicy: 0
 --- !u!114 &5891633180362050200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1121,6 +1137,7 @@ MonoBehaviour:
   distanceSpread: 2.5
   gravity: 9.8
   fireEventName: 
+  combatIntentPolicy: 0
 --- !u!114 &-700000000000000026
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1152,6 +1169,7 @@ MonoBehaviour:
     m_Bits: 256
   maxTargets: 64
   tickEventName: 
+  combatIntentPolicy: 0
 --- !u!114 &-700000000000000028
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1295,7 +1313,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98bcba1f68214d0eaf64702f845996a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.ImpactFamiliarPresenter
-  familiarVisualPrefab: {fileID: 771245003188462011, guid: 0221d6c749f44fb5ab368764097b86d2, type: 3}
+  familiarVisualPrefab: {fileID: 5483076946819451145, guid: 25a64c0d17fe22444ac3311b7828e478, type: 3}
   visualFollowLerp: 20
 --- !u!114 &-700000000000000034
 MonoBehaviour:
@@ -1310,7 +1328,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.GunnerFamiliarPresenter
   definitionAsset: {fileID: 11400000, guid: 8f954dd19956ad640a8cc2646f0e41d4, type: 2}
-  familiarVisualPrefab: {fileID: 781562394710592770, guid: b3c665c923c783a44b77095f5910f772, type: 3}
+  familiarVisualPrefab: {fileID: 6362316497060642482, guid: 69b7f67551fdbcb499bfc83e7e1118f7, type: 3}
   fallbackTracerPrefab: {fileID: 3249935319139999059, guid: f8ad669740e24e0499276c505ae9dd3a, type: 3}
   fallbackImpactVfxPrefab: {fileID: 3927051027270457278, guid: 53cb34c763f0fd146b5144e367c54ce1, type: 3}
   fallbackMuzzleVfxPrefab: {fileID: 5494259472126881202, guid: d1d6fc74ebfd6c94b84bda22b757f5a0, type: 3}

@@ -10,6 +10,8 @@ namespace VampireHunt.Diagnostics
     /// 两个作弊开关（开关状态直接写入本地玩家 CoreStatsHandler 的服务器权威标志）：
     ///   - 无限生命：玩家受伤不掉血（PlayerCombatReceiver 完全拦截 + CoreStatsHandler Health 扣减兜底）
     ///   - 无限体力：疾跑/冲刺不耗体力（CoreStatsHandler 消耗入口拦截）
+    ///   - 无限猩红：猩红不是"会被消耗的属性"而是累积货币（只在升级时扣），所以不做拦截，
+    ///     改为每帧检查、低于目标值就补满（无消耗时不会重复写入）。
     /// 开启瞬间会把对应属性拉满；每帧同步标志，覆盖玩家重生后更换的对象。
     ///
     /// 仅编辑器 / Development Build 生效；纯客户端（非 Host/Server）拦截不生效，属已知限制。
@@ -19,9 +21,14 @@ namespace VampireHunt.Diagnostics
         [Header("显示")]
         [SerializeField] private KeyCode toggleKey = KeyCode.F3;
 
+        [Header("无限猩红")]
+        [Tooltip("开启无限猩红后，猩红低于此值就自动补到这个值。")]
+        [SerializeField, Min(0f)] private float infiniteScarletTarget = 9999f;
+
         private bool m_Visible = true;
         private bool m_InfiniteHealth;
         private bool m_InfiniteStamina;
+        private bool m_InfiniteScarlet;
 
         private CoreStatsHandler m_CoreStats;
         private NetworkObject m_PlayerObject;
@@ -44,6 +51,17 @@ namespace VampireHunt.Diagnostics
             {
                 m_CoreStats.InfiniteHealth = m_InfiniteHealth;
                 m_CoreStats.InfiniteStamina = m_InfiniteStamina;
+
+                // 无限猩红：低于目标值才补（没有消耗时不会重复写入）
+                if (m_InfiniteScarlet)
+                {
+                    float scarlet = m_CoreStats.GetCurrentValue(StatKeys.Scarlet);
+                    if (scarlet < infiniteScarletTarget)
+                    {
+                        m_CoreStats.ModifyStat(StatKeys.Scarlet, infiniteScarletTarget - scarlet, 0,
+                            ModificationSource.Direct);
+                    }
+                }
             }
         }
 
@@ -69,7 +87,7 @@ namespace VampireHunt.Diagnostics
             if (s_BoldLabel == null) s_BoldLabel = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
 
             const int w = 280;
-            const int h = 168;
+            const int h = 212;
             int x = 12;
             int y = 12;
 
@@ -92,10 +110,19 @@ namespace VampireHunt.Diagnostics
                 if (m_InfiniteStamina) TopUpStat(StatKeys.Stamina);
             }
 
+            // 无限猩红：不是拦截消耗，而是自动补满（升级扣掉后立刻回满）
+            bool newScarlet = GUILayout.Toggle(m_InfiniteScarlet, $"无限猩红（低于 {infiniteScarletTarget:F0} 自动补满）");
+            if (newScarlet != m_InfiniteScarlet)
+            {
+                m_InfiniteScarlet = newScarlet;
+                if (m_InfiniteScarlet) TopUpScarlet();
+            }
+
             if (m_CoreStats != null)
             {
                 GUILayout.Label($"生命 {m_CoreStats.GetCurrentValue(StatKeys.Health):F0} / {m_CoreStats.GetMaxValue(StatKeys.Health):F0}");
                 GUILayout.Label($"体力 {m_CoreStats.GetCurrentValue(StatKeys.Stamina):F0} / {m_CoreStats.GetMaxValue(StatKeys.Stamina):F0}");
+                GUILayout.Label($"猩红 {m_CoreStats.GetCurrentValue(StatKeys.Scarlet):F0}");
             }
             else
             {
@@ -113,6 +140,21 @@ namespace VampireHunt.Diagnostics
             if (current < max)
             {
                 m_CoreStats.ModifyStat(statHash, max - current, 0, ModificationSource.Direct);
+            }
+        }
+
+        /// <summary>
+        /// 把猩红补到 <see cref="infiniteScarletTarget"/>。猩红没有 MaxValue 概念（是累积货币），
+        /// 所以不能用 <see cref="TopUpStat"/> 那套"补到上限"的逻辑。
+        /// </summary>
+        private void TopUpScarlet()
+        {
+            if (m_CoreStats == null) return;
+            float current = m_CoreStats.GetCurrentValue(StatKeys.Scarlet);
+            if (current < infiniteScarletTarget)
+            {
+                m_CoreStats.ModifyStat(StatKeys.Scarlet, infiniteScarletTarget - current, 0,
+                    ModificationSource.Direct);
             }
         }
 
