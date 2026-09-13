@@ -416,6 +416,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  meshVfxConfig: {fileID: 11400000, guid: dc28911584fda6d41a89bc7df8df5f66, type: 2}
+  meshTargets: []
+  particleTarget: {fileID: 0}
   glowDiameter: 1.6
   glowHeight: 1
   pulseAmplitude: 0.15

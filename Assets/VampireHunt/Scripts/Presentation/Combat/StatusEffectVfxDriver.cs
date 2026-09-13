@@ -7,18 +7,23 @@ using VampireHunt.Infrastructure.Unity;
 namespace VampireHunt.Presentation.Combat
 {
     /// <summary>
-    /// 元素异常状态的<b>占位</b>特效驱动：实现 <see cref="ICombatVfxDriver"/>，
-    /// 用一颗自发光半透明球表示敌人身上的元素状态——
-    /// 火 = 红橙、冰 = 青蓝、雷 = 黄白，随脉动呼吸。
-    /// 正式美术资源（粒子/材质）到位后替换本类即可，不污染玩法层。
+    /// Presentation-only status driver. Burn and frozen use shared Piloto mesh prefabs;
+    /// other elemental statuses retain their placeholder orbs.
     /// </summary>
     /// <remarks>
     /// 由 <see cref="CombatVfxPresenter"/> 在敌人身上驱动（按 entity id 过滤后调用），
-    /// 球挂到敌人 transform 下、跟随移动；同状态叠层先清旧球再生成新的。
+    /// Mesh overlays bind to the enemy's renderers. Stack updates retain existing instances.
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class StatusEffectVfxDriver : MonoBehaviour, ICombatVfxDriver, ILightningChainPresentationSink
     {
+        [Header("燃烧 / 冻结网格特效")]
+        [SerializeField] private StatusMeshVfxConfig meshVfxConfig;
+        [Tooltip("可选：指定身体网格。留空时自动覆盖所有蒙皮网格，没有蒙皮网格时使用普通网格。")]
+        [SerializeField] private Renderer[] meshTargets;
+        [Tooltip("可选：指定粒子的发射网格；分体模型建议指定躯干，表面材质仍覆盖所有目标网格。")]
+        [SerializeField] private Renderer particleTarget;
+
         [Header("占位发光球")]
         [Tooltip("发光球直径（米），大致包住敌人上半身。")]
         [SerializeField, Min(0.1f)] private float glowDiameter = 1.6f;
@@ -32,6 +37,9 @@ namespace VampireHunt.Presentation.Combat
         [SerializeField, Range(0.05f, 1f)] private float glowOpacity = 0.4f;
 
         private readonly Dictionary<uint, GlowOrb> m_Orbs = new Dictionary<uint, GlowOrb>();
+        private readonly Dictionary<uint, GameObject> m_MeshEffects = new Dictionary<uint, GameObject>();
+        private readonly List<Renderer> m_MeshTargets = new List<Renderer>();
+        private bool m_WarnedMissingMeshSetup;
         private Material m_FireMaterial;
         private Material m_IceMaterial;
         private Material m_LightningMaterial;
@@ -48,13 +56,16 @@ namespace VampireHunt.Presentation.Combat
         {
             if (payload.statusId == 0) return;
 
+            if (payload.statusId == StatusEffectIds.Burn || payload.statusId == StatusEffectIds.Frozen)
+            {
+                ApplyMeshStatus(payload.statusId);
+                return;
+            }
+
             ElementId element = ResolveElement(payload.element, payload.statusId);
             if (element == ElementId.None) return;
 
-            // 同状态先清旧球（叠层会触发 Remove+Add，避免残留旧球）。
-            if (m_Orbs.TryGetValue(payload.statusId, out GlowOrb previous) && previous.Visual != null)
-                Destroy(previous.Visual);
-            m_Orbs.Remove(payload.statusId);
+            if (m_Orbs.TryGetValue(payload.statusId, out GlowOrb previous) && previous.Visual != null) return;
 
             GameObject orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Collider collider = orb.GetComponent<Collider>();
@@ -80,17 +91,121 @@ namespace VampireHunt.Presentation.Combat
 
         public void RemoveStatus(in StatusEffectPresentationPayload payload, Transform anchor)
         {
+            if (m_MeshEffects.TryGetValue(payload.statusId, out GameObject meshEffect))
+            {
+                m_MeshEffects.Remove(payload.statusId);
+                ReleaseVisual(meshEffect);
+            }
             if (!m_Orbs.TryGetValue(payload.statusId, out GlowOrb orb)) return;
             m_Orbs.Remove(payload.statusId);
-            if (orb.Visual != null) Destroy(orb.Visual);
+            ReleaseVisual(orb.Visual);
         }
 
         public void Clear(Transform anchor)
         {
+            foreach (GameObject visual in m_MeshEffects.Values) ReleaseVisual(visual);
+            m_MeshEffects.Clear();
             foreach (GlowOrb orb in m_Orbs.Values)
-                if (orb.Visual != null) Destroy(orb.Visual);
+                ReleaseVisual(orb.Visual);
             m_Orbs.Clear();
         }
+
+        private void ApplyMeshStatus(uint statusId)
+        {
+            if (m_MeshEffects.TryGetValue(statusId, out GameObject current) && current != null) return;
+            GameObject prefab = meshVfxConfig != null ? meshVfxConfig.GetPrefab(statusId) : null;
+            ResolveMeshTargets();
+            if (prefab == null || m_MeshTargets.Count == 0)
+            {
+                if (!m_WarnedMissingMeshSetup)
+                {
+                    Debug.LogWarning("[StatusEffectVfxDriver] Missing mesh VFX config or character renderer.", this);
+                    m_WarnedMissingMeshSetup = true;
+                }
+                return;
+            }
+
+            // Bind while inactive: OverlayFX is ExecuteAlways and particles play on enable.
+            var root = new GameObject($"StatusMeshVFX_{statusId}");
+            root.SetActive(false);
+            root.transform.SetParent(transform, false);
+            GameObject instance = Instantiate(prefab, root.transform, false);
+            var overlays = instance.GetComponentsInChildren<OverlayFX>(true);
+            if (overlays.Length == 0)
+            {
+                Debug.LogWarning("[StatusEffectVfxDriver] Mesh prefab requires OverlayFX.", this);
+                ReleaseVisual(root);
+                return;
+            }
+
+            Renderer emitter = particleTarget != null && m_MeshTargets.Contains(particleTarget)
+                ? particleTarget : LargestTarget();
+            foreach (OverlayFX overlay in overlays)
+            {
+                // Imported prefabs contain incomplete particle lists (including a missing
+                // fire reference). Bind every emitter, including the root particle system.
+                overlay.particleSystems = new List<ParticleSystem>(overlay.GetComponentsInChildren<ParticleSystem>(true));
+                overlay.SetTargetRenderer(emitter);
+                // Extra body parts need only a material overlay, not another particle emitter.
+                foreach (Renderer target in m_MeshTargets)
+                {
+                    if (target == emitter) continue;
+                    var part = new GameObject($"Overlay_{target.name}");
+                    part.transform.SetParent(root.transform, false);
+                    var surface = part.AddComponent<OverlayFX>();
+                    surface.overlayMaterial = overlay.overlayMaterial;
+                    surface.rendererTrueForward = overlay.rendererTrueForward;
+                    surface.SetTargetRenderer(target);
+                }
+            }
+            m_MeshEffects[statusId] = root;
+            root.SetActive(true);
+        }
+
+        private void ResolveMeshTargets()
+        {
+            m_MeshTargets.Clear();
+            if (meshTargets != null && meshTargets.Length > 0)
+            {
+                foreach (Renderer target in meshTargets) AddMeshTarget(target);
+                return;
+            }
+            foreach (SkinnedMeshRenderer target in GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                AddMeshTarget(target);
+            if (m_MeshTargets.Count != 0) return;
+            foreach (MeshRenderer target in GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (target.GetComponentInParent<OverlayFX>() != null || target.name.StartsWith("ElementGlow_")) continue;
+                AddMeshTarget(target);
+            }
+        }
+
+        private void AddMeshTarget(Renderer target)
+        {
+            if (target == null || m_MeshTargets.Contains(target)) return;
+            bool valid = target is SkinnedMeshRenderer skinned && skinned.sharedMesh != null ||
+                         target is MeshRenderer && target.TryGetComponent(out MeshFilter filter) && filter.sharedMesh != null;
+            if (valid) m_MeshTargets.Add(target);
+        }
+
+        private Renderer LargestTarget()
+        {
+            Renderer best = m_MeshTargets[0];
+            foreach (Renderer candidate in m_MeshTargets)
+                if (candidate.bounds.size.sqrMagnitude > best.bounds.size.sqrMagnitude) best = candidate;
+            return best;
+        }
+
+        private static void ReleaseVisual(GameObject visual)
+        {
+            if (visual == null) return;
+            // Detach overlay materials synchronously, before Unity's deferred destruction.
+            visual.SetActive(false);
+            if (Application.isPlaying) Destroy(visual);
+            else DestroyImmediate(visual);
+        }
+
+        private void OnDisable() => Clear(null);
 
         private void Update()
         {
