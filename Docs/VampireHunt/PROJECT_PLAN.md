@@ -741,7 +741,7 @@ Boss 预制体采用与 Player 相同的组件组合原则，但不照搬 Player
 
 当前已完成横扫、旋转弹幕、轰炸、蓄力斩击、三连网格、持续激光、踉跄全屏弹幕、踉跄震波、踉跄跟踪激光、阶段金色血辉和契约狂暴的正式配置与独立逻辑脚本。演示资源仍保留在 Demo 目录，只用于验证内容制作流程，不进入正式 `BossPhaseSetAsset`。
 
-轰炸在施法开始时由服务器查询攻击范围内的全部存活玩家，并保存每人的世界坐标快照。`BossAreaTelegraphNetworkBridge` 把同一组固定坐标广播给所有客户端，`BossAreaTelegraphVfxPresenter` 根据技能资源里的 `EachLockedArea` 表现节点为每个坐标生成红圈与爆炸；玩家之后移动不会带动红圈。预警结束时，技能逻辑分别查询每个圆形区域并结算伤害，最后一个爆炸表现结束时才清除红圈。
+轰炸在施法开始时由服务器查询攻击范围内的全部存活玩家，并保存每人的世界坐标快照。`BossAreaTelegraphNetworkBridge` 把同一组固定坐标广播给所有客户端，`BossAreaTelegraphVfxPresenter` 根据技能资源里的 `EachLockedArea` 表现节点为每个坐标生成红圈与爆炸；玩家之后移动不会带动红圈。预警结束时，技能逻辑分别查询每个圆形区域并结算伤害。预警属于当前施法，收到取消时立即清除；已经释放且启用 `KeepAliveAfterCastEnd` 的爆炸 VFX 则按服务器时间独立存活到自身 `Lifetime` 结束。
 
 ### 16.6 Ability Gameplay Services（当前实现）
 

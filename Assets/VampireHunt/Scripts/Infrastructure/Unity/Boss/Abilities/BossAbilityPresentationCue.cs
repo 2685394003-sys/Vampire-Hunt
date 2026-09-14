@@ -30,6 +30,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [SerializeField] private bool followAnchor = true;
         [SerializeField] private BossAbilityCueSpawnMode spawnMode = BossAbilityCueSpawnMode.SingleAnchor;
         [Min(0f)] [SerializeField] private float lifetime = 1f;
+        [Tooltip("开启后，已经生成的 VFX 不会随施法/预警取消而销毁，而是按服务器时间播放到 Lifetime 结束。")]
+        [SerializeField] private bool keepAliveAfterCastEnd;
 
         [Header("Presentation")]
         [SerializeField] private string animatorTrigger;
@@ -49,6 +51,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         public bool FollowAnchor => followAnchor;
         public BossAbilityCueSpawnMode SpawnMode => spawnMode;
         public float Lifetime => lifetime;
+        public bool KeepAliveAfterCastEnd => keepAliveAfterCastEnd;
         public string AnimatorTrigger => animatorTrigger;
         public GameObject VfxPrefab => vfxPrefab;
         public string AudioEvent => audioEvent;
