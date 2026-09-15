@@ -35,6 +35,11 @@ namespace VampireHunt.Boss.Abilities
         public Float3 TargetPosition { get; }
         public Float3 Direction { get; }
         public uint RandomSeed { get; }
+        public BossAbilityCastModifiers Modifiers { get; }
+        public double TelegraphDuration { get; }
+        public double ResolveDuration { get; }
+        public double RecoverDuration { get; }
+        public double TotalDuration => TelegraphDuration + ResolveDuration + RecoverDuration;
 
         public BossAbilityCastContext(
             uint abilityId,
@@ -44,7 +49,11 @@ namespace VampireHunt.Boss.Abilities
             in Float3 sourcePosition,
             in Float3 targetPosition,
             in Float3 direction,
-            uint randomSeed)
+            uint randomSeed,
+            in BossAbilityCastModifiers modifiers,
+            double telegraphDuration,
+            double resolveDuration,
+            double recoverDuration)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
@@ -54,6 +63,10 @@ namespace VampireHunt.Boss.Abilities
             TargetPosition = targetPosition;
             Direction = direction;
             RandomSeed = randomSeed;
+            Modifiers = modifiers;
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
+            ResolveDuration = Math.Max(.01d, resolveDuration);
+            RecoverDuration = Math.Max(0d, recoverDuration);
         }
     }
 
@@ -111,6 +124,7 @@ namespace VampireHunt.Boss.Abilities
         public double TelegraphDuration { get; }
         public double ResolveDuration { get; }
         public double RecoverDuration { get; }
+        public BossAbilityMultiplayerScaling MultiplayerScaling { get; }
         public double TotalDuration => TelegraphDuration + ResolveDuration + RecoverDuration;
 
         public BossAbilityDefinition(
@@ -128,7 +142,8 @@ namespace VampireHunt.Boss.Abilities
             double resolveDuration,
             double recoverDuration,
             Func<IBossAbilityLogicRuntime> createLogic,
-            bool parryableDuringTelegraph = false)
+            bool parryableDuringTelegraph = false,
+            BossAbilityMultiplayerScaling multiplayerScaling = null)
         {
             if (abilityId == 0) throw new ArgumentOutOfRangeException(nameof(abilityId));
             AbilityId = abilityId;
@@ -145,8 +160,12 @@ namespace VampireHunt.Boss.Abilities
             TelegraphDuration = Math.Max(0d, telegraphDuration);
             ResolveDuration = Math.Max(0.01d, resolveDuration);
             RecoverDuration = Math.Max(0d, recoverDuration);
+            MultiplayerScaling = (multiplayerScaling ?? new BossAbilityMultiplayerScaling()).CloneValidated();
             m_CreateLogic = createLogic ?? throw new ArgumentNullException(nameof(createLogic));
         }
+
+        public BossAbilityCastModifiers CreateCastModifiers(int participantCount) =>
+            MultiplayerScaling.CreateModifiers(participantCount);
 
         public IBossAbilityLogicRuntime CreateLogic() =>
             m_CreateLogic() ?? throw new InvalidOperationException(
@@ -210,6 +229,8 @@ namespace VampireHunt.Boss.Abilities
         public Float3 Direction { get; }
         public uint RandomSeed { get; }
         public uint Revision { get; }
+        public double TelegraphDuration { get; }
+        public int ParticipantCount { get; }
 
         public bool IsCasting => AbilityId != 0 && CastPhase != BossAbilityCastPhase.None;
 
@@ -225,7 +246,9 @@ namespace VampireHunt.Boss.Abilities
             in Float3 targetPosition,
             in Float3 direction,
             uint randomSeed,
-            uint revision)
+            uint revision,
+            double telegraphDuration = 0d,
+            int participantCount = 1)
         {
             PhaseNumber = phaseNumber;
             AbilityId = abilityId;
@@ -239,6 +262,8 @@ namespace VampireHunt.Boss.Abilities
             Direction = direction;
             RandomSeed = randomSeed;
             Revision = revision;
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
+            ParticipantCount = Math.Max(1, participantCount);
         }
     }
 }

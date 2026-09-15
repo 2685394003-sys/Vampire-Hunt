@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df919194871c6384092213debd1a4898, type: 3}
+  m_Name: StatusMeshVfxConfig
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusMeshVfxConfig
+  burnPrefab: {fileID: 2873451926720880288, guid: 4f7f2069758ba7d47991fc1899dca96f, type: 3}
+  frozenPrefab: {fileID: 4293332855471414272, guid: 769c05c97023ad643bcf867a5df1a201, type: 3}

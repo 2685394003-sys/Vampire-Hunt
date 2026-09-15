@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using VampireHunt.Infrastructure.Netcode;
 using VampireHunt.Infrastructure.Unity;
+using VampireHunt.Presentation.Audio;
 
 namespace VampireHunt.Presentation.HUD
 {
@@ -25,6 +26,14 @@ namespace VampireHunt.Presentation.HUD
         [SerializeField] private EnemyAffixRunState enemyAffixState;
         [SerializeField] private VampireHuntHudPresenter hud;
 
+        [Header("音效（留空则不发声）")]
+        [Tooltip("血契选择面板弹出时播放一次，例如「Play_UI_LevelUpReady」")]
+        [SerializeField] private string panelOpenEventName = "Play_UI_LevelUpReady";
+        [Tooltip("确认选定血契与副契时播放，例如「Play_UI_PactSelected」")]
+        [SerializeField] private string confirmEventName = "Play_UI_PactSelected";
+        [Tooltip("刷新血契选项时播放，例如「Play_UI_Reroll」")]
+        [SerializeField] private string rerollEventName = "Play_UI_Reroll";
+
         private readonly List<PactStackNetworkState> m_Pacts = new List<PactStackNetworkState>();
         private readonly VisualElement[] m_PactCards = new VisualElement[OptionCount];
         private readonly Button[] m_PactButtons = new Button[OptionCount];
@@ -41,6 +50,9 @@ namespace VampireHunt.Presentation.HUD
         private VisualElement m_Overlay;
         private Label m_DraftSubtitle;
         private Label m_LevelUpHint;
+        private Label m_SelectionSummary;
+        private readonly VisualElement[] m_PactIcons = new VisualElement[OptionCount];
+        private readonly VisualElement[] m_AffixIcons = new VisualElement[OptionCount];
         private Button m_RerollButton;
         private Label m_RerollHint;
         private Button m_ConfirmButton;
@@ -51,6 +63,7 @@ namespace VampireHunt.Presentation.HUD
         private ulong m_RenderedOfferId;
         private uint m_SelectedPactId;
         private uint m_SelectedAffixId;
+        private bool m_PactMenuPausedByUs;
 
         private void Awake()
         {
@@ -87,6 +100,11 @@ namespace VampireHunt.Presentation.HUD
             if (enemyAffixState != null) enemyAffixState.AffixesChanged -= HandleAffixesChanged;
             UnbindButtons();
             SetCursorForDraft(false);
+            if (m_PactMenuPausedByUs)
+            {
+                m_PactMenuPausedByUs = false;
+                MenuPauseController.ReleasePactPause();
+            }
             base.OnNetworkDespawn();
         }
 
@@ -107,6 +125,7 @@ namespace VampireHunt.Presentation.HUD
             m_Overlay = root.Q<VisualElement>("pact-selection-overlay");
             m_DraftSubtitle = root.Q<Label>("pact-draft-subtitle");
             m_LevelUpHint = root.Q<Label>("level-up-hint");
+            m_SelectionSummary = root.Q<Label>("pact-selection-summary");
             for (int i = 0; i < OptionCount; i++)
             {
                 int capturedIndex = i;
@@ -115,6 +134,7 @@ namespace VampireHunt.Presentation.HUD
                 m_PactNames[i] = root.Q<Label>($"pact-name-{i}");
                 m_PactDescriptions[i] = root.Q<Label>($"pact-description-{i}");
                 m_PactStacks[i] = root.Q<Label>($"pact-stack-{i}");
+                m_PactIcons[i] = root.Q<VisualElement>($"pact-icon-{i}");
                 if (m_PactButtons[i] != null)
                 {
                     m_PactCallbacks[i] = () => SelectPactOption(capturedIndex);
@@ -126,6 +146,7 @@ namespace VampireHunt.Presentation.HUD
                 m_AffixNames[i] = root.Q<Label>($"affix-name-{i}");
                 m_AffixDescriptions[i] = root.Q<Label>($"affix-description-{i}");
                 m_AffixStacks[i] = root.Q<Label>($"affix-stack-{i}");
+                m_AffixIcons[i] = root.Q<VisualElement>($"affix-icon-{i}");
                 if (m_AffixButtons[i] != null)
                 {
                     m_AffixCallbacks[i] = () => SelectAffixOption(capturedIndex);
@@ -160,6 +181,7 @@ namespace VampireHunt.Presentation.HUD
         {
             BindUi();
             if (m_Overlay == null) return;
+            bool newlyOpened = draft.IsActive && m_RenderedOfferId == 0;
             if (m_RenderedOfferId != draft.OfferId)
             {
                 m_RenderedOfferId = draft.OfferId;
@@ -169,6 +191,18 @@ namespace VampireHunt.Presentation.HUD
 
             m_Overlay.style.display = draft.IsActive ? DisplayStyle.Flex : DisplayStyle.None;
             SetCursorForDraft(draft.IsActive);
+
+            // 单人模式下，打开血契菜单时暂停游戏，关闭时恢复
+            if (draft.IsActive && !m_PactMenuPausedByUs)
+            {
+                m_PactMenuPausedByUs = true;
+                MenuPauseController.RequestPactPause();
+            }
+            else if (!draft.IsActive && m_PactMenuPausedByUs)
+            {
+                m_PactMenuPausedByUs = false;
+                MenuPauseController.ReleasePactPause();
+            }
             if (m_DraftSubtitle != null)
                 m_DraftSubtitle.text = draft.IsActive
                     ? $"选择一份血契和一份副契，确认后消耗 {Mathf.CeilToInt(draft.SelectionCost)} 猩红"
@@ -177,6 +211,12 @@ namespace VampireHunt.Presentation.HUD
             RenderPactOptions(draft);
             RenderAffixOptions(draft);
             RenderSelectionState(draft);
+            if (newlyOpened)
+            {
+                // newlyOpened 是既有信号（draft 由不活跃转为活跃），天然只在一轮开始时触发一次。
+                AudioCue.Post(panelOpenEventName, gameObject);
+                m_PactButtons[0]?.Focus();
+            }
 
             if (m_RerollButton != null)
             {
@@ -201,11 +241,18 @@ namespace VampireHunt.Presentation.HUD
                 if (!available) continue;
 
                 uint pactId = draft.GetOption(i);
+                if (m_PactIcons[i] != null)
+                {
+                    m_PactIcons[i].style.backgroundImage = StyleKeyword.Null;
+                    m_PactIcons[i].EnableInClassList("pact-art--blade", pactId >= 1001 && pactId <= 1005);
+                }
                 int currentStacks = pactState != null ? pactState.GetStacks(pactId) : 0;
                 if (catalog != null && catalog.TryGetAsset(pactId, out PactDefinitionAsset asset))
                 {
                     if (m_PactNames[i] != null) m_PactNames[i].text = asset.DisplayName;
                     if (m_PactDescriptions[i] != null) m_PactDescriptions[i].text = asset.Description;
+                    if (m_PactIcons[i] != null && asset.Icon != null)
+                        m_PactIcons[i].style.backgroundImage = new StyleBackground(asset.Icon);
                 }
                 else
                 {
@@ -230,12 +277,15 @@ namespace VampireHunt.Presentation.HUD
                 if (!available) continue;
 
                 uint affixId = draft.GetAffixOption(i);
+                if (m_AffixIcons[i] != null) m_AffixIcons[i].style.backgroundImage = StyleKeyword.Null;
                 int currentStacks = enemyAffixState != null ? enemyAffixState.GetStacks(affixId) : 0;
                 if (enemyAffixCatalog != null &&
                     enemyAffixCatalog.TryGetAsset(affixId, out EnemyAffixDefinitionAsset asset))
                 {
                     if (m_AffixNames[i] != null) m_AffixNames[i].text = asset.DisplayName;
                     if (m_AffixDescriptions[i] != null) m_AffixDescriptions[i].text = asset.Description;
+                    if (m_AffixIcons[i] != null && asset.Icon != null)
+                        m_AffixIcons[i].style.backgroundImage = new StyleBackground(asset.Icon);
                 }
                 else
                 {
@@ -251,6 +301,8 @@ namespace VampireHunt.Presentation.HUD
 
         private void RenderSelectionState(PactDraftNetworkState draft)
         {
+            string pactName = "未选择";
+            string affixName = "未选择";
             for (int i = 0; i < OptionCount; i++)
             {
                 bool pactSelected = draft.GetOption(i) != 0 && draft.GetOption(i) == m_SelectedPactId;
@@ -260,7 +312,11 @@ namespace VampireHunt.Presentation.HUD
                 m_AffixCards[i]?.EnableInClassList("draft-card--selected", affixSelected);
                 if (m_PactButtons[i] != null) m_PactButtons[i].text = pactSelected ? "已选择" : "选择";
                 if (m_AffixButtons[i] != null) m_AffixButtons[i].text = affixSelected ? "已选择" : "选择";
+                if (pactSelected) pactName = m_PactNames[i]?.text ?? "已选择";
+                if (affixSelected) affixName = m_AffixNames[i]?.text ?? "已选择";
             }
+            if (m_SelectionSummary != null)
+                m_SelectionSummary.text = $"血契：{pactName}    /    副契：{affixName}";
             if (m_ConfirmButton != null)
                 m_ConfirmButton.SetEnabled(
                     draft.IsActive && m_SelectedPactId != 0 && m_SelectedAffixId != 0);
@@ -287,7 +343,10 @@ namespace VampireHunt.Presentation.HUD
         {
             BindUi();
             if (m_LevelUpHint != null)
-                m_LevelUpHint.text = $"按 Z 手动升级 · 需要 {Mathf.CeilToInt(cost)} 猩红";
+                m_LevelUpHint.text = draftBridge != null && draftBridge.IsLevelMaxed
+                    ? "已达等级上限"
+                    : $"Z  缔结血契 · 需要 {Mathf.CeilToInt(cost)} 猩红";
+            hud?.SetUpgradeCost(cost, draftBridge != null && draftBridge.IsLevelMaxed);
         }
 
         private void SelectPactOption(int index)
@@ -311,10 +370,16 @@ namespace VampireHunt.Presentation.HUD
         private void ConfirmSelection()
         {
             if (draftBridge == null || m_SelectedPactId == 0 || m_SelectedAffixId == 0) return;
+            AudioCue.Post(confirmEventName, gameObject);
             draftBridge.ConfirmSelection(m_SelectedPactId, m_SelectedAffixId);
         }
 
-        private void Reroll() => draftBridge?.Reroll();
+        private void Reroll()
+        {
+            if (draftBridge == null) return;
+            AudioCue.Post(rerollEventName, gameObject);
+            draftBridge.Reroll();
+        }
 
         private void HandleAffixesChanged()
         {

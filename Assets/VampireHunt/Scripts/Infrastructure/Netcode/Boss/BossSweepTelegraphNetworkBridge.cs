@@ -39,7 +39,7 @@ namespace VampireHunt.Infrastructure.Netcode
     [RequireComponent(typeof(NetworkObject))]
     public sealed class BossSweepTelegraphNetworkBridge : NetworkBehaviour, IBossSweepTelegraphService
     {
-        public event Action<uint, ulong, BossSweepPresentationPass[]> SweepStarted;
+        public event Action<uint, ulong, double, BossSweepPresentationPass[]> SweepStarted;
         public event Action<uint, ulong, uint> SweepPassCancelled;
         public event Action<uint, ulong> SweepCancelled;
 
@@ -69,6 +69,7 @@ namespace VampireHunt.Infrastructure.Netcode
             PublishSweepRpc(
                 request.AbilityId,
                 request.CastSequence,
+                request.TelegraphDuration,
                 passIndices,
                 startTimes,
                 centers,
@@ -96,6 +97,7 @@ namespace VampireHunt.Infrastructure.Netcode
         private void PublishSweepRpc(
             uint abilityId,
             ulong castSequence,
+            double telegraphDuration,
             uint[] passIndices,
             double[] startTimes,
             Vector3[] centers,
@@ -116,7 +118,7 @@ namespace VampireHunt.Infrastructure.Netcode
                     sizes[i],
                     (BossSweepDirection)directions[i]);
             }
-            SweepStarted?.Invoke(abilityId, castSequence, passes);
+            SweepStarted?.Invoke(abilityId, castSequence, telegraphDuration, passes);
         }
 
         [Rpc(SendTo.ClientsAndHost, InvokePermission = RpcInvokePermission.Server)]

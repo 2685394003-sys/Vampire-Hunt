@@ -1,0 +1,30 @@
+Event	ID	Name			Wwise Object Path	Notes
+	115077278	Play_Boss_Defeated			\Default Work Unit\Play_Boss_Defeated	
+	148678419	Play_Boss_Hurt			\Default Work Unit\Play_Boss_Hurt	
+	194626488	Play_Boss_GuardBroken			\Default Work Unit\Play_Boss_GuardBroken	
+	1485563741	Play_Boss_Stagger			\Default Work Unit\Play_Boss_Stagger	
+	2001824852	Play_Boss_HandBreak			\Default Work Unit\Play_Boss_HandBreak	
+	2069736275	Play_Boss_SweepSlash			\Default Work Unit\Play_Boss_SweepSlash	
+	2605248744	Play_Enemy_Ranged_Shoot			\Default Work Unit\Play_Enemy_Ranged_Shoot	
+	2785867903	Play_Boss_HandRestore			\Default Work Unit\Play_Boss_HandRestore	
+	2960920018	Play_Enemy_Hurt			\Default Work Unit\Play_Enemy_Hurt	
+	3046156865	Play_Enemy_Death			\Default Work Unit\Play_Enemy_Death	
+	3354873209	Play_Boss_PhaseChange			\Default Work Unit\Play_Boss_PhaseChange	
+	3767185226	Play_Boss_FullChargeSlash			\Default Work Unit\Play_Boss_FullChargeSlash	
+	3857576827	Play_Boss_LaserRain			\Default Work Unit\Play_Boss_LaserRain	
+	4004162068	Play_Boss_DanmakuSpawn			\Default Work Unit\Play_Boss_DanmakuSpawn	
+	4216744018	Play_Enemy_Melee_Attack			\Default Work Unit\Play_Enemy_Melee_Attack	
+	4271695790	Play_Boss_BattleStart			\Default Work Unit\Play_Boss_BattleStart	
+
+In Memory Audio	ID	Name	Audio source file		Wwise Object Path	Notes	Data Size
+	90888783	Play_Boss_Stagger	.cache\34\{341A4EBD-DEC3-BC6C-E05E-7812F6EEF388}.wem		\Containers\Default Work Unit\Boss\Play_Boss_Stagger		9696
+	107029013	Play_Enemy_Hurt_01	.cache\E9\{E94FF706-A698-4AC8-F102-7F236578008C}.wem		\Containers\Default Work Unit\Enemy\Play_Enemy_Hurt\Play_Enemy_Hurt_01		275872
+	165241597	Play_Enemy_Death	.cache\6F\{6FD92DF4-8848-62A2-BA79-00ECDDA8FF52}.wem		\Containers\Default Work Unit\Enemy\Play_Enemy_Death		71324
+	330034112	Play_Enemy_Hurt_03	.cache\15\{150E62CC-BBAC-CEA0-9A2A-C6A023117E96}.wem		\Containers\Default Work Unit\Enemy\Play_Enemy_Hurt\Play_Enemy_Hurt_03		275872
+	395285326	Play_Boss_LaserRain	.cache\20\{20005E51-ABEC-B59E-9554-38FA932B5395}.wem		\Containers\Default Work Unit\Boss\Play_Boss_LaserRain		345992
+	433730275	Play_Boss_DanmakuSpawn	.cache\F8\{F8A5D95A-58FE-21C5-8A91-242EF1067D01}.wem		\Containers\Default Work Unit\Boss\Play_Boss_DanmakuSpawn		344440
+	540103592	Play_Boss_Defeated	.cache\50\{50A55EB6-7DBD-92B3-EC5E-D04D2B78EE49}.wem		\Containers\Default Work Unit\Boss\Play_Boss_Defeated		209788
+	720311970	Play_Enemy_Melee_Attack	.cache\0F\{0F84B947-F968-BEAB-A39B-AF63FB7FEEEB}.wem		\Containers\Default Work Unit\Enemy\Play_Enemy_Melee_Attack		134544
+	752078607	Play_Enemy_Ranged_Shoot	.cache\CA\{CAC15F45-804B-CF0F-5F91-5D89BDEBE61F}.wem		\Containers\Default Work Unit\Enemy\Play_Enemy_Ranged_Shoot		132224
+	830088657	Play_Enemy_Hurt_02	.cache\C2\{C26BDC4E-5AED-2F9E-E0A3-B4A74EF528A0}.wem		\Containers\Default Work Unit\Enemy\Play_Enemy_Hurt\Play_Enemy_Hurt_02		275872
+

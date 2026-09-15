@@ -741,7 +741,7 @@ Boss 预制体采用与 Player 相同的组件组合原则，但不照搬 Player
 
 当前已完成横扫、旋转弹幕、轰炸、蓄力斩击、三连网格、持续激光、踉跄全屏弹幕、踉跄震波、踉跄跟踪激光、阶段金色血辉和契约狂暴的正式配置与独立逻辑脚本。演示资源仍保留在 Demo 目录，只用于验证内容制作流程，不进入正式 `BossPhaseSetAsset`。
 
-轰炸在施法开始时由服务器查询攻击范围内的全部存活玩家，并保存每人的世界坐标快照。`BossAreaTelegraphNetworkBridge` 把同一组固定坐标广播给所有客户端，`BossAreaTelegraphVfxPresenter` 根据技能资源里的 `EachLockedArea` 表现节点为每个坐标生成红圈与爆炸；玩家之后移动不会带动红圈。预警结束时，技能逻辑分别查询每个圆形区域并结算伤害，最后一个爆炸表现结束时才清除红圈。
+轰炸在施法开始时由服务器查询攻击范围内的全部存活玩家，并保存每人的世界坐标快照。`BossAreaTelegraphNetworkBridge` 把同一组固定坐标广播给所有客户端，`BossAreaTelegraphVfxPresenter` 根据技能资源里的 `EachLockedArea` 表现节点为每个坐标生成红圈与爆炸；玩家之后移动不会带动红圈。预警结束时，技能逻辑分别查询每个圆形区域并结算伤害。预警属于当前施法，收到取消时立即清除；已经释放且启用 `KeepAliveAfterCastEnd` 的爆炸 VFX 则按服务器时间独立存活到自身 `Lifetime` 结束。
 
 ### 16.6 Ability Gameplay Services（当前实现）
 
@@ -992,6 +992,10 @@ ScriptableObject GameEvent 只负责本地表现扇出：
 - 客户端预测移动、动画和纯表现。
 - 服务端验证速度、位置、时间戳、体力和状态。
 - 客户端不能决定命中、伤害、暴击、奖励或血契结果。
+
+玩家拥有独立的服务器权威战斗状态 `NonCombat / Combat`。服务器确认开始的战斗动作以及合法敌对交互都会进入或刷新 Combat，包括挥空、零伤害、效果取消、无敌和护盾吸收；附近有敌人本身不触发状态。默认连续 5 秒无战斗活动后退出，持续激光和 Boss 指向施法通过活动句柄阻止提前脱战。
+
+生命与体力恢复仍由 `CoreStatsHandler` 唯一写入并通过 `NetworkList` 同步，玩家侧策略只决定速率与等待：战斗中生命使用 `HealthStat.regenRate / regenDelay` 的固定值（当前 `regenRate = 0`），非战斗每秒恢复当前最大生命的 `1/60`；体力战斗中使用配置速率，非战斗为 2 倍。统一调度以 20 Hz 推进，已删除逐帧血量比较和遍历全部 `SpawnedObjectsList` 的旧组件。
 
 ### 22.4 三类网络通道
 

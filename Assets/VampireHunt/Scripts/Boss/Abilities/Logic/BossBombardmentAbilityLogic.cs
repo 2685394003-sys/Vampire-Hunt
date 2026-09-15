@@ -70,7 +70,8 @@ namespace VampireHunt.Boss.Abilities.Logic
                 Context.CastSequence,
                 Context.StartServerTime,
                 Tuning.Radius,
-                centers));
+                centers,
+                Context.TelegraphDuration));
         }
 
         private void CancelTelegraphs()

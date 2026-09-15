@@ -1,0 +1,358 @@
+{
+ "SoundBanksInfo": {
+  "Platform": "Windows",
+  "BasePlatform": "Windows",
+  "SchemaVersion": "16",
+  "SoundBankVersion": "172",
+  "SoundBanks": [
+   {
+    "Id": "372363248",
+    "Type": "User",
+    "GUID": "{E362A286-B14E-41D6-86B7-516593628CD4}",
+    "Language": "SFX",
+    "Hash": "{AB1E2E63-1803-093E-57F0-48157114FCCF}",
+    "ObjectPath": "\\SoundBanks\\Default Work Unit\\Bank_UI",
+    "ShortName": "Bank_UI",
+    "Path": "Bank_UI.bnk",
+    "Media": [
+     {
+      "Id": "83358173",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_UI_ShopPurchase.wav",
+      "CachePath": "DA/{DA8B16FC-8741-F530-CCCD-5C17901ABA6E}.wem"
+     },
+     {
+      "Id": "90888783",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\_silence_placeholder.wav",
+      "CachePath": "34/{341A4EBD-DEC3-BC6C-E05E-7812F6EEF388}.wem"
+     },
+     {
+      "Id": "236290884",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_UI_BottonClick.wav",
+      "CachePath": "14/{14454CBC-2C46-5517-2DF9-E74E6ECD10F0}.wem"
+     },
+     {
+      "Id": "275355977",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_UI_ShopDenied.wav",
+      "CachePath": "05/{0512F3FD-7943-5BC2-0798-6FFD2CF19C43}.wem"
+     },
+     {
+      "Id": "616957101",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_UI_ItemPickUp.wav",
+      "CachePath": "FD/{FDF900B6-D8F2-DE6B-9CBF-B03709053657}.wem"
+     },
+     {
+      "Id": "871208621",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_UI_ShopOpen.wav",
+      "CachePath": "C0/{C0C04EA4-F07C-D55A-AE75-8E846818EFC7}.wem"
+     }
+    ],
+    "Events": [
+     {
+      "Id": "2587736695",
+      "Name": "Play_Combat_Reaction_Blast",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Combat_Reaction_Blast",
+      "GUID": "{25033FE0-7B3F-4AE2-BEBB-4AE0F75E9267}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "958909958",
+      "Name": "Play_Combat_Reaction_Shatter",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Combat_Reaction_Shatter",
+      "GUID": "{BA20C7DC-BBDD-4C5C-ABD5-5B6283D9347C}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "2030242199",
+      "Name": "Play_Combat_Reaction_Thunder",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Combat_Reaction_Thunder",
+      "GUID": "{3C3C4AE9-7342-44F8-8D7D-2086032907B2}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "885619826",
+      "Name": "Play_Familiar_Attack",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Familiar_Attack",
+      "GUID": "{4BF82062-6EB2-4439-ABE4-73D4183DDB6C}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "3218305131",
+      "Name": "Play_Familiar_Summon",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Familiar_Summon",
+      "GUID": "{C5214A6A-9BB3-4E82-A087-6A0CFC327F71}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "3214947447",
+      "Name": "Play_UI_BloodContractWarn",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_BloodContractWarn",
+      "GUID": "{C4D651D6-BB70-40D6-9C59-AF678D4917B4}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "3214420350",
+      "Name": "Play_UI_BloodFull",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_BloodFull",
+      "GUID": "{67E96BAD-C62F-4143-9FB4-71E975F6ACC9}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "996302017",
+      "Name": "Play_UI_ButtonClick",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ButtonClick",
+      "GUID": "{20DF6F95-8055-4F34-9CF3-C911B41F69B8}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.2515873",
+      "DurationMax": "0.2515873",
+      "MediaRefs": [
+       {
+        "Id": "236290884"
+       }
+      ]
+     },
+     {
+      "Id": "3716786354",
+      "Name": "Play_UI_Defeat",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_Defeat",
+      "GUID": "{25D42EB8-8358-4C37-9F60-85A92AEC5A68}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "345743854",
+      "Name": "Play_UI_ItemPickup",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ItemPickup",
+      "GUID": "{2C365B5E-6933-4F35-9BA7-20AB72CE722E}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.2283447",
+      "DurationMax": "1.2283447",
+      "MediaRefs": [
+       {
+        "Id": "616957101"
+       }
+      ]
+     },
+     {
+      "Id": "1647929197",
+      "Name": "Play_UI_LevelUpReady",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_LevelUpReady",
+      "GUID": "{9788652D-596C-42AB-8193-01BE479984DE}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "430893833",
+      "Name": "Play_UI_LowHealthWarn",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_LowHealthWarn",
+      "GUID": "{9CF2DCFD-1EB1-4EC9-B7BC-BAE9249A548C}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "4038915356",
+      "Name": "Play_UI_PactSelected",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_PactSelected",
+      "GUID": "{8FE797CD-C688-400D-93B0-48046C0D06C0}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "13451009",
+      "Name": "Play_UI_Reroll",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_Reroll",
+      "GUID": "{7A44BD68-AC6C-402E-B90D-969ECE66094B}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "3165725291",
+      "Name": "Play_UI_ScarletPickup",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ScarletPickup",
+      "GUID": "{20FF8C11-2B95-4BCD-B5B6-74EF3749816D}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "2570426421",
+      "Name": "Play_UI_ShopClose",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ShopClose",
+      "GUID": "{68B39E70-CF0B-43A5-BC9E-4C827D92ECED}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "2819800046",
+      "Name": "Play_UI_ShopDenied",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ShopDenied",
+      "GUID": "{60C34A63-6815-4BFD-AB30-54E883E1CEE7}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.8867574",
+      "DurationMax": "0.8867574",
+      "MediaRefs": [
+       {
+        "Id": "275355977"
+       }
+      ]
+     },
+     {
+      "Id": "1714741727",
+      "Name": "Play_UI_ShopOpen",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ShopOpen",
+      "GUID": "{F301B23A-0C9B-42B4-9F20-0E3BAC48994D}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.6749886",
+      "DurationMax": "1.6749886",
+      "MediaRefs": [
+       {
+        "Id": "871208621"
+       }
+      ]
+     },
+     {
+      "Id": "3746209562",
+      "Name": "Play_UI_ShopPurchase",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_ShopPurchase",
+      "GUID": "{8EB8F8E0-4B80-42D8-AB80-4E40F7A128FD}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.9149206",
+      "DurationMax": "0.9149206",
+      "MediaRefs": [
+       {
+        "Id": "83358173"
+       }
+      ]
+     },
+     {
+      "Id": "407689887",
+      "Name": "Play_UI_Victory",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_UI_Victory",
+      "GUID": "{266FFD5F-6F45-45CC-83B1-8A92782976FB}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "FileHash": "{7556F867-6ACD-C9A0-3F4F-FEEDCC31AC27}"
+ }
+}

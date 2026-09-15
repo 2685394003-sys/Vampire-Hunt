@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bc58403f2e64d6eac37d8165f570829, type: 3}
   m_Name: Frost
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.StatusEffectDefinitionAsset
-  statusId: 2
+  statusId: 4
   element: 2
   stackPolicy: 1
   maxStacks: 5
@@ -20,3 +20,5 @@ MonoBehaviour:
   effectModules:
   - {fileID: 11400000, guid: 6899d17a59eb4cd4a05e427cb5d46e80, type: 2}
   - {fileID: 11400000, guid: 6bcc04ad8c1e4f07d38175afe80791b3, type: 2}
+  - {fileID: 11400000, guid: a1000000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: a1000000000000000000000000000002, type: 2}

@@ -1,0 +1,32 @@
+Event	ID	Name			Wwise Object Path	Notes
+	415253162	Play_Player_Move_Stop			\Default Work Unit\Play_Player_Move_Stop	
+	887999531	Play_Player_Hurt			\Default Work Unit\Play_Player_Hurt	
+	989106701	Play_Player_Rifle_Fire			\Default Work Unit\Play_Player_Rifle_Fire	
+	1294658991	Play_Player_LightAtk1			\Default Work Unit\Play_Player_LightAtk1	
+	1407865782	Play_Player_SwordWave_Hit			\Default Work Unit\Play_Player_SwordWave_Hit	
+	1519839800	Play_Player_Laser_Fire			\Default Work Unit\Play_Player_Laser_Fire	
+	1613540383	Play_Player_Move			\Default Work Unit\Play_Player_Move	
+	1735473547	Play_Player_SwordWave_Fire			\Default Work Unit\Play_Player_SwordWave_Fire	
+	1835085974	Play_Player_Death			\Default Work Unit\Play_Player_Death	
+	2175711460	Play_Player_Dash			\Default Work Unit\Play_Player_Dash	
+	2616938914	Play_Player_Missile_Explode			\Default Work Unit\Play_Player_Missile_Explode	
+	3667971875	Play_Player_Missile_Fire			\Default Work Unit\Play_Player_Missile_Fire	
+	4012753326	Play_Player_Missile_Hit			\Default Work Unit\Play_Player_Missile_Hit	
+	4126353675	Play_Player_Revive			\Default Work Unit\Play_Player_Revive	
+	4249207015	Play_Player_Land			\Default Work Unit\Play_Player_Land	
+
+In Memory Audio	ID	Name	Audio source file		Wwise Object Path	Notes	Data Size
+	6900021	Play_Player_LightAtk_03	.cache\8E\{8EC69F90-646C-4E3B-C121-AFD7C4F97B07}.wem		\Containers\Default Work Unit\Player\Combat\Play_Player_LightAtk1\Play_Player_LightAtk_03		275872
+	90888783	Play_Player_Dash	.cache\34\{341A4EBD-DEC3-BC6C-E05E-7812F6EEF388}.wem		\Containers\Default Work Unit\Player\Combat\Play_Player_Dash		9696
+	238398679	Play_Player_Laser_Fire	.cache\25\{25B29863-0CFB-FD87-B3C6-7B64B86C79C2}.wem		\Containers\Default Work Unit\Player\Weapons\Laser\Play_Player_Laser_Fire		352896
+	294457716	Play_Player_Missile_Fire	.cache\85\{853FD9C8-6170-B747-A4C9-9119CB2157E7}.wem		\Containers\Default Work Unit\Player\Weapons\Missile\Play_Player_Missile_Fire		195976
+	322228625	Play_Player_Missile_Explode	.cache\5D\{5D131550-C9BD-BEA5-89AB-9E22E0788E76}.wem		\Containers\Default Work Unit\Player\Weapons\Missile\Play_Player_Missile_Explode		422192
+	454290976	Play_Player_LightAtk_02	.cache\3C\{3C9CBA73-4B47-591D-AC54-C47321F684BD}.wem		\Containers\Default Work Unit\Player\Combat\Play_Player_LightAtk1\Play_Player_LightAtk_02		275872
+	536152908	Play_Player_SwordWave_Fire	.cache\D8\{D84C39D7-71E3-6A13-EE4A-1BC35BB038BB}.wem		\Containers\Default Work Unit\Player\Weapons\SwordWave\Play_Player_SwordWave_Fire		278808
+	636167408	Play_Player_Move_Stop	.cache\77\{77DAAE50-A187-0629-5B67-4BAE2C4E85F3}.wem		\Containers\Default Work Unit\Player\Movement\Play_Player_Move_Stop		157364
+	752618204	Play_Player_SwordWave_Hit	.cache\ED\{ED99D660-2A41-4FCD-3FF4-4EE87FFFA282}.wem		\Containers\Default Work Unit\Player\Weapons\SwordWave\Play_Player_SwordWave_Hit		213148
+	854851691	Play_Player_Hurt	.cache\30\{30433FC2-4AEA-6BA8-7CF9-EECB5DD39C12}.wem		\Containers\Default Work Unit\Player\Combat\Play_Player_Hurt		366040
+	888701996	Play_Player_Rifle_Fire	.cache\E2\{E2D62271-2D17-FB03-67AF-39F56DF43FEA}.wem		\Containers\Default Work Unit\Player\Weapons\Rifle\Play_Player_Rifle_Fire		364788
+	920039104	Play_Player_LightAtk_01	.cache\3B\{3B6031B1-37A1-DE80-7AD6-E52FD44E1E33}.wem		\Containers\Default Work Unit\Player\Combat\Play_Player_LightAtk1\Play_Player_LightAtk_01		275872
+	1005976622	Play_Player_Missile_Hit	.cache\85\{851F42E8-DF8B-5C99-1FDE-C02977586023}.wem		\Containers\Default Work Unit\Player\Weapons\Missile\Play_Player_Missile_Hit		225680
+

@@ -2,7 +2,9 @@ using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Boss.Abilities;
 using VampireHunt.Infrastructure.Integration;
+using VampireHunt.Infrastructure.Netcode.Player;
 using VampireHunt.Infrastructure.Unity.Boss;
+using VampireHunt.Infrastructure.Unity;
 
 namespace VampireHunt.Infrastructure.Netcode
 {
@@ -33,6 +35,9 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private uint m_SelectionOrdinal;
         private bool m_OfflineInitialized;
+        private PlayerCombatStateHost m_CombatTarget;
+        private ulong m_CombatActionHandle;
+        private uint m_CombatTargetGeneration;
 
         public bool HasActiveCast => host != null && host.Snapshot.IsCasting;
         public bool AutomaticCastsEnabled => allowAutomaticCasts;
@@ -57,6 +62,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public override void OnNetworkDespawn()
         {
+            EndTargetedCombatAction();
             if (IsServer && host != null)
                 host.ResetServer(NetworkManager != null ? NetworkManager.ServerTime.Time : 0d);
             m_SelectionOrdinal = 0;
@@ -66,6 +72,9 @@ namespace VampireHunt.Infrastructure.Netcode
 
         private void Update()
         {
+            // 单人模式菜单暂停时冻结 Boss 能力调度（ServerTime 是墙钟，不受 Time.timeScale 影响）。
+            if (MenuPauseController.IsPaused) return;
+
             if (IsSpawned)
             {
                 if (!IsServer || host == null || !host.IsInitialized) return;
@@ -94,7 +103,7 @@ namespace VampireHunt.Infrastructure.Netcode
             if (!changed) return false;
 
             m_SelectionOrdinal = 0;
-            stateReplicator.PublishServer(host.Snapshot, force: true);
+            Publish(host.Snapshot, false, true);
             return true;
         }
 
@@ -112,7 +121,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
             double serverTime = NetworkManager.ServerTime.Time;
             if (!host.CancelActiveCastServer(serverTime)) return false;
-            stateReplicator.PublishServer(host.Snapshot, force: true);
+            Publish(host.Snapshot, false, true);
             return true;
         }
 
@@ -122,7 +131,7 @@ namespace VampireHunt.Infrastructure.Netcode
 
             double serverTime = NetworkManager.ServerTime.Time;
             if (!host.TryParryActiveCastServer(serverTime)) return false;
-            stateReplicator.PublishServer(host.Snapshot, force: true);
+            Publish(host.Snapshot, false, true);
             return true;
         }
 
@@ -135,8 +144,10 @@ namespace VampireHunt.Infrastructure.Netcode
             double serverTime = NetworkManager.ServerTime.Time;
             BossAbilityExecutionInput input = contextProvider.Capture();
             uint seed = HashSeed(unchecked((uint)runSeed), ++m_SelectionOrdinal);
-            if (!host.TryStartAbilityServer(ability.CreateDefinition(), serverTime, input, seed)) return false;
-            stateReplicator.PublishServer(host.Snapshot, force: true);
+            int participantCount = CountSpawnedParticipants();
+            if (!host.TryStartAbilityServer(
+                    ability.CreateDefinition(), serverTime, input, seed, participantCount)) return false;
+            Publish(host.Snapshot, false, true);
             return true;
         }
 
@@ -160,14 +171,64 @@ namespace VampireHunt.Infrastructure.Netcode
             if (contextProvider == null || stateReplicator == null) return;
             BossAbilityExecutionInput input = contextProvider.Capture();
             uint seed = HashSeed(unchecked((uint)runSeed), ++m_SelectionOrdinal);
-            bool changed = host.TickServer(serverTime, input, seed, allowAutomaticCasts);
+            int participantCount = publishOffline ? 1 : CountSpawnedParticipants();
+            bool changed = host.TickServer(
+                serverTime, input, seed, allowAutomaticCasts, participantCount);
             if (changed) Publish(host.Snapshot, publishOffline, force: false);
+        }
+
+        private int CountSpawnedParticipants()
+        {
+            NetworkManager manager = NetworkManager;
+            if (manager == null || !manager.IsListening) return 1;
+
+            int count = 0;
+            var clients = manager.ConnectedClientsList;
+            for (int i = 0; i < clients.Count; i++)
+            {
+                NetworkObject playerObject = clients[i]?.PlayerObject;
+                if (playerObject != null && playerObject.IsSpawned) count++;
+            }
+
+            return Mathf.Clamp(count, 1, 64);
         }
 
         private void Publish(in BossAbilitySnapshot snapshot, bool offline, bool force)
         {
+            UpdateTargetedCombatAction(snapshot, offline);
             if (offline) stateReplicator.PublishOffline(snapshot, force);
             else stateReplicator.PublishServer(snapshot, force);
+        }
+
+        private void UpdateTargetedCombatAction(in BossAbilitySnapshot snapshot, bool offline)
+        {
+            if (offline || !snapshot.IsCasting || snapshot.TargetEntityId == 0)
+            {
+                EndTargetedCombatAction();
+                return;
+            }
+
+            PlayerCombatStateHost target = ServerCombatActivity.Resolve(
+                NetworkManager, new VampireHunt.SharedKernel.EntityId(snapshot.TargetEntityId));
+            ulong handle = unchecked((NetworkObjectId * 11400714819323198485UL) ^
+                                     snapshot.CastSequence ^ ((ulong)snapshot.AbilityId << 32));
+            if (target == m_CombatTarget && handle == m_CombatActionHandle) return;
+
+            EndTargetedCombatAction();
+            if (target == null) return;
+            m_CombatTarget = target;
+            m_CombatActionHandle = handle;
+            m_CombatTargetGeneration = target.Generation;
+            target.BeginActionServer(handle, m_CombatTargetGeneration);
+        }
+
+        private void EndTargetedCombatAction()
+        {
+            if (m_CombatTarget != null)
+                m_CombatTarget.EndActionServer(m_CombatActionHandle, m_CombatTargetGeneration);
+            m_CombatTarget = null;
+            m_CombatActionHandle = 0;
+            m_CombatTargetGeneration = 0;
         }
 
         private static uint HashSeed(uint seed, uint ordinal)

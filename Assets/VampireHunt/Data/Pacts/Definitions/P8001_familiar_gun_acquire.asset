@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P8001_familiar_gun_acquire
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 8001
+  displayName: "\u5F71\u536B\u82CF\u9192"
+  description: "\u83B7\u5F97\u624B\u67AA\u578B\u4F7F\u9B54\uFF08\u8FDC\u7A0B\u5C04\u51FB\uFF09"
+  icon: {fileID: 0}
+  tier: 0
+  rarity: 1
+  baseWeight: 1.5
+  tags: 32
+  prerequisites: 
+  exclusions: 
+  repeatable: 0
+  maxStacks: 1
+  effectModules:
+  - {fileID: 11400000, guid: 0a93d514b452eec46917690849987ebe, type: 2}

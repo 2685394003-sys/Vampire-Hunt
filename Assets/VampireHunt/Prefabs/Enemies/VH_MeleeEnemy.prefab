@@ -19,6 +19,8 @@ GameObject:
   - component: {fileID: 810000000000000014}
   - component: {fileID: 810000000000000015}
   - component: {fileID: 810000000000000016}
+  - component: {fileID: 219119476408945916}
+  - component: {fileID: 5744691887872489462}
   m_Layer: 8
   m_Name: VH_MeleeEnemy
   m_TagString: Untagged
@@ -54,7 +56,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3147211801
+  GlobalObjectIdHash: 609365202
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 0
@@ -167,13 +169,20 @@ MonoBehaviour:
   archetype: {fileID: 11400000, guid: 81d99aab90b844a3bc65708b10ed458e, type: 2}
   affixCatalog: {fileID: 11400000, guid: 6b01b2c3d4e54f678901234567890001, type: 2}
   characterController: {fileID: 810000000000000004}
+  navigationAgent: {fileID: 0}
   presenter: {fileID: 810000000000000008}
   modifierHost: {fileID: 810000000000000006}
   statusHost: {fileID: 810000000000000013}
   effectHost: {fileID: 810000000000000015}
   lootDropper: {fileID: 810000000000000016}
   onDamagePresented: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  attackExecutorBehaviour: {fileID: 0}
+  attackOrigin: {fileID: 0}
+  attackBlockingMask:
+    serializedVersion: 2
+    m_Bits: 513
   deathDespawnDelay: 1.25
+  noTargetDespawnDelay: 3
 --- !u!114 &810000000000000008
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -191,6 +200,8 @@ MonoBehaviour:
   telegraphVisual: {fileID: 0}
   normalColor: {r: 0.35, g: 0.08, b: 0.08, a: 1}
   telegraphColor: {r: 1, g: 0.25, b: 0.05, a: 1}
+  attackEventName: Play_Enemy_Melee_Attack
+  deathEventName: Play_Enemy_Death
 --- !u!114 &810000000000000013
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -203,10 +214,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 02fad95847c94ab2de8c215a93b24c6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.CombatStatusHost
+  ShowTopMostFoldoutHeaderGroup: 1
   catalog: {fileID: 11400000, guid: 718712cf38a475b718293a4b5c6d7e8f, type: 2}
   effectHost: {fileID: 810000000000000015}
   onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
   onStatusRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  elementResist: 1
 --- !u!114 &810000000000000014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -234,7 +247,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 53447c250496478f5b09fe27608f193b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.GameplayEffectHost
 --- !u!114 &810000000000000016
 MonoBehaviour:
@@ -246,15 +259,67 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40b15e8c9fad4b02e61728394a5b6c7d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.EnemyLootDropper
+  ShowTopMostFoldoutHeaderGroup: 1
   runSeed: 1337
   scatterRadius: 0.75
   groundMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   groundProbeHeight: 4
   groundOffset: 0.1
+--- !u!114 &219119476408945916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810000000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  meshVfxConfig: {fileID: 11400000, guid: dc28911584fda6d41a89bc7df8df5f66, type: 2}
+  meshTargets: []
+  particleTarget: {fileID: 0}
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
+  hitPrefab: {fileID: 5086231954563861821, guid: 0ac2bdcf97408c142ad73735d2e77bd6, type: 3}
+  hitScale: 0.3
+  hitInterval: 0.05
+  hitSkipLoopingSystems: 1
+  detonateEventName: Play_Combat_Reaction_Blast
+  shatterEventName: Play_Combat_Reaction_Shatter
+  lightningChainEventName: Play_Combat_Reaction_Thunder
+--- !u!114 &5744691887872489462
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810000000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b1e4d206094bd448a32f3edce427f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkGameObj
+  m_listeners:
+    initialListenerList: []
+    useDefaultListeners: 1
+  isEnvironmentAware: 1
+  isStaticObject: 0
+  usePositionOffsetData: 0
+  m_positionOffsetData:
+    KeepMe: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+  scalingFactor: 1
+  m_posOffsetData: {fileID: 0}
+  listenerMask: 1
 --- !u!1 &810000000000000009
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,3 +1,5 @@
+using VampireHunt.Contracts;
+using Blocks.Gameplay.Core;
 using Blocks.Gameplay.Shooter;
 using Unity.Netcode;
 using UnityEngine;
@@ -10,8 +12,20 @@ namespace VampireHunt.Infrastructure.Netcode
     {
         private const uint SwordWaveAbilityId = 1;
         [SerializeField] private NetworkObject swordWavePrefab;
+        [Tooltip("Wwise 事件名（发射音），对应《策划版音频调用表》。留空不发声。")]
+        [SerializeField] private string fireEventName = "";
+
+        [SerializeField] private CombatIntentPolicy combatIntentPolicy = CombatIntentPolicy.Combat;
+        public CombatIntentPolicy IntentPolicy => combatIntentPolicy;
 
         public uint AbilityId => SwordWaveAbilityId;
+
+        public bool CanExecuteServer(NetworkManager manager, ulong senderClientId, in AbilityCastNetworkMessage message)
+        {
+            if (manager == null || !manager.IsServer || swordWavePrefab == null ||
+                message.AbilityId != SwordWaveAbilityId) return false;
+            return true;
+        }
 
         public bool ExecuteServer(NetworkManager manager, ulong senderClientId, in AbilityCastNetworkMessage message)
         {
@@ -27,6 +41,8 @@ namespace VampireHunt.Infrastructure.Netcode
             {
                 ownerObject = client.PlayerObject.gameObject;
             }
+
+            if (!string.IsNullOrEmpty(fireEventName)) WwiseAudioBridge.PostEvent(fireEventName, gameObject);
 
             for (int i = 0; i < projectileCount; i++)
             {

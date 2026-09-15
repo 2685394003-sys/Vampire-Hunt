@@ -22,6 +22,9 @@ GameObject:
   - component: {fileID: 8193731741641704649}
   - component: {fileID: 5880844795128911762}
   - component: {fileID: 1626954648073268543}
+  - component: {fileID: -8230944489718884409}
+  - component: {fileID: -3238692581830535199}
+  - component: {fileID: 7040202458232650285}
   m_Layer: 8
   m_Name: VH_Melee
   m_TagString: Untagged
@@ -210,6 +213,8 @@ MonoBehaviour:
   telegraphVisual: {fileID: 0}
   normalColor: {r: 0.35, g: 0.08, b: 0.08, a: 1}
   telegraphColor: {r: 1, g: 0.25, b: 0.05, a: 1}
+  attackEventName: Play_Enemy_Melee_Attack
+  deathEventName: Play_Enemy_Death
 --- !u!114 &7560963028734871006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -239,6 +244,7 @@ MonoBehaviour:
   effectHost: {fileID: 7560963028734871006}
   onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
   onStatusRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  elementResist: 1
 --- !u!114 &9155657847494717447
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -273,7 +279,7 @@ MonoBehaviour:
   scatterRadius: 0.75
   groundMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   groundProbeHeight: 4
   groundOffset: 0.1
 --- !u!114 &5880844795128911762
@@ -303,8 +309,9 @@ MonoBehaviour:
   attackOrigin: {fileID: 8067105055938539418}
   attackBlockingMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   deathDespawnDelay: 1.25
+  noTargetDespawnDelay: 3
 --- !u!114 &1626954648073268543
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -317,6 +324,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a1d502a9c3e4ef18a6b2c7d5e901002, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.EnemyMeleeAttackExecutor
+--- !u!114 &-8230944489718884409
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6734190735489785284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a7070ee38b186849b005f420c780b8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Audio.EntityDamageAudio
+  onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  damageEventName: Play_Enemy_Hurt
+--- !u!114 &-3238692581830535199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6734190735489785284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  meshVfxConfig: {fileID: 11400000, guid: dc28911584fda6d41a89bc7df8df5f66, type: 2}
+  meshTargets: []
+  particleTarget: {fileID: 0}
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
+  hitPrefab: {fileID: 5086231954563861821, guid: 0ac2bdcf97408c142ad73735d2e77bd6, type: 3}
+  hitScale: 0.3
+  hitInterval: 0.05
+  hitSkipLoopingSystems: 1
+  detonateEventName: Play_Combat_Reaction_Blast
+  shatterEventName: Play_Combat_Reaction_Shatter
+  lightningChainEventName: Play_Combat_Reaction_Thunder
+--- !u!114 &7040202458232650285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6734190735489785284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b1e4d206094bd448a32f3edce427f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkGameObj
+  m_listeners:
+    initialListenerList: []
+    useDefaultListeners: 1
+  isEnvironmentAware: 1
+  isStaticObject: 0
+  usePositionOffsetData: 0
+  m_positionOffsetData:
+    KeepMe: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+  scalingFactor: 1
+  m_posOffsetData: {fileID: 0}
+  listenerMask: 1
 --- !u!1 &8245638330595890637
 GameObject:
   m_ObjectHideFlags: 0

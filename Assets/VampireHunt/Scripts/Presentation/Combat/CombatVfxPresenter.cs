@@ -42,6 +42,8 @@ namespace VampireHunt.Presentation.Combat
         {
             if (effectAnchor == null) effectAnchor = transform;
             m_Driver = vfxDriverBehaviour as ICombatVfxDriver;
+            // 未显式指定 driver 时，回退到同物体上的任意 ICombatVfxDriver 实现（如占位的 StatusEffectVfxDriver）。
+            if (m_Driver == null) m_Driver = GetComponent<ICombatVfxDriver>();
             var behaviours = GetComponents<MonoBehaviour>();
             for (int i = 0; i < behaviours.Length && m_Identity == null; i++)
             {

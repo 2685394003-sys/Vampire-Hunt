@@ -1,0 +1,42 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <Style src="VampireHuntHUD.uss"/>
+  <Style src="GothicTheme.uss"/>
+  <ui:VisualElement name="hud-root" style="background-color: rgb(14, 15, 17); padding: 70px;">
+    <ui:Label text="SILVER &amp; BLOOD" style="font-size: 15px; color: rgb(184, 164, 133); letter-spacing: 5px;"/>
+    <ui:Label text="血族狂猎 · 组件库" style="font-size: 40px; margin-top: 12px; margin-bottom: 34px;"/>
+    <ui:VisualElement style="flex-direction: row; height: 390px;">
+      <ui:VisualElement class="gothic-panel" style="width: 400px; padding: 32px; margin-right: 36px;">
+        <ui:VisualElement class="gothic-crest" style="height: 110px; margin-bottom: 20px;"/>
+        <ui:Label text="01  徽章与九宫格面板" style="font-size: 23px;"/>
+        <ui:Label text="旧银 / 深灰石纹 / 清晰留白" style="font-size: 17px; margin-top: 12px; color: rgb(174, 168, 157);"/>
+        <ui:ProgressBar class="vital-bar health-bar" value="72" style="margin-top: 24px; flex-grow: 0;"/>
+        <ui:ProgressBar class="vital-bar stamina-bar" value="80" style="margin-top: 12px; flex-grow: 0;"/>
+      </ui:VisualElement>
+      <ui:VisualElement class="pact-card" style="height: 370px; margin-right: 36px;">
+        <ui:VisualElement class="pact-art pact-art--blade"/>
+        <ui:Label text="02  血契卡片" class="pact-card-name"/>
+        <ui:Label text="插画、文案、层数与交互分别绘制。" class="pact-card-description"/>
+        <ui:Label text="自身：1 → 2 层" class="pact-card-stack"/>
+        <ui:Button text="选择" class="pact-select-button"/>
+      </ui:VisualElement>
+      <ui:VisualElement style="width: 440px;">
+        <ui:VisualElement class="pact-card affix-card draft-card--selected" style="width: 440px; height: 195px;">
+          <ui:VisualElement class="affix-heading"><ui:VisualElement class="affix-art"/><ui:Label text="03  副契选中态" class="pact-card-name"/></ui:VisualElement>
+          <ui:Label text="明确标注敌方强化与选择状态。" class="pact-card-description"/>
+          <ui:Button text="已选择" class="pact-select-button affix-select-button"/>
+        </ui:VisualElement>
+        <ui:Label text="04  按钮与状态" style="font-size: 23px; margin-top: 25px;"/>
+        <ui:Button text="确认升级 · 可用" class="pact-confirm-button" style="width: 400px; margin: 14px 0 8px;"/>
+        <ui:Button text="等待选择 · 禁用" enabled="false" class="pact-confirm-button" style="width: 400px; margin: 0;"/>
+      </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:Label text="05  道具槽 / 06  信息文字 / 07  语义色" style="font-size: 23px; margin-top: 35px; margin-bottom: 24px;"/>
+    <ui:VisualElement style="flex-direction: row;">
+      <ui:VisualElement class="item-slot"><ui:VisualElement class="gothic-crest" style="width: 65px; height: 65px; margin-top: 14px;"/><ui:Label text="示例" class="item-slot-name"/><ui:Label text="1" class="item-slot-key"/></ui:VisualElement>
+      <ui:VisualElement style="margin-left: 50px; width: 390px;"><ui:Label text="象牙白：主信息" style="font-size: 25px;"/><ui:Label text="暖灰：说明与次级数值" style="font-size: 18px; margin-top: 12px; color: rgb(174,168,157);"/><ui:Label text="金色轮廓：选中与键盘焦点" style="font-size: 18px; margin-top: 12px; color: rgb(225,194,143);"/></ui:VisualElement>
+      <ui:VisualElement style="width: 125px; height: 92px; background-color: rgb(138,20,29); margin-right: 20px;"><ui:Label text="生命" style="margin: 12px;"/></ui:VisualElement>
+      <ui:VisualElement style="width: 125px; height: 92px; background-color: rgb(109,125,84); margin-right: 20px;"><ui:Label text="体力" style="margin: 12px;"/></ui:VisualElement>
+      <ui:VisualElement style="width: 125px; height: 92px; background-color: rgb(70,62,93);"><ui:Label text="副契" style="margin: 12px;"/></ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

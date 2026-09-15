@@ -5,7 +5,6 @@ Shader "VampireHunt/Boss/AdditiveVFX"
         [MainTexture] _BaseMap("VFX Texture", 2D) = "white" {}
         [HDR] [MainColor] _BaseColor("Tint", Color) = (1,0.02,0.08,1)
         _Intensity("Emission Intensity", Range(0,12)) = 4
-        _FlowSpeed("Flow Speed", Range(-4,4)) = 0.15
         _EdgePower("Edge Power", Range(0.25,4)) = 1
     }
     SubShader
@@ -40,24 +39,33 @@ Shader "VampireHunt/Boss/AdditiveVFX"
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
             float4 _BaseMap_ST;
+            float4 _BaseMap_TexelSize;
             float4 _BaseColor;
             float _Intensity;
-            float _FlowSpeed;
             float _EdgePower;
 
             Varyings vert(Attributes input)
             {
                 Varyings output;
                 output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
-                output.uv = input.uv * _BaseMap_ST.xy + _BaseMap_ST.zw;
+                // Keep the mesh UV in the local 0-1 range. The atlas transform and
+                // cell-edge protection are applied together in the fragment shader.
+                output.uv = input.uv;
                 output.color = input.color;
                 return output;
             }
 
             half4 frag(Varyings input) : SV_Target
             {
-                float2 flowUv = input.uv + float2(_Time.y * _FlowSpeed * 0.01, 0);
-                half4 sampleValue = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, flowUv);
+                // This texture is a 3x3 atlas of independent, non-tileable VFX art.
+                // Scrolling the atlas itself will eventually reveal another cell.
+                // Keep the artwork fixed and inset the sample by one texel so
+                // bilinear filtering cannot bleed across atlas-cell boundaries.
+                float2 cellPadding = min(_BaseMap_TexelSize.xy, _BaseMap_ST.xy * 0.05);
+                float2 cellMin = _BaseMap_ST.zw + cellPadding;
+                float2 cellMax = _BaseMap_ST.zw + _BaseMap_ST.xy - cellPadding;
+                float2 atlasUv = lerp(cellMin, cellMax, saturate(input.uv));
+                half4 sampleValue = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, atlasUv);
                 half mask = pow(saturate(sampleValue.a), _EdgePower);
                 half3 emission = sampleValue.rgb * _BaseColor.rgb * input.color.rgb * _Intensity;
                 return half4(emission * mask, mask * _BaseColor.a * input.color.a);

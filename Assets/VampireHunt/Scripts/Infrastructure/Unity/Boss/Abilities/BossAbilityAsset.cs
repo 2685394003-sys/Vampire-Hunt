@@ -31,6 +31,11 @@ namespace VampireHunt.Infrastructure.Unity.Boss
         [Min(0.01f)] [SerializeField] private float resolveDuration = 0.1f;
         [Min(0f)] [SerializeField] private float recoverDuration = 0.5f;
 
+        [Header("Multiplayer Scaling")]
+        [Tooltip("Server-authoritative per-player coefficients. Solo always keeps the original values.")]
+        [SerializeField] private BossAbilityMultiplayerScaling multiplayerScaling =
+            new BossAbilityMultiplayerScaling();
+
         [Header("Gameplay Logic")]
         [Tooltip("The .cs script that implements this ability's server-side behavior.")]
         [HideInInspector] [SerializeField] private UnityEngine.Object logicScript;
@@ -71,7 +76,8 @@ namespace VampireHunt.Infrastructure.Unity.Boss
                 resolveDuration,
                 recoverDuration,
                 BossAbilityLogicTypeResolver.CreateFactory(logicTypeName, tuning),
-                parryableDuringTelegraph);
+                parryableDuringTelegraph,
+                multiplayerScaling);
         }
 
         private void OnValidate()
@@ -88,6 +94,7 @@ namespace VampireHunt.Infrastructure.Unity.Boss
             recoverDuration = Mathf.Max(0f, recoverDuration);
             presentationCues ??= Array.Empty<BossAbilityPresentationCue>();
             tuning ??= new BossAbilityTuning();
+            multiplayerScaling ??= new BossAbilityMultiplayerScaling();
         }
     }
 }

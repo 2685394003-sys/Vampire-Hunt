@@ -10,23 +10,28 @@ namespace VampireHunt.Infrastructure.Netcode
     {
         public uint AbilityId { get; }
         public ulong CastSequence { get; }
+        public uint BeamIndex { get; }
         public double StartServerTime { get; }
         public ulong TargetEntityId { get; }
         public Vector3 InitialDirection { get; }
         public Vector3 Size { get; }
         public float RotationSpeed { get; }
+        public double TelegraphDuration { get; }
 
         public BossTrackingLaserPresentation(
             uint abilityId,
             ulong castSequence,
+            uint beamIndex,
             double startServerTime,
             ulong targetEntityId,
             Vector3 initialDirection,
             Vector3 size,
-            float rotationSpeed)
+            float rotationSpeed,
+            double telegraphDuration)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
+            BeamIndex = beamIndex;
             StartServerTime = startServerTime;
             TargetEntityId = targetEntityId;
             InitialDirection = initialDirection.sqrMagnitude > .0001f
@@ -37,12 +42,13 @@ namespace VampireHunt.Infrastructure.Netcode
                 Mathf.Max(.01f, size.y),
                 Mathf.Max(.01f, size.z));
             RotationSpeed = Mathf.Max(0f, rotationSpeed);
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
         }
     }
 
     /// <summary>
-    /// Replicates the immutable lock-on snapshot. Damage and target selection stay server-only;
-    /// this bridge only tells every client which synchronized player to visually follow.
+    /// Replicates one start snapshot per beam plus rate-limited authoritative directions.
+    /// Damage, target selection and turning decisions remain server-only.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(NetworkObject))]
@@ -50,6 +56,7 @@ namespace VampireHunt.Infrastructure.Netcode
         IBossTrackingLaserPresentationService
     {
         public event Action<BossTrackingLaserPresentation> LaserStarted;
+        public event Action<uint, ulong, uint, Vector3, bool> LaserDirectionUpdated;
         public event Action<uint, ulong> LaserCancelled;
 
         public bool TryPublish(in BossTrackingLaserPresentationRequest request)
@@ -58,11 +65,26 @@ namespace VampireHunt.Infrastructure.Netcode
             PublishLaserRpc(
                 request.AbilityId,
                 request.CastSequence,
+                request.BeamIndex,
                 request.StartServerTime,
                 request.TargetEntityId.Value,
                 ToVector3(request.InitialDirection),
                 ToVector3(request.Size),
-                request.RotationSpeed);
+                request.RotationSpeed,
+                request.TelegraphDuration);
+            return true;
+        }
+
+        public bool TryUpdate(
+            uint abilityId,
+            ulong castSequence,
+            uint beamIndex,
+            in Float3 direction,
+            bool snap)
+        {
+            if (!IsSpawned || !IsServer || castSequence == 0) return false;
+            UpdateLaserDirectionRpc(
+                abilityId, castSequence, beamIndex, ToVector3(direction), snap);
             return true;
         }
 
@@ -77,20 +99,39 @@ namespace VampireHunt.Infrastructure.Netcode
         private void PublishLaserRpc(
             uint abilityId,
             ulong castSequence,
+            uint beamIndex,
             double startServerTime,
             ulong targetEntityId,
             Vector3 initialDirection,
             Vector3 size,
-            float rotationSpeed)
+            float rotationSpeed,
+            double telegraphDuration)
         {
             LaserStarted?.Invoke(new BossTrackingLaserPresentation(
                 abilityId,
                 castSequence,
+                beamIndex,
                 startServerTime,
                 targetEntityId,
                 initialDirection,
                 size,
-                rotationSpeed));
+                rotationSpeed,
+                telegraphDuration));
+        }
+
+        [Rpc(SendTo.ClientsAndHost, InvokePermission = RpcInvokePermission.Server)]
+        private void UpdateLaserDirectionRpc(
+            uint abilityId,
+            ulong castSequence,
+            uint beamIndex,
+            Vector3 direction,
+            bool snap)
+        {
+            Vector3 normalized = direction.sqrMagnitude > .0001f
+                ? direction.normalized
+                : Vector3.forward;
+            LaserDirectionUpdated?.Invoke(
+                abilityId, castSequence, beamIndex, normalized, snap);
         }
 
         [Rpc(SendTo.ClientsAndHost, InvokePermission = RpcInvokePermission.Server)]

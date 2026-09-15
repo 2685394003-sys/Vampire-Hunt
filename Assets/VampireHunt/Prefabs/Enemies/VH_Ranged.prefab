@@ -84,6 +84,9 @@ GameObject:
   - component: {fileID: 4347485923117671345}
   - component: {fileID: 2928057320886987452}
   - component: {fileID: 4308755639961819023}
+  - component: {fileID: 6275116970385037119}
+  - component: {fileID: 7713898283489411369}
+  - component: {fileID: 228128944582330227}
   m_Layer: 8
   m_Name: VH_Ranged
   m_TagString: Untagged
@@ -145,13 +148,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4132997839
+  GlobalObjectIdHash: 2126964860
   InScenePlacedSourceGlobalObjectIdHash: 3189949122
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
-  m_InScenePlaced: 1
+  m_InScenePlaced: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
@@ -272,6 +275,8 @@ MonoBehaviour:
   telegraphVisual: {fileID: 0}
   normalColor: {r: 0.32, g: 0.08, b: 0.5, a: 1}
   telegraphColor: {r: 0.8, g: 0.2, b: 1, a: 1}
+  attackEventName: Play_Enemy_Ranged_Shoot
+  deathEventName: Play_Enemy_Death
 --- !u!114 &8241606859826594899
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -301,6 +306,7 @@ MonoBehaviour:
   effectHost: {fileID: 8241606859826594899}
   onStatusAdded: {fileID: 11400000, guid: 291026cfbe304129f5a398c10a29b3d5, type: 2}
   onStatusRemoved: {fileID: 11400000, guid: 2a2137d0cf41523a06b4a9d21b3ac4e6, type: 2}
+  elementResist: 1
 --- !u!114 &3610589536497221505
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -335,7 +341,7 @@ MonoBehaviour:
   scatterRadius: 0.75
   groundMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   groundProbeHeight: 4
   groundOffset: 0.1
 --- !u!114 &2928057320886987452
@@ -365,8 +371,9 @@ MonoBehaviour:
   attackOrigin: {fileID: 6642164271069414549}
   attackBlockingMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 513
   deathDespawnDelay: 1.25
+  noTargetDespawnDelay: 3
 --- !u!114 &4308755639961819023
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -386,6 +393,71 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 73
   useShooterPool: 1
+--- !u!114 &6275116970385037119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890589751619523626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a7070ee38b186849b005f420c780b8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Audio.EntityDamageAudio
+  onDamage: {fileID: 11400000, guid: 280f15bead2f4018e49287b0f918a2c4, type: 2}
+  damageEventName: Play_Enemy_Hurt
+--- !u!114 &7713898283489411369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890589751619523626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77d83a6493eba84ea1747c5d2c89514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Combat.StatusEffectVfxDriver
+  meshVfxConfig: {fileID: 11400000, guid: dc28911584fda6d41a89bc7df8df5f66, type: 2}
+  meshTargets: []
+  particleTarget: {fileID: 0}
+  glowDiameter: 1.6
+  glowHeight: 1
+  pulseAmplitude: 0.15
+  pulseFrequency: 3
+  glowOpacity: 0.4
+  hitPrefab: {fileID: 5086231954563861821, guid: 0ac2bdcf97408c142ad73735d2e77bd6, type: 3}
+  hitScale: 0.3
+  hitInterval: 0.05
+  hitSkipLoopingSystems: 1
+  detonateEventName: Play_Combat_Reaction_Blast
+  shatterEventName: Play_Combat_Reaction_Shatter
+  lightningChainEventName: Play_Combat_Reaction_Thunder
+--- !u!114 &228128944582330227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890589751619523626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b1e4d206094bd448a32f3edce427f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkGameObj
+  m_listeners:
+    initialListenerList: []
+    useDefaultListeners: 1
+  isEnvironmentAware: 1
+  isStaticObject: 0
+  usePositionOffsetData: 0
+  m_positionOffsetData:
+    KeepMe: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+  scalingFactor: 1
+  m_posOffsetData: {fileID: 0}
+  listenerMask: 1
 --- !u!1 &1031668596334053683
 GameObject:
   m_ObjectHideFlags: 0

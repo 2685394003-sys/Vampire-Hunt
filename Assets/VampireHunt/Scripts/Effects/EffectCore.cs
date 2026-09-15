@@ -56,27 +56,31 @@ namespace VampireHunt.Effects
         public EffectSourceKey Key { get; }
         public EntityId Source { get; }
         public EntityId Target { get; }
-        public int Stacks { get; }
+        public float Stacks { get; }
         public float Magnitude { get; }
         public double StartTime { get; }
         public double EndTime { get; }
+        /// <summary>属性精通：影响所有元素效果（挂元素层数、闪电连锁传导复制层数）。</summary>
+        public float ElementMastery { get; }
 
         public EffectRuntimeState(
             in EffectSourceKey key,
             EntityId source,
             EntityId target,
-            int stacks,
+            float stacks,
             float magnitude,
             double startTime,
-            double endTime)
+            double endTime,
+            float elementMastery = 1f)
         {
             Key = key;
             Source = source;
             Target = target;
-            Stacks = Math.Max(1, stacks);
+            Stacks = Math.Max(0f, stacks);
             Magnitude = magnitude;
             StartTime = startTime;
             EndTime = endTime;
+            ElementMastery = elementMastery > 0f ? elementMastery : 1f;
         }
     }
 
@@ -133,11 +137,18 @@ namespace VampireHunt.Effects
             if (port != null && !m_Ports.Contains(port)) m_Ports.Add(port);
         }
 
-        public bool TryGet<TPort>(out TPort port) where TPort : class
+        public bool TryGet<TPort>(out TPort port) where TPort : class => TryGet<TPort>(null, out port);
+
+        /// <summary>
+        /// 按谓词取第一个匹配端口。同一 GameObject 上可能挂多个实现同一端口的组件
+        /// （如撞击/射击两个使魔控制器都实现 <c>IFamiliarPactTarget</c>），调用方用谓词按身份精确定位。
+        /// </summary>
+        public bool TryGet<TPort>(Func<TPort, bool> predicate, out TPort port) where TPort : class
         {
             for (int i = 0; i < m_Ports.Count; i++)
             {
                 if (!(m_Ports[i] is TPort match)) continue;
+                if (predicate != null && !predicate(match)) continue;
                 port = match;
                 return true;
             }
@@ -160,7 +171,7 @@ namespace VampireHunt.Effects
         public float Amount { get; }
         public DamageTags DamageTags { get; }
         public uint StatusId { get; }
-        public int StatusStacks { get; }
+        public float StatusStacks { get; }
 
         private EffectCommand(
             EffectCommandKind kind,
@@ -168,7 +179,7 @@ namespace VampireHunt.Effects
             float amount,
             DamageTags damageTags,
             uint statusId,
-            int statusStacks)
+            float statusStacks)
         {
             Kind = kind;
             State = state;
@@ -179,13 +190,13 @@ namespace VampireHunt.Effects
         }
 
         public static EffectCommand PeriodicDamage(in EffectRuntimeState state, float amount, DamageTags tags) =>
-            new EffectCommand(EffectCommandKind.PeriodicDamage, state, amount, tags, 0, 0);
+            new EffectCommand(EffectCommandKind.PeriodicDamage, state, amount, tags, 0, 0f);
 
-        public static EffectCommand ApplyStatus(in EffectRuntimeState state, uint statusId, int stacks) =>
+        public static EffectCommand ApplyStatus(in EffectRuntimeState state, uint statusId, float stacks) =>
             new EffectCommand(EffectCommandKind.ApplyStatus, state, 0f, DamageTags.None, statusId, stacks);
 
         public static EffectCommand RemoveSource(in EffectRuntimeState state) =>
-            new EffectCommand(EffectCommandKind.RemoveSource, state, 0f, DamageTags.None, 0, 0);
+            new EffectCommand(EffectCommandKind.RemoveSource, state, 0f, DamageTags.None, 0, 0f);
     }
 
     public interface IEffectCommandSink

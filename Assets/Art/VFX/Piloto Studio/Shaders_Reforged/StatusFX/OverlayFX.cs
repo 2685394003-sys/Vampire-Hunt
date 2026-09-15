@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
+/// <summary>
+/// Piloto mesh overlay with per-instance material ownership. Fire and frozen effects may
+/// share a renderer; disabling/rebinding one removes only the material it created.
+/// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
 public class OverlayFX : MonoBehaviour
@@ -16,249 +16,63 @@ public class OverlayFX : MonoBehaviour
     private float particleSizeMultiplier = 0.15f;
     public Vector3 rendererTrueForward = Vector3.zero;
 
-#if UNITY_EDITOR
-    private static readonly HashSet<Renderer> s_PreviewInjected = new();
-    private static readonly HashSet<Renderer> s_RuntimeInjected = new();
-    private bool IsSelected =>
-        overlayMaterial &&
-        (Selection.Contains(gameObject) || Selection.Contains(transform));
-#endif
+    [SerializeField, HideInInspector] private Material m_OwnedMaterial;
+    [SerializeField, HideInInspector] private Renderer m_BoundRenderer;
 
     private void OnEnable()
     {
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-            EnsurePreviewOverlay(true);
-#endif
-        if (Application.isPlaying)
-        {
-            StripRuntimeOverlay(); // 💡 Fix: ensure stale runtime overlays are removed
-            EnsureRuntimeOverlay(); // 💡 Fix: reinject on enable
-        }
-
+        EnsureOverlay();
         SyncParticleSystems();
     }
 
     private void OnValidate() => SyncParticleSystems();
+    private void OnDrawGizmosSelected() => SyncParticleSystems();
+    private void OnDisable() => ReleaseOverlay();
+    private void OnDestroy() => ReleaseOverlay();
 
-    private void OnDrawGizmosSelected()
-    {
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-            EnsurePreviewOverlay(false);
-#endif
-        SyncParticleSystems();
-    }
-
-    private void OnDisable()
-    {
-#if UNITY_EDITOR
-        if (!Application.isPlaying) StripPreviewOverlay();
-#endif
-        if (Application.isPlaying) StripRuntimeOverlay();
-    }
-
-    private void OnDestroy()
-    {
-#if UNITY_EDITOR
-        if (!Application.isPlaying) StripPreviewOverlay();
-#endif
-        if (Application.isPlaying) StripRuntimeOverlay();
-    }
-
-    /// <summary>
-    /// Rebinds this reusable status prefab to a runtime character renderer.
-    /// The effect can stay authored without a scene reference in its prefab.
-    /// </summary>
+    /// <summary>Bind before enabling an instance so particles never start on a stale mesh.</summary>
     public void SetTargetRenderer(Renderer renderer)
     {
-        if (targetRenderer == renderer)
-        {
-            SyncParticleSystems();
-            return;
-        }
-
-#if UNITY_EDITOR
-        if (!Application.isPlaying) StripPreviewOverlay();
-#endif
-        if (Application.isPlaying) StripRuntimeOverlay();
-
+        if (targetRenderer != renderer || m_BoundRenderer != renderer) ReleaseOverlay();
         targetRenderer = renderer;
         SyncParticleSystems();
-        if (!isActiveAndEnabled) return;
+        if (isActiveAndEnabled) EnsureOverlay();
+    }
 
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
+    private void EnsureOverlay()
+    {
+        if (overlayMaterial == null || targetRenderer == null || m_OwnedMaterial != null) return;
+        m_BoundRenderer = targetRenderer;
+        m_OwnedMaterial = new Material(overlayMaterial)
         {
-            EnsurePreviewOverlay(true);
+            name = overlayMaterial.name + (Application.isPlaying ? " (Runtime)" : " (Preview)"),
+            hideFlags = HideFlags.HideAndDontSave
+        };
+        UpdateBounds(m_OwnedMaterial, m_BoundRenderer);
+        // Append and later remove by identity, preserving original slots (including nulls)
+        // and materials belonging to other effects. Current enemy meshes have one submesh.
+        var materials = new List<Material>(m_BoundRenderer.sharedMaterials) { m_OwnedMaterial };
+        m_BoundRenderer.sharedMaterials = materials.ToArray();
+    }
+
+    private void ReleaseOverlay()
+    {
+        if (m_OwnedMaterial == null)
+        {
+            m_BoundRenderer = null;
             return;
         }
-#endif
-        EnsureRuntimeOverlay();
-    }
-
-#if UNITY_EDITOR
-    private void EnsurePreviewOverlay(bool force)
-    {
-        if ((!force && !IsSelected) || overlayMaterial == null) return;
-        var rend = targetRenderer;
-        if (rend == null) return;
-
-        foreach (var m in rend.sharedMaterials)
-            if (IsOverlayMatch(m)) return;
-
-        var mats = rend.sharedMaterials;
-        int slot = System.Array.FindIndex(mats, m => m == null);
-        bool willAppend = slot == -1;
-
-        if (!s_PreviewInjected.Contains(rend))
+        if (m_BoundRenderer != null)
         {
-            var preview = Object.Instantiate(overlayMaterial);
-            preview.name = overlayMaterial.name + " (Preview)";
-            preview.hideFlags = HideFlags.HideAndDontSave;
-            UpdateBounds(preview, rend);
-
-            if (willAppend)
-            {
-                var list = new List<Material>(mats) { preview };
-                rend.sharedMaterials = list.ToArray();
-            }
-            else
-            {
-                mats[slot] = preview;
-                rend.sharedMaterials = mats;
-            }
-            s_PreviewInjected.Add(rend);
+            var materials = new List<Material>(m_BoundRenderer.sharedMaterials);
+            materials.RemoveAll(material => material == m_OwnedMaterial);
+            m_BoundRenderer.sharedMaterials = materials.ToArray();
         }
+        if (Application.isPlaying) Destroy(m_OwnedMaterial);
+        else DestroyImmediate(m_OwnedMaterial);
+        m_OwnedMaterial = null;
+        m_BoundRenderer = null;
     }
-
-    private static void OnSelectionChanged()
-    {
-        if (Selection.activeObject != null) return;
-        foreach (var rend in new List<Renderer>(s_PreviewInjected))
-        {
-            if (rend == null) continue;
-            var mats = rend.sharedMaterials;
-            bool changed = false;
-            for (int i = 0; i < mats.Length; i++)
-                if (mats[i] && (mats[i].hideFlags & HideFlags.DontSave) != 0)
-                {
-                    mats[i] = null;
-                    changed = true;
-                }
-            if (changed) rend.sharedMaterials = mats;
-        }
-        s_PreviewInjected.Clear();
-    }
-
-    private void StripPreviewOverlay()
-    {
-        var rend = targetRenderer;
-        if (rend == null) return;
-        var mats = rend.sharedMaterials;
-        bool changed = false;
-        for (int i = 0; i < mats.Length; i++)
-            if (mats[i] && (mats[i].hideFlags & HideFlags.DontSave) != 0)
-            {
-                mats[i] = null;
-                changed = true;
-            }
-        if (changed) rend.sharedMaterials = mats;
-        s_PreviewInjected.Remove(rend);
-    }
-#endif
-    private bool IsOverlayMatch(Material m) =>
-        m && m.shader == overlayMaterial?.shader &&
-        m.name.StartsWith(overlayMaterial.name);
-
-
-    private void EnsureRuntimeOverlay()
-    {
-        if (overlayMaterial == null) return;
-        var rend = targetRenderer;
-        if (rend == null) return;
-
-        foreach (var m in rend.sharedMaterials)
-            if (IsOverlayMatch(m)) return;
-
-        var mats = rend.sharedMaterials;
-        int slot = System.Array.FindIndex(mats, m => m == null);
-        bool append = slot == -1;
-
-        var runtime = Object.Instantiate(overlayMaterial);
-        runtime.name = overlayMaterial.name + " (Runtime)";
-        runtime.hideFlags = HideFlags.HideAndDontSave;
-        UpdateBounds(runtime, rend);
-
-        if (append)
-        {
-            var list = new List<Material>(mats) { runtime };
-            rend.sharedMaterials = list.ToArray();
-        }
-        else
-        {
-            mats[slot] = runtime;
-            rend.sharedMaterials = mats;
-        }
-
-    }
-
-    private void StripRuntimeOverlay()
-    {
-        var rend = targetRenderer;
-        if (rend == null) return;
-        var mats = rend.sharedMaterials;
-        bool changed = false;
-        List<Material> removals = null;
-
-        for (int i = 0; i < mats.Length; i++)
-        {
-            if (mats[i] &&
-                mats[i].name.EndsWith("(Runtime)") &&
-                IsOverlayMatch(mats[i]))
-            {
-                removals ??= new List<Material>();
-                removals.Add(mats[i]);
-                mats[i] = null;
-                changed = true;
-            }
-        }
-
-        if (changed) rend.sharedMaterials = mats;
-        if (removals != null)
-        {
-            foreach (Material material in removals)
-                if (material != null) Destroy(material);
-        }
-
-#if UNITY_EDITOR
-        s_RuntimeInjected.Remove(rend);
-#endif
-    }
-
-#if UNITY_EDITOR
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ClearRuntimeFlag() => s_RuntimeInjected.Clear();
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void StripRuntimeOverlaysBeforePlay()
-    {
-        foreach (var rend in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
-        {
-            var mats = rend.sharedMaterials;
-            bool changed = false;
-            for (int i = 0; i < mats.Length; i++)
-                if (mats[i] && mats[i].name.EndsWith("(Runtime)"))
-                {
-                    mats[i] = null;
-                    changed = true;
-                }
-            if (changed) rend.sharedMaterials = mats;
-        }
-        s_RuntimeInjected.Clear();
-    }
-#endif
-
     private void SyncParticleSystems()
     {
         if (targetRenderer == null) return;

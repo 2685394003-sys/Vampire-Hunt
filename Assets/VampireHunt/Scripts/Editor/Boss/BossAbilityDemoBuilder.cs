@@ -148,6 +148,7 @@ namespace VampireHunt.Editor.Boss
             try
             {
                 ParticleSystem particleSystem = root.AddComponent<ParticleSystem>();
+                particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 var main = particleSystem.main;
                 main.duration = 0.8f;
                 main.loop = false;
@@ -389,6 +390,7 @@ namespace VampireHunt.Editor.Boss
             cue.FindPropertyRelative("localScale").vector3Value = localScale;
             cue.FindPropertyRelative("followAnchor").boolValue = followAnchor;
             cue.FindPropertyRelative("lifetime").floatValue = lifetime;
+            cue.FindPropertyRelative("keepAliveAfterCastEnd").boolValue = false;
             cue.FindPropertyRelative("animatorTrigger").stringValue = string.Empty;
             cue.FindPropertyRelative("vfxPrefab").objectReferenceValue = vfxPrefab;
             cue.FindPropertyRelative("audioClip").objectReferenceValue = null;

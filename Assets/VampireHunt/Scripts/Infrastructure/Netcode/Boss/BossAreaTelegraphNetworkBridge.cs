@@ -15,6 +15,7 @@ namespace VampireHunt.Infrastructure.Netcode
         public Vector3 Forward { get; }
         public Vector3 Size { get; }
         public Vector3[] Centers { get; }
+        public double TelegraphDuration { get; }
 
         public BossAreaTelegraphPresentation(
             uint abilityId,
@@ -24,7 +25,8 @@ namespace VampireHunt.Infrastructure.Netcode
             float radius,
             Vector3 forward,
             Vector3 size,
-            Vector3[] centers)
+            Vector3[] centers,
+            double telegraphDuration)
         {
             AbilityId = abilityId;
             CastSequence = castSequence;
@@ -37,6 +39,7 @@ namespace VampireHunt.Infrastructure.Netcode
                 Mathf.Max(.01f, size.y),
                 Mathf.Max(.01f, size.z));
             Centers = centers ?? Array.Empty<Vector3>();
+            TelegraphDuration = Math.Max(0d, telegraphDuration);
         }
     }
 
@@ -67,7 +70,8 @@ namespace VampireHunt.Infrastructure.Netcode
                 request.Radius,
                 new Vector3(request.Forward.X, request.Forward.Y, request.Forward.Z),
                 new Vector3(request.Size.X, request.Size.Y, request.Size.Z),
-                centers);
+                centers,
+                request.TelegraphDuration);
             return true;
         }
 
@@ -80,7 +84,8 @@ namespace VampireHunt.Infrastructure.Netcode
 
         [Rpc(SendTo.ClientsAndHost, InvokePermission = RpcInvokePermission.Server)]
         private void PublishTelegraphRpc(uint abilityId, ulong castSequence, double startServerTime,
-            byte shape, float radius, Vector3 forward, Vector3 size, Vector3[] centers)
+            byte shape, float radius, Vector3 forward, Vector3 size, Vector3[] centers,
+            double telegraphDuration)
         {
             TelegraphStarted?.Invoke(new BossAreaTelegraphPresentation(
                 abilityId,
@@ -90,7 +95,8 @@ namespace VampireHunt.Infrastructure.Netcode
                 radius,
                 forward,
                 size,
-                centers));
+                centers,
+                telegraphDuration));
         }
 
         [Rpc(SendTo.ClientsAndHost, InvokePermission = RpcInvokePermission.Server)]

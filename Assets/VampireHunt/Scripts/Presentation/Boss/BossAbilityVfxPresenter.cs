@@ -60,7 +60,7 @@ namespace VampireHunt.Presentation.Boss
                 instance.transform.localScale = Vector3.Scale(anchor.lossyScale, cue.LocalScale);
             }
 
-            if (cue.Lifetime > 0f) Destroy(instance, cue.Lifetime);
+            if (cueEvent.EffectiveLifetime > 0f) Destroy(instance, cueEvent.EffectiveLifetime);
             else m_CastOwnedObjects.Add(instance);
         }
 

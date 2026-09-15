@@ -45,4 +45,5 @@ MonoBehaviour:
   tracerRadius: 0.002
   tracerDuration: 0.03
   tracerMaterial: {fileID: 2100000, guid: 5535a13cc0550489db8af368c5d7ba75, type: 2}
+  tracerPrefab: {fileID: 3639544988768019489, guid: 9168efea60f7cdd40b4516c813b9d659, type: 3}
   cameraShakeIntensity: 0.02

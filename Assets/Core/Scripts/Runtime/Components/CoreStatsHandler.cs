@@ -31,11 +31,21 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public bool IsAlive { get; private set; } = true;
 
+        public IStatRegenerationPolicy RegenerationPolicy { get; set; }
+        public bool ExternallyScheduledRegeneration { get; set; }
+        public event System.Action<AuthorityStatChange> AuthorityStatChanged;
+
+        /// <summary>开发者控制台：无限生命。开启后忽略一切 Health 扣减（受伤不掉血）。服务器权威端生效。</summary>
+        public bool InfiniteHealth { get; set; }
+
+        /// <summary>开发者控制台：无限体力。开启后体力消耗不再扣减（疾跑/冲刺无限用）。服务器权威端生效。</summary>
+        public bool InfiniteStamina { get; set; }
+
         // Networked list that synchronizes stat values across all clients
         private NetworkList<RuntimeStat> m_RuntimeStats;
 
-        // Tracks the last time each stat was consumed to enforce regeneration delays
-        private readonly Dictionary<int, float> m_LastStatUseTime = new Dictionary<int, float>();
+        private readonly Dictionary<int, double> m_RegenBlockedUntil = new Dictionary<int, double>();
+        private readonly Dictionary<int, double> m_LastRegenTime = new Dictionary<int, double>();
 
         // Caches stat definitions by hash for fast lookup without config access
         private readonly Dictionary<int, StatDefinition> m_StatDefinitions = new Dictionary<int, StatDefinition>();
@@ -108,7 +118,9 @@ namespace Blocks.Gameplay.Core
                 BroadcastStatChange(stat);
             }
 
-            // Set the initial alive state
+            m_RegenBlockedUntil.Clear();
+            m_LastRegenTime.Clear();
+            foreach (var stat in m_RuntimeStats) m_LastRegenTime[stat.StatHash] = Time.timeAsDouble;
             UpdateAliveState();
         }
 
@@ -122,9 +134,9 @@ namespace Blocks.Gameplay.Core
         {
             // Regeneration is authoritative and runs once on the server copy of
             // each player object.
-            if (!HasStatAuthority || !IsAlive) return;
+            if (!IsSpawned || !HasStatAuthority || ExternallyScheduledRegeneration) return;
 
-            HandleRegeneration();
+            TickRegeneration(Time.timeAsDouble);
         }
 
         #endregion
@@ -206,9 +218,60 @@ namespace Blocks.Gameplay.Core
             return false;
         }
 
+        /// <summary>
+        /// 疾跑(sprint)持续消耗体力：不打断体力恢复，实现「疾跑时体力也能回」。
+        /// 与 TryConsumeStat 的区别是它不记录 use time，因此不会重置 regenDelay。
+        /// </summary>
+        public bool TryConsumeSprintStamina(float amount, ulong sourcePlayerId = 0)
+        {
+            if (amount <= 0f) return true;
+
+            if (HasStatAuthority)
+            {
+                return TryConsumeStaminaOnAuthority(amount, sourcePlayerId, recordUseTime: false);
+            }
+
+            if (!m_UseServerAuthority || !IsOwner || !IsSpawned) return false;
+
+            int statIndex = FindStatIndex(StatKeys.Stamina);
+            if (statIndex == -1)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] TryConsumeSprintStamina failed: Stamina not found on {gameObject.name}", this);
+                return false;
+            }
+
+            if (m_RuntimeStats[statIndex].CurrentValue >= amount)
+            {
+                RequestConsumeSprintStaminaRpc(amount, sourcePlayerId);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 冲刺消费入口；恢复等待由通用策略决定。
+        /// </summary>
+        public void ConsumeDashStamina(float amount, ulong sourcePlayerId = 0)
+        {
+            if (amount <= 0f) return;
+
+            if (HasStatAuthority)
+            {
+                ConsumeDashStaminaOnAuthority(amount, sourcePlayerId);
+                return;
+            }
+
+            if (!m_UseServerAuthority || !IsOwner || !IsSpawned) return;
+            RequestConsumeDashStaminaRpc(amount, sourcePlayerId);
+        }
+
         private bool TryConsumeStatOnAuthority(int statHash, float amount, ulong sourcePlayerId)
         {
             if (!HasStatAuthority || amount <= 0f) return amount <= 0f;
+
+            // 开发者控制台：无限体力 —— 体力视为无限，消耗直接成功
+            if (InfiniteStamina && statHash == StatKeys.Stamina) return true;
 
             int statIndex = FindStatIndex(statHash);
             if (statIndex == -1)
@@ -237,6 +300,51 @@ namespace Blocks.Gameplay.Core
         private void RequestConsumeStatRpc(int statHash, float amount, ulong sourcePlayerId)
         {
             TryConsumeStatOnAuthority(statHash, amount, sourcePlayerId);
+        }
+
+        private bool TryConsumeStaminaOnAuthority(float amount, ulong sourcePlayerId, bool recordUseTime)
+        {
+            if (!HasStatAuthority || amount <= 0f) return amount <= 0f;
+
+            // 开发者控制台：无限体力 —— 疾跑持续消耗视为成功（不扣减、不打断恢复）
+            if (InfiniteStamina) return true;
+
+            int statIndex = FindStatIndex(StatKeys.Stamina);
+            if (statIndex == -1)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] TryConsumeStaminaOnAuthority failed: Stamina not found on {gameObject.name}", this);
+                return false;
+            }
+
+            if (m_RuntimeStats[statIndex].CurrentValue < amount) return false;
+
+            ModifyStat(statIndex, -amount, recordUseTime, sourcePlayerId, ModificationSource.Consumption);
+            return true;
+        }
+
+        private void ConsumeDashStaminaOnAuthority(float amount, ulong sourcePlayerId)
+        {
+            if (!HasStatAuthority || amount <= 0f) return;
+
+            // 开发者控制台：无限体力 —— 冲刺不扣体力（也不记录恢复延迟）
+            if (InfiniteStamina) return;
+
+            int statIndex = FindStatIndex(StatKeys.Stamina);
+            if (statIndex == -1) return;
+
+            ModifyStat(statIndex, -amount, true, sourcePlayerId, ModificationSource.Consumption, StatUseKind.Burst);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void RequestConsumeSprintStaminaRpc(float amount, ulong sourcePlayerId)
+        {
+            TryConsumeStaminaOnAuthority(amount, sourcePlayerId, recordUseTime: false);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void RequestConsumeDashStaminaRpc(float amount, ulong sourcePlayerId)
+        {
+            ConsumeDashStaminaOnAuthority(amount, sourcePlayerId);
         }
 
         /// <summary>
@@ -326,11 +434,14 @@ namespace Blocks.Gameplay.Core
             if (index < 0 || !m_StatDefinitions.TryGetValue(statHash, out StatDefinition definition)) return false;
 
             RuntimeStat stat = m_RuntimeStats[index];
+            float before = stat.CurrentValue;
             stat.MaxValue = Mathf.Max(definition.minValue, maxValue);
             stat.CurrentValue = Mathf.Clamp(adjustedCurrentValue, definition.minValue, stat.MaxValue);
             stat.SourcePlayerId = sourcePlayerId;
             stat.SourceType = sourceType;
+            m_LastRegenTime[statHash] = Time.timeAsDouble;
             m_RuntimeStats[index] = stat;
+            AuthorityStatChanged?.Invoke(new AuthorityStatChange(statHash, before, stat.CurrentValue, true));
             return true;
         }
 
@@ -352,29 +463,22 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Handles the regeneration of stats over time, respecting regeneration delays.
         /// </summary>
-        private void HandleRegeneration()
+        public void TickRegeneration(double now)
         {
-            if (m_RuntimeStats == null || m_RuntimeStats.Count == 0)
-            {
-                return;
-            }
-
+            if (!IsSpawned || !HasStatAuthority || m_RuntimeStats == null) return;
             for (int i = 0; i < m_RuntimeStats.Count; i++)
             {
                 var stat = m_RuntimeStats[i];
-                if (m_StatDefinitions.TryGetValue(stat.StatHash, out var def))
-                {
-                    if (def.regenRate > 0 && stat.CurrentValue < stat.MaxValue)
-                    {
-                        // Only regenerate if the stat has never been used or enough time has passed since last consumption
-                        if (!m_LastStatUseTime.ContainsKey(stat.StatHash) ||
-                            Time.time - m_LastStatUseTime[stat.StatHash] > def.regenDelay)
-                        {
-                            // Don't record use time for regeneration to avoid resetting the delay
-                            ModifyStat(i, def.regenRate * Time.deltaTime, false, 0, ModificationSource.Regeneration);
-                        }
-                    }
-                }
+                if (!m_StatDefinitions.TryGetValue(stat.StatHash, out var def)) continue;
+                double from = m_LastRegenTime.TryGetValue(stat.StatHash, out var last) ? last : now;
+                if (now <= from) continue;
+                m_LastRegenTime[stat.StatHash] = now;
+                if (!IsAlive || stat.CurrentValue >= stat.MaxValue) continue;
+                double readyAt = m_RegenBlockedUntil.TryGetValue(stat.StatHash, out var ready)
+                    ? ready : double.NegativeInfinity;
+                float rate = RegenerationPolicy?.GetRate(stat.StatHash, stat.MaxValue, def.regenRate) ?? def.regenRate;
+                float amount = RegenerationMath.Amount(from, now, readyAt, rate);
+                if (amount > 0) ModifyStat(i, amount, false, 0, ModificationSource.Regeneration);
             }
         }
 
@@ -445,9 +549,9 @@ namespace Blocks.Gameplay.Core
         /// <param name="recordUseTime">Whether to record the use time for regeneration delay tracking.</param>
         /// <param name="sourcePlayerId">The player who caused this change.</param>
         /// <param name="sourceType">The type of modification.</param>
-        private void ModifyStat(int index, float amount, bool recordUseTime, ulong sourcePlayerId = 0, ModificationSource sourceType = ModificationSource.Unknown)
+        private void ModifyStat(int index, float amount, bool recordUseTime, ulong sourcePlayerId = 0, ModificationSource sourceType = ModificationSource.Unknown, StatUseKind useKind = StatUseKind.Standard)
         {
-            if (!HasStatAuthority) return;
+            if (!HasStatAuthority || float.IsNaN(amount) || float.IsInfinity(amount)) return;
 
             if (index < 0 || index >= m_RuntimeStats.Count)
             {
@@ -458,18 +562,37 @@ namespace Blocks.Gameplay.Core
             var stat = m_RuntimeStats[index];
             if (m_StatDefinitions.TryGetValue(stat.StatHash, out var def))
             {
+                // 开发者控制台：无限生命/无限体力 —— 忽略一切扣减（正向修改照常）
+                if (amount < 0f &&
+                    ((InfiniteHealth && stat.StatHash == StatKeys.Health) ||
+                     (InfiniteStamina && stat.StatHash == StatKeys.Stamina)))
+                {
+                    return;
+                }
+
+                float before = stat.CurrentValue;
                 stat.CurrentValue = Mathf.Clamp(stat.CurrentValue + amount, def.minValue, stat.MaxValue);
+                if (stat.CurrentValue == before) return;
+                double now = Time.timeAsDouble;
+                if (sourceType != ModificationSource.Regeneration && recordUseTime)
+                {
+                    // Do not bank recovery from before a discrete damage/heal/capacity change.
+                    // Continuous consumption deliberately leaves the integration interval intact.
+                    m_LastRegenTime[stat.StatHash] = now;
+                    if (amount < 0)
+                    {
+                        float delay = RegenerationPolicy?.GetDelay(stat.StatHash, useKind, def.regenDelay) ?? def.regenDelay;
+                        double previous = m_RegenBlockedUntil.TryGetValue(stat.StatHash, out var until) ? until : now;
+                        m_RegenBlockedUntil[stat.StatHash] = System.Math.Max(previous, now + Mathf.Max(0, delay));
+                    }
+                }
                 stat.SourcePlayerId = sourcePlayerId;
                 stat.SourceType = sourceType;
 
                 // Assignment to NetworkList triggers network synchronization to all clients
                 m_RuntimeStats[index] = stat;
 
-                // Record use time only for consumption to enforce regeneration delays
-                if (recordUseTime && amount < 0)
-                {
-                    m_LastStatUseTime[stat.StatHash] = Time.time;
-                }
+                AuthorityStatChanged?.Invoke(new AuthorityStatChange(stat.StatHash, before, stat.CurrentValue, false));
             }
             else
             {

@@ -41,11 +41,12 @@ namespace VampireHunt.Boss.Abilities
             in Float3 targetPosition,
             in Float3 direction,
             uint randomSeed,
-            bool allowNewCast)
+            bool allowNewCast,
+            int participantCount = 1)
         {
             Float3 sourcePosition = Float3.Zero;
             return Tick(serverTime, selection, targetEntityId, sourcePosition,
-                targetPosition, direction, randomSeed, allowNewCast);
+                targetPosition, direction, randomSeed, allowNewCast, participantCount);
         }
 
         public bool Tick(
@@ -56,7 +57,8 @@ namespace VampireHunt.Boss.Abilities
             in Float3 targetPosition,
             in Float3 direction,
             uint randomSeed,
-            bool allowNewCast)
+            bool allowNewCast,
+            int participantCount = 1)
         {
             uint previousRevision = m_Revision;
 
@@ -78,7 +80,8 @@ namespace VampireHunt.Boss.Abilities
                         sourcePosition,
                         targetPosition,
                         direction,
-                        randomSeed);
+                        randomSeed,
+                        participantCount);
                 }
             }
 
@@ -118,7 +121,8 @@ namespace VampireHunt.Boss.Abilities
             in Float3 sourcePosition,
             in Float3 targetPosition,
             in Float3 direction,
-            uint randomSeed)
+            uint randomSeed,
+            int participantCount = 1)
         {
             if (ability == null || m_CurrentAbility != null) return false;
             BeginCast(
@@ -129,7 +133,8 @@ namespace VampireHunt.Boss.Abilities
                 sourcePosition,
                 targetPosition,
                 direction,
-                randomSeed);
+                randomSeed,
+                participantCount);
             return true;
         }
 
@@ -160,12 +165,14 @@ namespace VampireHunt.Boss.Abilities
                 m_CastPhase,
                 m_CurrentContext.StartServerTime,
                 m_PhaseStartServerTime,
-                m_CurrentContext.StartServerTime + m_CurrentAbility.TotalDuration,
+                m_CurrentContext.StartServerTime + m_CurrentContext.TotalDuration,
                 m_CurrentContext.TargetEntityId,
                 m_CurrentContext.TargetPosition,
                 m_CurrentContext.Direction,
                 m_CurrentContext.RandomSeed,
-                m_Revision);
+                m_Revision,
+                m_CurrentContext.TelegraphDuration,
+                m_CurrentContext.Modifiers.ParticipantCount);
         }
 
         public void Dispose()
@@ -182,7 +189,8 @@ namespace VampireHunt.Boss.Abilities
             in Float3 sourcePosition,
             in Float3 targetPosition,
             in Float3 direction,
-            uint randomSeed)
+            uint randomSeed,
+            int participantCount)
         {
             IBossAbilityLogicRuntime runtime = ability.CreateLogic();
 
@@ -190,6 +198,10 @@ namespace VampireHunt.Boss.Abilities
             {
                 consumer.BindServices(m_Services);
             }
+
+            BossAbilityCastModifiers modifiers = ability.CreateCastModifiers(participantCount);
+            double effectiveTelegraph = ability.TelegraphDuration * modifiers.TelegraphMultiplier;
+            double effectiveCooldown = ability.Cooldown * modifiers.CooldownMultiplier;
 
             m_CurrentAbility = ability;
             m_CurrentLogic = runtime;
@@ -201,10 +213,19 @@ namespace VampireHunt.Boss.Abilities
                 sourcePosition,
                 targetPosition,
                 direction,
-                randomSeed);
+                randomSeed,
+                modifiers,
+                effectiveTelegraph,
+                ability.ResolveDuration,
+                ability.RecoverDuration);
             m_CastPhase = BossAbilityCastPhase.Telegraph;
             m_PhaseStartServerTime = serverTime;
-            if (slot != null) BossAbilityScheduler.CommitCast(slot, serverTime);
+            if (slot != null)
+                BossAbilityScheduler.CommitCast(
+                    slot,
+                    serverTime,
+                    m_CurrentContext.TotalDuration,
+                    effectiveCooldown);
             m_CurrentLogic.OnCastStarted(m_CurrentContext);
             m_CurrentLogic.OnPhaseEntered(m_CastPhase, serverTime);
             IncrementRevision();
@@ -215,9 +236,9 @@ namespace VampireHunt.Boss.Abilities
         {
             if (m_CurrentAbility == null) return;
 
-            double telegraphEnd = m_CurrentContext.StartServerTime + m_CurrentAbility.TelegraphDuration;
-            double resolveEnd = telegraphEnd + m_CurrentAbility.ResolveDuration;
-            double recoverEnd = resolveEnd + m_CurrentAbility.RecoverDuration;
+            double telegraphEnd = m_CurrentContext.StartServerTime + m_CurrentContext.TelegraphDuration;
+            double resolveEnd = telegraphEnd + m_CurrentContext.ResolveDuration;
+            double recoverEnd = resolveEnd + m_CurrentContext.RecoverDuration;
 
             bool transitioned;
             do

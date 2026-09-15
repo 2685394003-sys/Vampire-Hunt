@@ -26,6 +26,9 @@ namespace VampireHunt.Boss.Abilities.Logic
         public virtual void OnCastStarted(in BossAbilityCastContext context)
         {
             Context = context;
+            // Tuning is a factory-created, cast-local clone. Scaling it here never mutates
+            // the ScriptableObject and gives every damage path the same authoritative value.
+            Tuning.Damage *= context.Modifiers.DamageMultiplier;
             Phase = BossAbilityCastPhase.Telegraph;
             m_HitOrdinal = 0;
         }

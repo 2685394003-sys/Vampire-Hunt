@@ -8,7 +8,15 @@ namespace VampireHunt.Progression
         private readonly List<PactDefinition> m_Eligible = new List<PactDefinition>();
         private readonly List<PactStack> m_Owned = new List<PactStack>();
 
-        public uint[] Roll(PactCatalog catalog, PactInventory inventory, int optionCount, int seed, float luck = 0f)
+        /// <summary>
+        /// 权重采样抽 3 选牌（无放回）。
+        /// <paramref name="pityUnlockIds"/> + <paramref name="pityActive"/> + <paramref name="pityWeightMultiplier"/>
+        /// 为「解锁契软保底」通道：激活时名单内仍合格（eligible）的契权重 ×K。
+        /// 仅改变权重、不改变随机序，seed 确定性可复现保持不变。
+        /// </summary>
+        public uint[] Roll(PactCatalog catalog, PactInventory inventory, int optionCount, int seed,
+            float luck = 0f, IReadOnlyCollection<uint> pityUnlockIds = null,
+            bool pityActive = false, float pityWeightMultiplier = 1f)
         {
             if (catalog == null || inventory == null || optionCount <= 0) return Array.Empty<uint>();
             m_Eligible.Clear();
@@ -18,6 +26,10 @@ namespace VampireHunt.Progression
                 if (IsEligible(catalog, inventory, candidate)) m_Eligible.Add(candidate);
             }
 
+            HashSet<uint> pitySet = pityActive && pityUnlockIds != null && pityWeightMultiplier > 1f
+                ? new HashSet<uint>(pityUnlockIds)
+                : null;
+
             int count = Math.Min(optionCount, m_Eligible.Count);
             var result = new uint[count];
             var random = new Random(seed);
@@ -25,7 +37,7 @@ namespace VampireHunt.Progression
             {
                 double totalWeight = 0d;
                 for (int i = 0; i < m_Eligible.Count; i++)
-                    totalWeight += GetWeight(m_Eligible[i], luck);
+                    totalWeight += GetWeight(m_Eligible[i], luck, pitySet, pityWeightMultiplier);
 
                 int selectedIndex = 0;
                 if (totalWeight > 0d)
@@ -33,7 +45,7 @@ namespace VampireHunt.Progression
                     double roll = random.NextDouble() * totalWeight;
                     for (int i = 0; i < m_Eligible.Count; i++)
                     {
-                        roll -= GetWeight(m_Eligible[i], luck);
+                        roll -= GetWeight(m_Eligible[i], luck, pitySet, pityWeightMultiplier);
                         if (roll > 0d) continue;
                         selectedIndex = i;
                         break;
@@ -63,10 +75,14 @@ namespace VampireHunt.Progression
             return true;
         }
 
-        private static double GetWeight(PactDefinition definition, float luck)
+        private static double GetWeight(PactDefinition definition, float luck,
+            HashSet<uint> pitySet, float pityMultiplier)
         {
             float rarityBias = 1f + Math.Max(0f, luck) * Math.Max(0, definition.Rarity - 1) * 0.1f;
-            return Math.Max(0.0001d, definition.BaseWeight * rarityBias);
+            double weight = definition.BaseWeight * rarityBias;
+            if (pitySet != null && pitySet.Contains(definition.PactId))
+                weight *= pityMultiplier;
+            return Math.Max(0.0001d, weight);
         }
     }
 }

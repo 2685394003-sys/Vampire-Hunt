@@ -1,6 +1,7 @@
 using Blocks.Gameplay.Core;
 using Unity.Netcode;
 using UnityEngine;
+using VampireHunt.Infrastructure.Integration;
 using VampireHunt.Contracts;
 using VampireHunt.Economy;
 using VampireHunt.Infrastructure.Unity;
@@ -149,9 +150,13 @@ namespace VampireHunt.Infrastructure.Netcode
             return false;
         }
 
+        private ulong m_ActivitySequence;
+
         public bool TryApplyConfiguredEffects(uint itemId)
         {
             if (!IsServer || !TryGetEffects(itemId, out UsableItemEffectAsset[] effects)) return false;
+            if (catalog.TryGetUsableAsset(itemId, out var item) && item.CombatIntent == CombatIntentPolicy.Combat)
+                ServerCombatActivity.Action(NetworkManager, new GameplayEntityId(OwnerClientId + 1), itemId, ++m_ActivitySequence);
             UsableItemEffectContext context = CreateEffectContext();
             bool appliedAny = false;
             for (int i = 0; i < effects.Length; i++)

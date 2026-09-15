@@ -1,0 +1,123 @@
+/* Vampire Hunt / SILVER & BLOOD. Coordinates use a 1920 x 1080 reference panel. */
+:root {
+    --vh-panel: rgba(15, 16, 18, 0.96);
+    --vh-panel-soft: rgba(23, 23, 25, 0.96);
+    --vh-border: rgb(116, 109, 98);
+    --vh-blood: rgb(138, 20, 29);
+    --vh-blood-bright: rgb(225, 62, 68);
+    --vh-stamina: rgb(109, 125, 84);
+    --vh-scarlet: rgb(186, 34, 51);
+    --vh-text: rgb(237, 228, 211);
+    --vh-muted: rgb(174, 168, 157);
+}
+#hud-root { font-size: 18px; }
+.gothic-frame {
+    position: absolute; left: 12px; right: 12px; top: 12px; bottom: 12px;
+    border-width: 3px; border-color: rgb(97, 91, 81);
+    border-top-left-radius: 12px; border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+}
+.gothic-frame-inner { position: absolute; left: 18px; right: 18px; top: 18px; bottom: 18px; border-width: 1px; border-color: rgba(197, 184, 158, 0.6); }
+.gothic-crest { background-image: url('../../../Art/UI/Gothic/Crest.png'); -unity-background-scale-mode: scale-to-fit; }
+.frame-crest { position: absolute; width: 46px; height: 46px; }
+.frame-tl { left: 0; top: 0; } .frame-tr { right: 0; top: 0; }
+.frame-bl { left: 0; bottom: 0; } .frame-br { right: 0; bottom: 0; }
+.frame-center { left: 50%; margin-left: -30px; bottom: -4px; width: 60px; height: 60px; }
+.gothic-panel, .item-slot, .pact-card, .gothic-button {
+    background-image: url('../../../Art/UI/Gothic/Panel.png');
+    -unity-slice-left: 110; -unity-slice-right: 110; -unity-slice-top: 110; -unity-slice-bottom: 110;
+    -unity-slice-scale: 0.28;
+    border-radius: 0; border-width: 0;
+}
+.hud-panel { background-color: transparent; border-width: 0; border-radius: 0; }
+.player-vitals { left: 62px; top: 64px; bottom: auto; width: 430px; height: 280px; padding: 0; }
+.player-seal { position: absolute; left: -8px; top: -14px; width: 110px; height: 110px; }
+.vitals-horizontal { position: absolute; left: 88px; top: 5px; width: 326px; }
+.vital-row { height: 36px; margin-bottom: 6px; }
+.vital-name { display: none; }
+.vital-value { width: 85px; font-size: 15px; color: var(--vh-text); }
+.vital-bar { height: 25px; margin-left: 0; margin-right: 9px; flex-grow: 1; }
+.vital-bar .unity-progress-bar__background { background-color: rgb(25, 19, 21); border-width: 2px; border-color: rgb(115, 108, 92); border-radius: 0; }
+.vital-bar .unity-progress-bar__progress { border-radius: 0; border-top-width: 2px; border-top-color: rgba(255, 212, 179, 0.28); }
+.stamina-bar { height: 16px; }
+.stamina-bar .unity-progress-bar__progress { background-color: var(--vh-stamina); }
+.vitals-caption { font-size: 12px; color: var(--vh-muted); letter-spacing: 3px; margin-top: 0; }
+.scarlet-tube { position: absolute; left: 29px; top: 88px; width: 34px; height: 154px; padding: 6px; }
+#scarlet-fill-track { flex-grow: 1; background-color: rgb(28, 9, 14); justify-content: flex-end; }
+#scarlet-fill { height: 0; background-color: var(--vh-scarlet); border-top-width: 2px; border-top-color: rgb(237, 118, 112); }
+.scarlet-tip { position: absolute; left: 33px; top: 235px; font-size: 27px; color: rgb(188, 173, 145); }
+.scarlet-copy { position: absolute; left: 92px; top: 142px; width: 330px; }
+#scarlet-value { width: auto; -unity-text-align: middle-left; font-size: 22px; margin-top: 5px; }
+.level-up-hint { margin-top: 8px; font-size: 16px; color: var(--vh-muted); white-space: normal; }
+.hud--upgrade-ready .level-up-hint { color: rgb(246, 193, 141); }
+.run-header { top: 35px; width: 340px; margin-left: -170px; padding: 17px 25px; }
+.run-timer { font-size: 42px; letter-spacing: 5px; }
+.eyebrow { font-size: 12px; letter-spacing: 3px; }
+.objective-text { font-size: 14px; }
+.boss-panel { top: 176px; width: 640px; margin-left: -320px; padding: 15px 24px; background-color: transparent; border-width: 0; }
+.boss-title-row { height: 30px; }
+.boss-eyebrow { display: none; }
+.boss-name { font-size: 21px; }
+.boss-stage { font-size: 14px; width: 86px; color: rgb(213, 197, 162); }
+.boss-status { font-size: 14px; width: 64px; }
+.boss-health-value { font-size: 13px; width: 100px; }
+.boss-guard-row { height: 23px; }
+.boss-guard-label { font-size: 13px; }
+.boss-guard-value { font-size: 12px; }
+.boss-health-bar { height: 14px; margin: 2px 0; }
+.boss-guard-bar { height: 9px; margin-right: 8px; }
+.pact-summary { top: 63px; right: 60px; width: 222px; min-height: 228px; padding: 24px; align-items: center; }
+.summary-seal { width: 66px; height: 66px; margin-bottom: 9px; }
+.pact-count { font-size: 28px; color: var(--vh-text); }
+.pact-count-suffix { font-size: 14px; }
+.build-name { font-size: 14px; white-space: normal; -unity-text-align: middle-center; }
+.ability-tray { bottom: 53px; width: 320px; margin-left: -160px; }
+.ability-slot { width: 122px; height: 60px; border-radius: 0; border-color: var(--vh-border); background-color: rgba(16, 17, 18, 0.88); }
+.ability-name { font-size: 16px; }.ability-key { font-size: 12px; }
+#secondary-ability-slot, #artifact-ability-slot { display: none; }
+.item-tray { right: 61px; bottom: 67px; }
+.item-tray-title { font-size: 12px; margin-bottom: 10px; letter-spacing: 3px; }
+.item-slot { width: 108px; height: 112px; margin-left: 15px; overflow: visible; background-color: transparent; }
+.item-slot-icon { width: 65px; height: 65px; margin-top: 14px; }
+.item-slot-key { left: auto; right: 7px; top: auto; bottom: -16px; font-size: 28px; color: rgb(215, 67, 61); }
+.item-slot-quantity { right: 10px; top: 9px; font-size: 15px; }
+.item-slot-name { bottom: 10px; font-size: 13px; }
+.item-slot-fallback { font-size: 32px; }
+.item-slot--occupied { border-width: 0; background-color: transparent; }
+.notification-container { right: 60px; top: 317px; width: 300px; }
+.notification-item Label { font-size: 16px; }
+.pact-selection-overlay { padding: 0; justify-content: center; background-color: rgba(7, 8, 11, 0.94); }
+.draft-window { width: 1160px; padding: 26px 36px 24px; align-items: center; -unity-background-image-tint-color: rgb(155, 155, 155); }
+.pact-draft-eyebrow { font-size: 13px; letter-spacing: 5px; color: rgb(192, 174, 140); }
+.pact-draft-title { font-size: 36px; letter-spacing: 5px; margin-top: 3px; color: var(--vh-text); }
+.pact-draft-subtitle { font-size: 17px; margin-top: 6px; margin-bottom: 8px; color: var(--vh-muted); }
+.draft-row-title { align-self: flex-start; margin: 13px 12px 8px; font-size: 17px; color: rgb(228, 166, 152); letter-spacing: 2px; }
+.affix-row-title { color: rgb(177, 172, 215); }
+.pact-card-row { height: 325px; width: 100%; margin: 0; justify-content: space-between; }
+.pact-card { width: 342px; margin: 0; padding: 17px 23px 19px; background-color: transparent; position: relative; }
+.pact-art { width: 88px; height: 88px; align-self: center; margin: 0 0 7px; -unity-background-scale-mode: scale-to-fit; background-image: url('../../../Art/UI/Gothic/Crest.png'); }
+.pact-art--blade { background-image: url('../../../Art/UI/Gothic/BloodBlade.png'); }
+.pact-card-name { font-size: 23px; margin: 0; color: var(--vh-text); -unity-text-align: middle-center; }
+.pact-card-description { flex-grow: 1; font-size: 17px; margin-top: 9px; margin-bottom: 5px; white-space: normal; color: rgb(206, 201, 189); -unity-text-align: upper-center; }
+.pact-card-stack { font-size: 14px; color: rgb(174, 159, 131); margin-bottom: 10px; -unity-text-align: middle-center; }
+.pact-select-button, .pact-reroll-button, .pact-confirm-button { height: 37px; margin: 0; font-size: 17px; border-radius: 0; border-width: 1px; border-color: rgb(112, 85, 76); color: var(--vh-text); background-color: rgb(74, 22, 28); }
+.pact-select-button:hover, .pact-reroll-button:hover { background-color: rgb(108, 35, 41); border-color: rgb(216, 181, 139); }
+.affix-card-row { height: 192px; }
+.affix-card { padding: 17px 22px; }
+.affix-card .pact-card-name { font-size: 20px; color: rgb(201, 194, 224); }
+.affix-card .pact-card-description { font-size: 16px; -unity-text-align: middle-center; margin-top: 4px; }
+.affix-heading { flex-direction: row; align-items: center; justify-content: center; }
+.affix-art { width: 36px; height: 36px; margin-right: 8px; background-image: url('../../../Art/UI/Gothic/EnemySigil.png'); -unity-background-scale-mode: scale-to-fit; }
+.affix-select-button { background-color: rgb(40, 36, 57); border-color: rgb(106, 101, 129); }
+.affix-select-button:hover { background-color: rgb(68, 60, 88); }
+.draft-card--selected { border-width: 2px; border-color: rgb(225, 194, 143); }
+.draft-card--selected .pact-select-button { background-color: rgb(96, 73, 43); border-color: rgb(225, 194, 143); }
+.draft-action-row { margin-top: 12px; justify-content: center; }
+.pact-reroll-button { width: 245px; margin-right: 12px; background-color: rgb(33, 32, 34); }
+.pact-confirm-button { width: 245px; margin-left: 12px; background-color: rgb(117, 27, 35); border-color: rgb(201, 116, 103); }
+.pact-confirm-button:hover { background-color: rgb(162, 38, 47); }
+Button:focus { border-width: 2px; border-color: rgb(244, 222, 168); }
+Button:disabled { background-color: rgb(35, 35, 38); color: rgb(121, 120, 116); border-color: rgb(68, 65, 62); }
+.pact-reroll-hint { font-size: 14px; margin-top: 7px; color: var(--vh-muted); }
+.selection-summary { font-size: 16px; margin-top: 12px; color: rgb(224, 201, 160); -unity-text-align: middle-center; }
+.draft-card--selected .pact-card-name { color: rgb(244, 219, 174); }

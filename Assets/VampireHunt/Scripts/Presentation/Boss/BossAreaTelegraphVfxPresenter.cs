@@ -18,7 +18,9 @@ namespace VampireHunt.Presentation.Boss
         [SerializeField] private BossAreaTelegraphNetworkBridge source;
         [SerializeField] private BossAbilityPhaseProvider phaseProvider;
 
-        private readonly List<GameObject> m_Instances = new List<GameObject>();
+        private readonly List<GameObject> m_TelegraphInstances = new List<GameObject>();
+        private readonly List<LingeringVfxInstance> m_LingeringVfxInstances =
+            new List<LingeringVfxInstance>();
         private BossAreaTelegraphPresentation m_Current;
         private BossAbilityAsset m_Ability;
         private bool[] m_PlayedCues;
@@ -44,13 +46,15 @@ namespace VampireHunt.Presentation.Boss
                 source.TelegraphStarted -= HandleStarted;
                 source.TelegraphCancelled -= HandleCancelled;
             }
-            ClearPresentation();
+            ClearActiveTelegraph();
+            ClearLingeringVfx();
         }
 
         private void Update()
         {
-            if (m_Ability == null || m_PlayedCues == null) return;
             double now = ReadServerTime();
+            UpdateLingeringVfx(now);
+            if (m_Ability == null || m_PlayedCues == null) return;
             double elapsed = now - m_Current.StartServerTime;
             if (elapsed < 0d) return;
 
@@ -60,7 +64,7 @@ namespace VampireHunt.Presentation.Boss
                 BossAbilityPresentationCue cue = cues[i];
                 if (m_PlayedCues[i] ||
                     cue.SpawnMode == BossAbilityCueSpawnMode.SingleAnchor ||
-                    elapsed < cue.TimeFromCastStart) continue;
+                    elapsed < EffectiveCueTime(cue)) continue;
                 m_PlayedCues[i] = true;
                 if (cue.SpawnMode == BossAbilityCueSpawnMode.DirectionalTravel)
                     SpawnDirectionalTravel(cue);
@@ -68,25 +72,28 @@ namespace VampireHunt.Presentation.Boss
                     SpawnCueAtEveryCenter(cue);
             }
 
-            if (now >= m_ClearServerTime) ClearPresentation();
+            if (now >= m_ClearServerTime) ClearActiveTelegraph();
         }
 
         private void HandleStarted(BossAreaTelegraphPresentation presentation)
         {
-            ClearPresentation();
+            // A new cast replaces only the active warning. Released VFX from an older cast
+            // owns an independent lifetime and must be allowed to finish.
+            ClearActiveTelegraph();
             if (presentation.Centers.Length == 0 || phaseProvider == null ||
                 !phaseProvider.TryGetAbility(presentation.AbilityId, out m_Ability)) return;
 
             m_Current = presentation;
             m_PlayedCues = new bool[m_Ability.PresentationCues.Count];
-            m_ClearServerTime = CalculateClearTime(m_Ability, presentation.StartServerTime);
+            m_ClearServerTime = CalculateClearTime(
+                m_Ability, presentation.StartServerTime, presentation.TelegraphDuration);
             Update();
         }
 
         private void HandleCancelled(uint abilityId, ulong castSequence)
         {
             if (m_Ability != null && m_Current.AbilityId == abilityId &&
-                m_Current.CastSequence == castSequence) ClearPresentation();
+                m_Current.CastSequence == castSequence) ClearActiveTelegraph();
         }
 
         private void SpawnCueAtEveryCenter(BossAbilityPresentationCue cue)
@@ -96,11 +103,18 @@ namespace VampireHunt.Presentation.Boss
             Quaternion areaRotation = isBox
                 ? Quaternion.LookRotation(FlattenedForward(), Vector3.up)
                 : Quaternion.identity;
-            Quaternion rotation = areaRotation * Quaternion.Euler(cue.LocalEulerAngles);
+            // The prefab owns its authored visual orientation. Area/cue rotations are
+            // placement offsets, not replacements for the prefab root rotation.
+            Quaternion rotation = areaRotation *
+                                  Quaternion.Euler(cue.LocalEulerAngles) *
+                                  cue.VfxPrefab.transform.localRotation;
             Vector3 areaScale = isBox
                 ? new Vector3(m_Current.Size.x, 1f, m_Current.Size.z)
                 : Vector3.one * Mathf.Max(.01f, m_Current.Radius * 2f);
-            Vector3 scale = Vector3.Scale(cue.LocalScale, areaScale);
+            Vector3 placementScale = cue.UseManualScale ? Vector3.one : areaScale;
+            Vector3 scale = Vector3.Scale(
+                cue.VfxPrefab.transform.localScale,
+                Vector3.Scale(cue.LocalScale, placementScale));
 
             for (int i = 0; i < m_Current.Centers.Length; i++)
             {
@@ -110,8 +124,10 @@ namespace VampireHunt.Presentation.Boss
                     rotation);
                 instance.transform.localScale = scale;
                 if (instance.TryGetComponent(out BossChargeSlashWarningVfxPresenter warning))
-                    warning.Configure(m_Current.StartServerTime, m_Ability.TelegraphDuration);
-                m_Instances.Add(instance);
+                    warning.Configure(
+                        m_Current.StartServerTime,
+                        (float)m_Current.TelegraphDuration);
+                TrackInstance(instance, cue);
             }
         }
 
@@ -136,16 +152,53 @@ namespace VampireHunt.Presentation.Boss
                 swordQi.Configure(
                     start + worldOffset + Vector3.up * tuning.VfxHeight,
                     end + worldOffset + Vector3.up * tuning.VfxHeight,
-                    m_Current.StartServerTime + cue.TimeFromCastStart,
+                    m_Current.StartServerTime + EffectiveCueTime(cue),
                     tuning.TravelDuration,
                     tuning.DissolveDuration,
                     m_Current.Size.x,
                     m_Current.Size.y);
             }
-            m_Instances.Add(instance);
+            TrackInstance(instance, cue);
         }
 
-        private static double CalculateClearTime(BossAbilityAsset ability, double startServerTime)
+        private void TrackInstance(GameObject instance, BossAbilityPresentationCue cue)
+        {
+            if (instance == null) return;
+            float effectiveLifetime = BossAbilityTimeline.RemapLifetime(
+                cue.TimeFromCastStart,
+                cue.Lifetime,
+                m_Ability.TelegraphDuration,
+                m_Current.TelegraphDuration);
+            if (!cue.KeepAliveAfterCastEnd || effectiveLifetime <= 0f)
+            {
+                m_TelegraphInstances.Add(instance);
+                return;
+            }
+
+            double expiresAt = m_Current.StartServerTime + EffectiveCueTime(cue) + effectiveLifetime;
+            if (ReadServerTime() >= expiresAt)
+            {
+                Destroy(instance);
+                return;
+            }
+            m_LingeringVfxInstances.Add(new LingeringVfxInstance(instance, expiresAt));
+        }
+
+        private void UpdateLingeringVfx(double now)
+        {
+            for (int i = m_LingeringVfxInstances.Count - 1; i >= 0; i--)
+            {
+                LingeringVfxInstance entry = m_LingeringVfxInstances[i];
+                if (entry.Instance != null && now < entry.ExpiresAtServerTime) continue;
+                if (entry.Instance != null) Destroy(entry.Instance);
+                m_LingeringVfxInstances.RemoveAt(i);
+            }
+        }
+
+        private static double CalculateClearTime(
+            BossAbilityAsset ability,
+            double startServerTime,
+            double effectiveTelegraphDuration)
         {
             double latest = startServerTime;
             IReadOnlyList<BossAbilityPresentationCue> cues = ability.PresentationCues;
@@ -153,11 +206,26 @@ namespace VampireHunt.Presentation.Boss
             {
                 BossAbilityPresentationCue cue = cues[i];
                 if (cue.SpawnMode == BossAbilityCueSpawnMode.SingleAnchor) continue;
+                float effectiveStart = BossAbilityTimeline.RemapTime(
+                    cue.TimeFromCastStart,
+                    ability.TelegraphDuration,
+                    effectiveTelegraphDuration);
+                float effectiveLifetime = BossAbilityTimeline.RemapLifetime(
+                    cue.TimeFromCastStart,
+                    cue.Lifetime,
+                    ability.TelegraphDuration,
+                    effectiveTelegraphDuration);
                 latest = System.Math.Max(latest,
-                    startServerTime + cue.TimeFromCastStart + Mathf.Max(0f, cue.Lifetime));
+                    startServerTime + effectiveStart + Mathf.Max(0f, effectiveLifetime));
             }
             return latest;
         }
+
+        private float EffectiveCueTime(BossAbilityPresentationCue cue) =>
+            BossAbilityTimeline.RemapTime(
+                cue.TimeFromCastStart,
+                m_Ability.TelegraphDuration,
+                m_Current.TelegraphDuration);
 
         private double ReadServerTime()
         {
@@ -173,15 +241,35 @@ namespace VampireHunt.Presentation.Boss
             return forward.sqrMagnitude > .0001f ? forward.normalized : Vector3.forward;
         }
 
-        private void ClearPresentation()
+        private void ClearActiveTelegraph()
         {
-            for (int i = 0; i < m_Instances.Count; i++)
-                if (m_Instances[i] != null) Destroy(m_Instances[i]);
-            m_Instances.Clear();
+            for (int i = 0; i < m_TelegraphInstances.Count; i++)
+                if (m_TelegraphInstances[i] != null) Destroy(m_TelegraphInstances[i]);
+            m_TelegraphInstances.Clear();
             m_Current = default;
             m_Ability = null;
             m_PlayedCues = null;
             m_ClearServerTime = 0d;
+        }
+
+        private void ClearLingeringVfx()
+        {
+            for (int i = 0; i < m_LingeringVfxInstances.Count; i++)
+                if (m_LingeringVfxInstances[i].Instance != null)
+                    Destroy(m_LingeringVfxInstances[i].Instance);
+            m_LingeringVfxInstances.Clear();
+        }
+
+        private readonly struct LingeringVfxInstance
+        {
+            public GameObject Instance { get; }
+            public double ExpiresAtServerTime { get; }
+
+            public LingeringVfxInstance(GameObject instance, double expiresAtServerTime)
+            {
+                Instance = instance;
+                ExpiresAtServerTime = expiresAtServerTime;
+            }
         }
     }
 }

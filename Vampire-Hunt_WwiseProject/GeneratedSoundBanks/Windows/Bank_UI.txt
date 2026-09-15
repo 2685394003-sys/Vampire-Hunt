@@ -1,0 +1,30 @@
+Event	ID	Name			Wwise Object Path	Notes
+	13451009	Play_UI_Reroll			\Default Work Unit\Play_UI_Reroll	
+	345743854	Play_UI_ItemPickup			\Default Work Unit\Play_UI_ItemPickup	
+	407689887	Play_UI_Victory			\Default Work Unit\Play_UI_Victory	
+	430893833	Play_UI_LowHealthWarn			\Default Work Unit\Play_UI_LowHealthWarn	
+	885619826	Play_Familiar_Attack			\Default Work Unit\Play_Familiar_Attack	
+	958909958	Play_Combat_Reaction_Shatter			\Default Work Unit\Play_Combat_Reaction_Shatter	
+	996302017	Play_UI_ButtonClick			\Default Work Unit\Play_UI_ButtonClick	
+	1647929197	Play_UI_LevelUpReady			\Default Work Unit\Play_UI_LevelUpReady	
+	1714741727	Play_UI_ShopOpen			\Default Work Unit\Play_UI_ShopOpen	
+	2030242199	Play_Combat_Reaction_Thunder			\Default Work Unit\Play_Combat_Reaction_Thunder	
+	2570426421	Play_UI_ShopClose			\Default Work Unit\Play_UI_ShopClose	
+	2587736695	Play_Combat_Reaction_Blast			\Default Work Unit\Play_Combat_Reaction_Blast	
+	2819800046	Play_UI_ShopDenied			\Default Work Unit\Play_UI_ShopDenied	
+	3165725291	Play_UI_ScarletPickup			\Default Work Unit\Play_UI_ScarletPickup	
+	3214420350	Play_UI_BloodFull			\Default Work Unit\Play_UI_BloodFull	
+	3214947447	Play_UI_BloodContractWarn			\Default Work Unit\Play_UI_BloodContractWarn	
+	3218305131	Play_Familiar_Summon			\Default Work Unit\Play_Familiar_Summon	
+	3716786354	Play_UI_Defeat			\Default Work Unit\Play_UI_Defeat	
+	3746209562	Play_UI_ShopPurchase			\Default Work Unit\Play_UI_ShopPurchase	
+	4038915356	Play_UI_PactSelected			\Default Work Unit\Play_UI_PactSelected	
+
+In Memory Audio	ID	Name	Audio source file		Wwise Object Path	Notes	Data Size
+	83358173	Play_UI_ShopPurchase	.cache\DA\{DA8B16FC-8741-F530-CCCD-5C17901ABA6E}.wem		\Containers\Default Work Unit\UI\Play_UI_ShopPurchase		161488
+	90888783	Play_UI_LevelUpReady	.cache\34\{341A4EBD-DEC3-BC6C-E05E-7812F6EEF388}.wem		\Containers\Default Work Unit\UI\Play_UI_LevelUpReady		9696
+	236290884	Play_UI_ButtonClick	.cache\14\{14454CBC-2C46-5517-2DF9-E74E6ECD10F0}.wem		\Containers\Default Work Unit\UI\Play_UI_ButtonClick		44476
+	275355977	Play_UI_ShopDenied	.cache\05\{0512F3FD-7943-5BC2-0798-6FFD2CF19C43}.wem		\Containers\Default Work Unit\UI\Play_UI_ShopDenied		156520
+	616957101	Play_UI_ItemPickup	.cache\FD\{FDF900B6-D8F2-DE6B-9CBF-B03709053657}.wem		\Containers\Default Work Unit\UI\Play_UI_ItemPickup		216776
+	871208621	Play_UI_ShopOpen	.cache\C0\{C0C04EA4-F07C-D55A-AE75-8E846818EFC7}.wem		\Containers\Default Work Unit\UI\Play_UI_ShopOpen		295564
+

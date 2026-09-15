@@ -13,14 +13,15 @@ MonoBehaviour:
   m_Name: FleshGrowth
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.EnemyAffixDefinitionAsset
   affixId: 1001
-  displayName: 血肉增生
-  description: 之后生成的敌人每层获得 25% 最大生命。
+  displayName: "\u8840\u8089\u589E\u751F"
+  description: "\u4E4B\u540E\u751F\u6210\u7684\u654C\u4EBA\u6BCF\u5C42\u83B7\u5F97
+    25% \u6700\u5927\u751F\u547D\u3002"
   icon: {fileID: 0}
   baseWeight: 100
-  prerequisites: []
-  exclusions: []
+  prerequisites: 
+  exclusions: 
   repeatable: 1
-  maxStacks: 5
+  maxStacks: 50
   includedArchetypeIds: []
   excludedArchetypeIds: []
   statModifiers:

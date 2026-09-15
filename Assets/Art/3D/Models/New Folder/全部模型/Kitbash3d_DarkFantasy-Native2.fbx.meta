@@ -1,9 +1,179 @@
 fileFormatVersion: 2
 guid: ebb8c24ad07489e4599e0e85f823e432
 ModelImporter:
-  serializedVersion: 24300
+  serializedVersion: 24501
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: beamA
+    second: {fileID: 2100000, guid: 71ebd51b5cbe1c64484d6527d206cdb9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: beamB
+    second: {fileID: 2100000, guid: d50bcb6584808704aafdc3b68950ca16, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: beamC
+    second: {fileID: 2100000, guid: e0c07b87f1c5cb646bbc71c9add5250e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: blocksA
+    second: {fileID: 2100000, guid: 3b3cff2cceea08c4eb33015dda92f570, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: blocksB
+    second: {fileID: 2100000, guid: cb678db1a754833499877cf0ddbfad37, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: blocksC
+    second: {fileID: 2100000, guid: fb99d8416991b794cba0ad9ed4c99c56, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: damageA
+    second: {fileID: 2100000, guid: 2ace5de870bf1ad4e977947d6f740d15, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: decoA
+    second: {fileID: 2100000, guid: b04e6db566599ff45b5d344a7900fb5b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: doorA
+    second: {fileID: 2100000, guid: 7a10899c57fdbf54fbbfe98e8662fde4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: floorA
+    second: {fileID: 2100000, guid: 98d9f254f3e7e5e42bd60141e38ed692, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: floorB
+    second: {fileID: 2100000, guid: e87e596d015a91e4d95009ec3e9a3022, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: metalA
+    second: {fileID: 2100000, guid: a5ca7380921dbd94c982c57e484d35e5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: planksA
+    second: {fileID: 2100000, guid: a970d41f393df4d40aca0eb21bf981fa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: planksB
+    second: {fileID: 2100000, guid: a9f604dce3cb3a5408f27d6834afe74f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: planksC
+    second: {fileID: 2100000, guid: 0f8277f8f71ee8c48a1d4ccd92d169ca, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: planksD
+    second: {fileID: 2100000, guid: 3615e333bf6708340a603560a0c44fd5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: plasterA
+    second: {fileID: 2100000, guid: bf992854b1d1c4349b1d40cffd9b315f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: plasterB
+    second: {fileID: 2100000, guid: 3407b803c6f144f4483c99331543912e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: plasterC
+    second: {fileID: 2100000, guid: 5d22b05b1a1368c4b8edb5e3b89a8c05, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: plasterD
+    second: {fileID: 2100000, guid: 83ab7101d7c89c242afbedb96a10b64b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: shingleA
+    second: {fileID: 2100000, guid: e19b8b8fcc8380b44a8ace9dcb763e24, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: slateA
+    second: {fileID: 2100000, guid: 2fc9e8404a8eeda4aa6fb8b018de4914, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: slateB
+    second: {fileID: 2100000, guid: 174c31fc2e9808340b04b61019d881d4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: slateC
+    second: {fileID: 2100000, guid: 8af6a4d634c883943bf5f3f4b097f358, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: slateD
+    second: {fileID: 2100000, guid: 4f00d7bee0801ca4ba0ebaed0182258d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: stoneA
+    second: {fileID: 2100000, guid: 43f8efae6811e6a41b145cb3dfa90f95, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: stoneB
+    second: {fileID: 2100000, guid: 2fe22f25b5be61646b871c0eb0817627, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: wallA
+    second: {fileID: 2100000, guid: a1c8d74af78291a49a1bdd2a84b434f3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: wallB
+    second: {fileID: 2100000, guid: 268eb7acbc149da44b3c585859204f89, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: wallC
+    second: {fileID: 2100000, guid: 2184c5e61cc4cfa43ac44e77191a37cc, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: wallD
+    second: {fileID: 2100000, guid: acdd37056c945ba479e7265368e9445d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: windowsA
+    second: {fileID: 2100000, guid: f865fc03daffcd9419dca11758415c15, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: windowsB
+    second: {fileID: 2100000, guid: a10e8f2d27a7a1645b2d737ef527e8dd, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: windowsC
+    second: {fileID: 2100000, guid: cf0b1d58d4a162546b1515ba9a5de190, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -60,6 +230,8 @@ ModelImporter:
     generateMeshLods: 0
     meshLodGenerationFlags: 0
     maximumMeshLod: -1
+    importUVs: -1
+    importVertexColors: 1
     meshOptimizationFlags: -1
     indexFormat: 0
     secondaryUVAngleDistortion: 8
@@ -79,6 +251,7 @@ ModelImporter:
     legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
     blendShapeNormalImportMode: 1
     normalSmoothingSource: 0
+    calculateBlendshapeNormalsDeltaFromImportedNormals: 1
   referencedClips: []
   importAnimation: 1
   humanDescription:

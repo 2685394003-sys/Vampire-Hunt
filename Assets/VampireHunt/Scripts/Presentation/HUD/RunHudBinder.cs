@@ -1,6 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using VampireHunt.Bootstrap;
+using VampireHunt.Presentation.Audio;
 using VampireHunt.Run;
 
 namespace VampireHunt.Presentation.HUD
@@ -14,9 +15,17 @@ namespace VampireHunt.Presentation.HUD
         [SerializeField] private VampireHuntHudPresenter hud;
         [SerializeField, Min(0.02f)] private float refreshInterval = 0.1f;
 
+        [Header("音效（留空则不发声）")]
+        [Tooltip("本局胜利时播放一次，例如「Play_UI_Victory」")]
+        [SerializeField] private string victoryEventName = "Play_UI_Victory";
+        [Tooltip("本局失败时播放一次，例如「Play_UI_Defeat」")]
+        [SerializeField] private string defeatEventName = "Play_UI_Defeat";
+
         private VampireHuntGameManager m_RunManager;
         private float m_NextRefreshTime;
         private float m_NextBindAttemptTime;
+        private RunPhase m_LastPhase;
+        private bool m_HasLastPhase;
 
         private void Awake()
         {
@@ -87,6 +96,16 @@ namespace VampireHunt.Presentation.HUD
 
         private void ApplyPhase(RunPhase phase)
         {
+            // ApplyPhase 由 0.1s 轮询反复调用，所以结算音必须做边缘触发：
+            // 只在阶段真正切换的那一次发声，否则会每 0.1 秒重复播放。
+            if (!m_HasLastPhase || phase != m_LastPhase)
+            {
+                if (phase == RunPhase.Victory) AudioCue.Post(victoryEventName, gameObject);
+                else if (phase == RunPhase.Defeat) AudioCue.Post(defeatEventName, gameObject);
+                m_LastPhase = phase;
+                m_HasLastPhase = true;
+            }
+
             switch (phase)
             {
                 case RunPhase.Lobby:

@@ -29,6 +29,6 @@ MonoBehaviour:
   preferredRangeMax: 10.5
   retreatRange: 5
   attackId: 3
-  scarletReward: 24
+  scarletReward: 6
   spawnCost: 2
   lootTable: {fileID: 11400000, guid: fa90e15859d2c7049bde527cdf596394, type: 2}

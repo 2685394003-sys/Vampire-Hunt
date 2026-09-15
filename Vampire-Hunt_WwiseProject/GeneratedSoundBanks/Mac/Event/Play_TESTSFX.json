@@ -8,41 +8,26 @@
    {
     "Id": "2013398331",
     "Type": "Event",
-    "GUID": "{21ACE4C8-5BFE-4D82-95B8-507CA771FCA4}",
+    "GUID": "{37675D81-DD85-4B60-B8F2-A0DB2D46C722}",
     "Language": "SFX",
-    "Hash": "{B38C11A7-7326-A325-194C-A2DA599F55E8}",
+    "Hash": "{602963D1-4A54-21FD-6A13-3464D3B373E4}",
     "ObjectPath": "Play_TESTSFX",
     "ShortName": "Play_TESTSFX",
     "Path": "Event/Play_TESTSFX.bnk",
-    "Media": [
-     {
-      "Id": "974171657",
-      "Language": "SFX",
-      "Streaming": "false",
-      "Location": "Loose",
-      "ShortName": "佐助大叫.wav",
-      "Path": "Media/974171657.wem",
-      "CachePath": "F1/{F1CA1CA6-2B53-0458-0B97-C2A75A25804C}.wem"
-     }
-    ],
     "Events": [
      {
       "Id": "2013398331",
       "Name": "Play_TESTSFX",
       "ObjectPath": "\\Events\\Default Work Unit\\Play_TESTSFX",
-      "GUID": "{21ACE4C8-5BFE-4D82-95B8-507CA771FCA4}",
+      "GUID": "{37675D81-DD85-4B60-B8F2-A0DB2D46C722}",
+      "MaxAttenuation": "0",
       "DurationType": "OneShot",
-      "DurationMin": "1.308254",
-      "DurationMax": "1.308254",
-      "MediaRefs": [
-       {
-        "Id": "974171657"
-       }
-      ]
+      "DurationMin": "0",
+      "DurationMax": "0"
      }
     ]
    }
   ],
-  "FileHash": "{00B1F723-FB4F-4E96-31F9-074D9EC31B8F}"
+  "FileHash": "{2A894E77-F9B8-B35A-49BC-0EBD51FA7595}"
  }
 }

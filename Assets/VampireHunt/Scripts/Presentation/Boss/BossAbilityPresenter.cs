@@ -11,15 +11,21 @@ namespace VampireHunt.Presentation.Boss
         public BossAbilityNetworkState State { get; }
         public BossAbilityPresentationCue Cue { get; }
         public Transform Anchor { get; }
+        public float ScheduledTimeFromCastStart { get; }
+        public float EffectiveLifetime { get; }
 
         public BossAbilityCueEvent(
             in BossAbilityNetworkState state,
             BossAbilityPresentationCue cue,
-            Transform anchor)
+            Transform anchor,
+            float scheduledTimeFromCastStart,
+            float effectiveLifetime)
         {
             State = state;
             Cue = cue;
             Anchor = anchor;
+            ScheduledTimeFromCastStart = scheduledTimeFromCastStart;
+            EffectiveLifetime = effectiveLifetime;
         }
     }
 
@@ -73,9 +79,10 @@ namespace VampireHunt.Presentation.Boss
             IReadOnlyList<BossAbilityPresentationCue> cues = m_Ability.PresentationCues;
             for (int i = 0; i < cues.Count; i++)
             {
-                if (m_PlayedCues[i] || elapsed < cues[i].TimeFromCastStart) continue;
+                float cueTime = EffectiveCueTime(cues[i]);
+                if (m_PlayedCues[i] || elapsed < cueTime) continue;
                 m_PlayedCues[i] = true;
-                PlayCue(cues[i]);
+                PlayCue(cues[i], cueTime);
             }
         }
 
@@ -102,12 +109,24 @@ namespace VampireHunt.Presentation.Boss
             m_PlayedCues = new bool[m_Ability.PresentationCues.Count];
         }
 
-        private void PlayCue(BossAbilityPresentationCue cue)
+        private void PlayCue(BossAbilityPresentationCue cue, float scheduledTime)
         {
             if (cue == null) return;
             Transform anchor = anchors != null ? anchors.Resolve(cue.Anchor) : transform;
-            CueTriggered?.Invoke(new BossAbilityCueEvent(m_State, cue, anchor));
+            float effectiveLifetime = BossAbilityTimeline.RemapLifetime(
+                cue.TimeFromCastStart,
+                cue.Lifetime,
+                m_Ability.TelegraphDuration,
+                m_State.TelegraphDuration);
+            CueTriggered?.Invoke(new BossAbilityCueEvent(
+                m_State, cue, anchor, scheduledTime, effectiveLifetime));
         }
+
+        private float EffectiveCueTime(BossAbilityPresentationCue cue) =>
+            BossAbilityTimeline.RemapTime(
+                cue.TimeFromCastStart,
+                m_Ability.TelegraphDuration,
+                m_State.TelegraphDuration);
 
         private double ReadServerTime()
         {

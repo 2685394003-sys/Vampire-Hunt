@@ -56,6 +56,22 @@ namespace VampireHunt.Infrastructure.Netcode
             return hand != null && hand.SetIndependentServer(independent);
         }
 
+        /// <summary>阶段切换时左右手立刻复活（血量回满）。</summary>
+        public void RestoreAllHandsServer()
+        {
+            if (!IsServer) return;
+            m_Left?.RestoreServer();
+            m_Right?.RestoreServer();
+        }
+
+        /// <summary>Boss 随机传送后，左右手跟随传送到 Boss 新位置。</summary>
+        public void TeleportHandsToBossServer()
+        {
+            if (!IsServer) return;
+            m_Left?.TeleportToBossServer();
+            m_Right?.TeleportToBossServer();
+        }
+
         private void SpawnHands()
         {
             if (handPrefab == null) return;

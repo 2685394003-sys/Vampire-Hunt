@@ -27,6 +27,7 @@ namespace VampireHunt.Presentation.Boss
         private BossAbilityAsset m_Ability;
         private uint m_AbilityId;
         private ulong m_CastSequence;
+        private double m_TelegraphDuration;
 
         private void Awake()
         {
@@ -77,8 +78,9 @@ namespace VampireHunt.Presentation.Boss
                         BossAbilityPresentationCue cue = cues[cueIndex];
                         bool isSweepCue = cue.SpawnMode == BossAbilityCueSpawnMode.SweepWaveWarning ||
                                           cue.SpawnMode == BossAbilityCueSpawnMode.SweepWaveAttack;
+                        float cueTime = EffectiveCueTime(cue);
                         if (pass.PlayedCues[cueIndex] || !isSweepCue ||
-                            elapsed < cue.TimeFromCastStart) continue;
+                            elapsed < cueTime) continue;
                         pass.PlayedCues[cueIndex] = true;
                         SpawnCue(pass, cue, now);
                     }
@@ -97,6 +99,7 @@ namespace VampireHunt.Presentation.Boss
         private void HandleStarted(
             uint abilityId,
             ulong castSequence,
+            double telegraphDuration,
             BossSweepPresentationPass[] passes)
         {
             ClearAll();
@@ -105,13 +108,15 @@ namespace VampireHunt.Presentation.Boss
 
             m_AbilityId = abilityId;
             m_CastSequence = castSequence;
+            m_TelegraphDuration = telegraphDuration;
             for (int i = 0; i < passes.Length; i++)
             {
                 m_Passes.Add(new ActivePass
                 {
                     Data = passes[i],
                     PlayedCues = new bool[m_Ability.PresentationCues.Count],
-                    ClearServerTime = CalculateClearTime(m_Ability, passes[i].StartServerTime)
+                    ClearServerTime = CalculateClearTime(
+                        m_Ability, passes[i].StartServerTime, m_TelegraphDuration)
                 });
             }
             Update();
@@ -144,6 +149,7 @@ namespace VampireHunt.Presentation.Boss
             Vector3 position = pass.Data.Center + areaRotation * cue.LocalPosition;
 
             GameObject instance = Instantiate(cue.VfxPrefab, position, rotation);
+            float cueTime = EffectiveCueTime(cue);
             if (cue.SpawnMode == BossAbilityCueSpawnMode.SweepWaveWarning)
             {
                 instance.transform.localScale = Vector3.Scale(
@@ -151,8 +157,8 @@ namespace VampireHunt.Presentation.Boss
                     new Vector3(pass.Data.Size.x, 1f, pass.Data.Size.z));
                 if (instance.TryGetComponent(out BossSweepWaveWarningVfxPresenter warning))
                     warning.Configure(
-                        pass.Data.StartServerTime + cue.TimeFromCastStart,
-                        m_Ability.TelegraphDuration,
+                        pass.Data.StartServerTime + cueTime,
+                        (float)m_TelegraphDuration,
                         pass.Data.Direction);
             }
             else
@@ -161,7 +167,7 @@ namespace VampireHunt.Presentation.Boss
                 instance.transform.localScale = cue.LocalScale;
                 if (instance.TryGetComponent(out BossSweepWaveAttackVfxPresenter attack))
                     attack.Configure(
-                        pass.Data.StartServerTime + cue.TimeFromCastStart,
+                        pass.Data.StartServerTime + cueTime,
                         m_Ability.Tuning.TravelDuration,
                         pass.Data.Direction,
                         pass.Data.Size.x,
@@ -170,15 +176,23 @@ namespace VampireHunt.Presentation.Boss
 
             if (cue.Lifetime > 0f)
             {
+                float effectiveLifetime = BossAbilityTimeline.RemapLifetime(
+                    cue.TimeFromCastStart,
+                    cue.Lifetime,
+                    m_Ability.TelegraphDuration,
+                    m_TelegraphDuration);
                 float elapsedSinceCue = Mathf.Max(
                     0f,
-                    (float)(now - pass.Data.StartServerTime - cue.TimeFromCastStart));
-                Destroy(instance, Mathf.Max(.01f, cue.Lifetime - elapsedSinceCue));
+                    (float)(now - pass.Data.StartServerTime - cueTime));
+                Destroy(instance, Mathf.Max(.01f, effectiveLifetime - elapsedSinceCue));
             }
             pass.Instances.Add(instance);
         }
 
-        private static double CalculateClearTime(BossAbilityAsset ability, double passStartServerTime)
+        private static double CalculateClearTime(
+            BossAbilityAsset ability,
+            double passStartServerTime,
+            double effectiveTelegraphDuration)
         {
             double latest = passStartServerTime;
             IReadOnlyList<BossAbilityPresentationCue> cues = ability.PresentationCues;
@@ -187,12 +201,27 @@ namespace VampireHunt.Presentation.Boss
                 BossAbilityPresentationCue cue = cues[i];
                 if (cue.SpawnMode != BossAbilityCueSpawnMode.SweepWaveWarning &&
                     cue.SpawnMode != BossAbilityCueSpawnMode.SweepWaveAttack) continue;
+                float effectiveStart = BossAbilityTimeline.RemapTime(
+                    cue.TimeFromCastStart,
+                    ability.TelegraphDuration,
+                    effectiveTelegraphDuration);
+                float effectiveLifetime = BossAbilityTimeline.RemapLifetime(
+                    cue.TimeFromCastStart,
+                    cue.Lifetime,
+                    ability.TelegraphDuration,
+                    effectiveTelegraphDuration);
                 latest = System.Math.Max(
                     latest,
-                    passStartServerTime + cue.TimeFromCastStart + Mathf.Max(0f, cue.Lifetime));
+                    passStartServerTime + effectiveStart + Mathf.Max(0f, effectiveLifetime));
             }
             return latest;
         }
+
+        private float EffectiveCueTime(BossAbilityPresentationCue cue) =>
+            BossAbilityTimeline.RemapTime(
+                cue.TimeFromCastStart,
+                m_Ability.TelegraphDuration,
+                m_TelegraphDuration);
 
         private static double ReadServerTime()
         {
@@ -221,6 +250,7 @@ namespace VampireHunt.Presentation.Boss
             m_Ability = null;
             m_AbilityId = 0;
             m_CastSequence = 0;
+            m_TelegraphDuration = 0d;
         }
     }
 }

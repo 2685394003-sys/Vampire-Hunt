@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statName: Health
   minValue: 0
-  maxValue: 100
-  startingValue: 100
+  maxValue: 10000
+  startingValue: 10000
   regenRate: 0
   regenDelay: 0
   eventFlags: -1

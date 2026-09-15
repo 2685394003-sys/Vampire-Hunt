@@ -30,6 +30,12 @@ namespace VampireHunt.Boss.Abilities
         public float TravelDuration = 0.45f;
         public float DissolveDuration = 0.3f;
         public float VfxHeight = 1.2f;
+        /// <summary>Solo beam count. Multiplayer scaling multiplies this count.</summary>
+        public int LaserBeamCount = 1;
+        /// <summary>Solo radial-volley arm count. Multiplayer uses 1 + scaled player units.</summary>
+        public int VolleyArmCount = 2;
+        /// <summary>Number of horizontal strips and vertical strips used by Grid Cut.</summary>
+        public int GridLineCount = 6;
 
         public BossAbilityTuning CloneValidated()
         {
@@ -54,7 +60,10 @@ namespace VampireHunt.Boss.Abilities
                 ClockDrainRate = Math.Max(0.01f, ClockDrainRate),
                 TravelDuration = Math.Max(0.01f, TravelDuration),
                 DissolveDuration = Math.Max(0.01f, DissolveDuration),
-                VfxHeight = Math.Max(0f, VfxHeight)
+                VfxHeight = Math.Max(0f, VfxHeight),
+                LaserBeamCount = Math.Max(1, Math.Min(64, LaserBeamCount)),
+                VolleyArmCount = Math.Max(1, Math.Min(64, VolleyArmCount)),
+                GridLineCount = Math.Max(1, GridLineCount)
             };
         }
     }

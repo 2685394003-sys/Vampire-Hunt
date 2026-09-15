@@ -1,15 +1,18 @@
 namespace VampireHunt.Boss.Encounter
 {
+    /// <summary>
+    /// 遭遇状态机。踉跄（StaggerEffect）结束后直接进入 Boss 战（Battle），
+    /// 中间不再有处决窗口（ExecutionWindow 已移除：破盾即开战，无需玩家贴近）。
+    /// </summary>
     public enum BossEncounterState : byte
     {
         Dormant = 0,
         RoamingIdle = 1,
         RoamingEvade = 2,
         StaggerEffect = 3,
-        ExecutionWindow = 4,
-        Battle = 5,
-        PhaseTransition = 6,
-        Defeated = 7
+        Battle = 4,
+        PhaseTransition = 5,
+        Defeated = 6
     }
 
     public enum BossDamageOutcome : byte
@@ -17,9 +20,8 @@ namespace VampireHunt.Boss.Encounter
         Ignored = 0,
         GuardDamaged = 1,
         GuardBroken = 2,
-        ExecutionTriggered = 3,
-        HealthDamaged = 4,
-        StageDefeated = 5,
-        BossDefeated = 6
+        HealthDamaged = 3,
+        StageDefeated = 4,
+        BossDefeated = 5
     }
 }

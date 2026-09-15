@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P2001_sniper_acquire
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 2001
+  displayName: "\u8840\u7A7F\u9B54\u5F39"
+  description: "\u89E3\u9501\u5E76\u5207\u6362\u4E3B\u6B66\u5668\u4E3A\u72D9\u51FB\u67AA"
+  icon: {fileID: 0}
+  tier: 0
+  rarity: 1
+  baseWeight: 0.6
+  tags: 32
+  prerequisites: 
+  exclusions: b90b0000a10f000089130000
+  repeatable: 0
+  maxStacks: 1
+  effectModules:
+  - {fileID: 11400000, guid: 6c74dc9355662ba4588ebf9dd74683bf, type: 2}

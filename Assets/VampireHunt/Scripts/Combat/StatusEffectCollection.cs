@@ -10,24 +10,26 @@ namespace VampireHunt.Combat
     {
         public uint StatusId { get; }
         public EntityId Source { get; }
-        public int Stacks { get; }
+        public float Stacks { get; }
         public float Magnitude { get; }
         public double StartTime { get; }
         public double EndTime { get; }
         public EffectBlockFlags BlockFlags { get; }
         public uint PresentationCueId { get; }
         public ElementId Element { get; }
+        public float ElementMastery { get; }
 
         public StatusEffectSnapshot(
             uint statusId,
             EntityId source,
-            int stacks,
+            float stacks,
             float magnitude,
             double startTime,
             double endTime,
             EffectBlockFlags blockFlags,
             uint presentationCueId,
-            ElementId element)
+            ElementId element,
+            float elementMastery)
         {
             StatusId = statusId;
             Source = source;
@@ -38,6 +40,7 @@ namespace VampireHunt.Combat
             BlockFlags = blockFlags;
             PresentationCueId = presentationCueId;
             Element = element;
+            ElementMastery = elementMastery;
         }
     }
 
@@ -68,10 +71,11 @@ namespace VampireHunt.Combat
         {
             public StatusEffectDefinition Definition;
             public EntityId Source;
-            public int Stacks;
+            public float Stacks;
             public float Magnitude;
             public double StartTime;
             public double EndTime;
+            public float ElementMastery;
         }
 
         private readonly Dictionary<uint, RuntimeStatus> m_Statuses = new Dictionary<uint, RuntimeStatus>();
@@ -99,7 +103,8 @@ namespace VampireHunt.Combat
                     Stacks = Math.Min(definition.MaxStacks, request.Spec.Stacks),
                     Magnitude = magnitude,
                     StartTime = time,
-                    EndTime = time + duration
+                    EndTime = time + duration,
+                    ElementMastery = request.Spec.ElementMastery
                 };
                 m_Statuses.Add(definition.StatusId, runtime);
                 Revision++;
@@ -109,6 +114,7 @@ namespace VampireHunt.Combat
 
             StatusEffectSnapshot previous = ToSnapshot(runtime);
             runtime.Source = request.Source;
+            runtime.ElementMastery = request.Spec.ElementMastery;
             switch (definition.StackPolicy)
             {
                 case StatusStackPolicy.AddStacksAndRefresh:
@@ -121,6 +127,11 @@ namespace VampireHunt.Combat
                     runtime.Stacks = Math.Min(definition.MaxStacks, request.Spec.Stacks);
                     runtime.Magnitude = magnitude;
                     runtime.EndTime = time + duration;
+                    break;
+                case StatusStackPolicy.AddStacksKeepDuration:
+                    runtime.Stacks = Math.Min(definition.MaxStacks, runtime.Stacks + request.Spec.Stacks);
+                    runtime.Magnitude = Math.Max(runtime.Magnitude, magnitude);
+                    // 不刷新 EndTime：整组层数在同一时刻到期（闪电"时间结束后需重新叠层"）。
                     break;
                 default:
                     runtime.Stacks = Math.Max(runtime.Stacks, Math.Min(definition.MaxStacks, request.Spec.Stacks));
@@ -143,6 +154,16 @@ namespace VampireHunt.Combat
             removed = ToSnapshot(runtime);
             m_Statuses.Remove(statusId);
             Revision++;
+            return true;
+        }
+
+        /// <summary>消耗指定层数（元素反应"等比合成"用）。层数扣到 ≤0 时整个状态移除。</summary>
+        public bool TryConsumeStacks(uint statusId, float amount)
+        {
+            if (!m_Statuses.TryGetValue(statusId, out RuntimeStatus runtime) || amount <= 0f) return false;
+            runtime.Stacks -= amount;
+            Revision++;
+            if (runtime.Stacks <= 0f) m_Statuses.Remove(statusId);
             return true;
         }
 
@@ -189,6 +210,7 @@ namespace VampireHunt.Combat
                 status.EndTime,
                 status.Definition.BlockFlags,
                 status.Definition.PresentationCueId,
-                status.Definition.Element);
+                status.Definition.Element,
+                status.ElementMastery);
     }
 }

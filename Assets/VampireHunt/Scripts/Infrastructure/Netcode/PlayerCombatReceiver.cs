@@ -56,10 +56,16 @@ namespace VampireHunt.Infrastructure.Netcode
 
         public bool TryApplyDamage(in DamageRequest request, out ResolvedDamage result)
         {
+            result = default;
+            if (!IsSpawned || !IsServer || coreStats == null || !coreStats.IsAlive) return false;
+            ServerCombatActivity.Interaction(NetworkManager, request.Source, CombatEntityId, request.AttackId, request.Sequence);
             result = modifierHost != null
                 ? modifierHost.ResolveIncoming(request)
                 : new DamageContext(request).ToResult();
             if (!IsServer || coreStats == null || result.IsCancelled || result.Amount <= 0f) return false;
+
+            // 开发者控制台：无限生命 —— 伤害完全拦截（不掉血、无受击表现、不进入结算）
+            if (coreStats.InfiniteHealth) return false;
 
             float healthBefore = Mathf.Max(0f, coreStats.GetCurrentValue(StatKeys.Health));
             coreStats.ModifyStat(StatKeys.Health, -result.Amount, request.Source.Value, ModificationSource.Damage);

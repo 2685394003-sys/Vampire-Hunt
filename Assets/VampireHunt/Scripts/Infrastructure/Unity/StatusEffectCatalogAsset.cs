@@ -13,12 +13,23 @@ namespace VampireHunt.Infrastructure.Unity
         private struct ReactionEntry
         {
             public ElementId incomingElement;
+            public ElementReactionType reactionType;
+            /// <summary>目标身上必须已存在的状态（炸裂=灼烧、碎裂=霜寒）。</summary>
             public uint requiredStatusId;
-            public bool consumeRequiredStatus;
+            public uint consumeFireStatusId;
+            public uint consumeFrostStatusId;
+            public int consumeFireStacks;
+            public int consumeFrostStacks;
             [Min(0f)] public float damageMultiplier;
+            [Min(0f)] public float explodeRadius;
+            [Min(0f)] public float knockbackDistance;
+            [Min(0f)] public float percentDamage;
+            [Min(0f)] public float cooldown;
 
             public ElementReactionDefinition ToDomain() => new ElementReactionDefinition(
-                incomingElement, requiredStatusId, consumeRequiredStatus, damageMultiplier);
+                incomingElement, reactionType, requiredStatusId,
+                consumeFireStatusId, consumeFrostStatusId, consumeFireStacks, consumeFrostStacks,
+                damageMultiplier, explodeRadius, knockbackDistance, percentDamage, cooldown);
         }
 
         [SerializeField] private StatusEffectDefinitionAsset[] definitions;

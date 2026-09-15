@@ -22,6 +22,21 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Sound definition for footstep sounds.")]
         [SerializeField] private SoundDef soundDefFootstep;
 
+        [Header("Wwise Events")]
+        [Tooltip("每迈一步触发一次（由 walk/run 的动画帧事件调用）。留空则静默。")]
+        [SerializeField] private string footstepEventName = "Play_Player_Move";
+
+        [Tooltip("落地时触发一次（由落地动画帧事件调用）。留空则静默。")]
+        [SerializeField] private string landingEventName = "Play_Player_Land";
+
+        [Tooltip("由「移动中」转为「静止」时触发一次。留空则静默。")]
+        [SerializeField] private string moveStopEventName = "Play_Player_Move_Stop";
+
+        [Tooltip("判定为「正在移动」的最小速度（米/秒）。")]
+        [SerializeField] private float movingSpeedThreshold = 0.1f;
+
+        private bool m_WasMoving;
+
         private readonly int m_AnimIDSpeed = Animator.StringToHash("Speed");
         private readonly int m_AnimIDGrounded = Animator.StringToHash("Grounded");
         private readonly int m_AnimIDJump = Animator.StringToHash("Jump");
@@ -48,9 +63,15 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
+            if (coreMovement == null) return;
+
+            // 「停止移动」的收尾音要在所有客户端判定（远端玩家的脚步同样需要收尾），
+            // 因此放在 IsOwner 判断之前。
+            UpdateFootstepState();
+
             // We only want the owner to send animation state updates.
             // NetworkAnimator will handle propagating these changes to other clients.
-            if (!IsOwner || coreMovement == null) return;
+            if (!IsOwner) return;
 
             UpdateLocomotionParameters();
         }
@@ -86,31 +107,17 @@ namespace Blocks.Gameplay.Core
         /// <param name="filterCutoffOffset"></param>
         public void OnFootstep(AnimationEvent animationEvent, float walkRunPitchCents, float walkRunVolumeScale, float filterCutoffOffset)
         {
-            var overrideData = new SoundEmitter.SoundDefOverrideData
-            {
-                BasePitchInCents = walkRunPitchCents,
-                VolumeScale = walkRunVolumeScale,
-                BaseLowPassCutoff = filterCutoffOffset
-            };
-
-            CoreDirector.RequestAudio(soundDefFootstep)
-                .AttachedTo(transform)
-                .WithOverrides(overrideData)
-                .AsReserved(SoundEmitter.ReservedInfo.ReservedEmitterAndAudioSources)
-                .Play();
+            // 动画帧事件逐个触发 —— 事件名指向 Wwise 里的随机容器（多个单步变体随机取）。
+            if (!string.IsNullOrEmpty(footstepEventName)) WwiseAudioBridge.PostEvent(footstepEventName, gameObject);
         }
 
         /// <summary>
         /// This method is called by an AnimationEvent defined in the landing animation clip.
         /// It plays the landing sound effect.
         /// </summary>
-        /// <param name="animationEvent">Data from the animation event.</param>
         public void OnLand(AnimationEvent animationEvent)
         {
-            CoreDirector.RequestAudio(soundDefFootstep)
-                .AttachedTo(transform)
-                .AsReserved(SoundEmitter.ReservedInfo.ReservedEmitterAndAudioSources)
-                .Play();
+            if (!string.IsNullOrEmpty(landingEventName)) WwiseAudioBridge.PostEvent(landingEventName, gameObject);
         }
 
         #endregion
@@ -133,6 +140,21 @@ namespace Blocks.Gameplay.Core
             // Set floats for speed and input magnitude to drive blend trees.
             Animator.SetFloat(m_AnimIDSpeed, coreMovement.CurrentSpeed);
             Animator.SetFloat(m_AnimIDMotionSpeed, coreMovement.InputMagnitude);
+        }
+
+        /// <summary>
+        /// 检测「移动中 → 静止」的跃迁，播放停止移动的收尾音。
+        /// 脚步音本身由 walk/run 的动画帧事件逐个触发，这里只负责补最后一步之后的收尾。
+        /// </summary>
+        private void UpdateFootstepState()
+        {
+            bool moving = coreMovement.CurrentSpeed > movingSpeedThreshold;
+            if (m_WasMoving && !moving && !string.IsNullOrEmpty(moveStopEventName))
+            {
+                WwiseAudioBridge.PostEvent(moveStopEventName, gameObject);
+            }
+
+            m_WasMoving = moving;
         }
 
         public void TurnInPlaceStart()

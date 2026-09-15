@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3788c06948da4bc39f4d316ba4c35d7f, type: 3}
+  m_Name: P1005_sector_trifold
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.PactDefinitionAsset
+  pactId: 1005
+  displayName: "\u8840\u5203\u72C2\u589E"
+  description: "\u6DFB\u52A0\u4E24\u9897\u6C14\u5203\u5F39\u4E38"
+  icon: {fileID: 0}
+  tier: 2
+  rarity: 1
+  baseWeight: 0.3
+  tags: 32
+  prerequisites: 
+  exclusions: d1070000b90b0000a10f000089130000
+  repeatable: 0
+  maxStacks: 1
+  effectModules:
+  - {fileID: 11400000, guid: 9090db23afd6a774d820c3726fd9febf, type: 2}

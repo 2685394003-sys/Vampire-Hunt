@@ -7,22 +7,34 @@ using VampireHunt.Infrastructure.Unity.Boss;
 
 namespace VampireHunt.Presentation.Boss
 {
-    /// <summary>Client renderer for the replicated target marker and smoothly tracking beam.</summary>
+    /// <summary>
+    /// Client-only renderer for all beams in one replicated laser cast. It never selects a
+    /// target or performs hit detection; direction snapshots come from the authoritative server.
+    /// </summary>
     [DisallowMultipleComponent]
     public sealed class BossTrackingLaserVfxPresenter : MonoBehaviour
     {
+        private sealed class ActiveBeam
+        {
+            public BossTrackingLaserPresentation Data;
+            public bool[] PlayedCues;
+            public Transform Target;
+            public Vector3 CurrentDirection;
+            public Vector3 AuthoritativeDirection;
+            public Vector3 BeamLocalOffset;
+            public BossTrackingLaserTargetMarkerVfxPresenter TargetMarker;
+            public BossTrackingLaserBeamVfxPresenter Beam;
+            public bool Released;
+            public readonly List<GameObject> Instances = new List<GameObject>();
+        }
+
         [SerializeField] private BossTrackingLaserNetworkBridge source;
         [SerializeField] private BossAbilityPhaseProvider phaseProvider;
 
-        private BossTrackingLaserPresentation m_Presentation;
+        private readonly List<ActiveBeam> m_Beams = new List<ActiveBeam>();
         private BossAbilityAsset m_Ability;
-        private bool[] m_PlayedCues;
-        private Transform m_Target;
-        private Vector3 m_CurrentDirection = Vector3.forward;
-        private BossTrackingLaserTargetMarkerVfxPresenter m_TargetMarker;
-        private BossTrackingLaserBeamVfxPresenter m_Beam;
-        private bool m_ReleaseStarted;
-        private readonly List<GameObject> m_Instances = new List<GameObject>();
+        private uint m_AbilityId;
+        private ulong m_CastSequence;
 
         private void Awake()
         {
@@ -34,6 +46,7 @@ namespace VampireHunt.Presentation.Boss
         {
             if (source == null) return;
             source.LaserStarted += HandleStarted;
+            source.LaserDirectionUpdated += HandleDirectionUpdated;
             source.LaserCancelled += HandleCancelled;
         }
 
@@ -42,6 +55,7 @@ namespace VampireHunt.Presentation.Boss
             if (source != null)
             {
                 source.LaserStarted -= HandleStarted;
+                source.LaserDirectionUpdated -= HandleDirectionUpdated;
                 source.LaserCancelled -= HandleCancelled;
             }
             Clear();
@@ -49,112 +63,161 @@ namespace VampireHunt.Presentation.Boss
 
         private void Update()
         {
-            if (m_Ability == null) return;
-            if (m_Target == null) m_Target = ResolvePlayerTransform(m_Presentation.TargetEntityId);
-
+            if (m_Ability == null || m_Beams.Count == 0) return;
             double now = ReadServerTime();
-            double elapsed = now - m_Presentation.StartServerTime;
-            Vector3 desired = ResolveDesiredDirection();
-            if (!m_ReleaseStarted && elapsed >= m_Ability.TelegraphDuration)
-            {
-                // Match the authoritative release: face the locked player immediately.
-                m_CurrentDirection = desired;
-                m_ReleaseStarted = true;
-            }
-            else if (m_ReleaseStarted)
-            {
-                // Only the active beam tracks slowly; the telegraph does not rotate the Boss.
-                float radiansPerSecond = m_Presentation.RotationSpeed * Mathf.Deg2Rad;
-                m_CurrentDirection = Vector3.RotateTowards(
-                    m_CurrentDirection,
-                    desired,
-                    radiansPerSecond * Time.deltaTime,
-                    0f).normalized;
-            }
-
             IReadOnlyList<BossAbilityPresentationCue> cues = m_Ability.PresentationCues;
-            for (int i = 0; i < cues.Count; i++)
-            {
-                BossAbilityPresentationCue cue = cues[i];
-                bool isLaserCue = cue.SpawnMode == BossAbilityCueSpawnMode.TrackingLaserTargetMarker ||
-                                  cue.SpawnMode == BossAbilityCueSpawnMode.TrackingLaserBeam;
-                if (m_PlayedCues[i] || !isLaserCue || elapsed < cue.TimeFromCastStart) continue;
-                m_PlayedCues[i] = true;
-                SpawnCue(cue, now);
-            }
 
-            if (m_TargetMarker != null) m_TargetMarker.SetTarget(m_Target);
-            if (m_Beam != null)
+            for (int beamIndex = 0; beamIndex < m_Beams.Count; beamIndex++)
             {
-                BossAbilityPresentationCue beamCue = FindCue(BossAbilityCueSpawnMode.TrackingLaserBeam);
-                Vector3 localOffset = beamCue != null ? beamCue.LocalPosition : Vector3.up;
-                Vector3 origin = transform.position + transform.rotation * localOffset;
-                m_Beam.SetPose(origin, m_CurrentDirection);
+                ActiveBeam beam = m_Beams[beamIndex];
+                if (beam.Target == null)
+                    beam.Target = ResolvePlayerTransform(beam.Data.TargetEntityId);
+
+                double elapsed = now - beam.Data.StartServerTime;
+                if (elapsed < 0d) continue;
+                if (!beam.Released && elapsed >= beam.Data.TelegraphDuration)
+                    beam.Released = true;
+                if (beam.Released)
+                {
+                    float radiansPerSecond = beam.Data.RotationSpeed * Mathf.Deg2Rad;
+                    beam.CurrentDirection = Vector3.RotateTowards(
+                        beam.CurrentDirection,
+                        beam.AuthoritativeDirection,
+                        radiansPerSecond * Time.deltaTime,
+                        0f).normalized;
+                }
+
+                for (int cueIndex = 0; cueIndex < cues.Count; cueIndex++)
+                {
+                    BossAbilityPresentationCue cue = cues[cueIndex];
+                    bool isLaserCue = cue.SpawnMode == BossAbilityCueSpawnMode.TrackingLaserTargetMarker ||
+                                      cue.SpawnMode == BossAbilityCueSpawnMode.TrackingLaserBeam;
+                    float cueTime = EffectiveCueTime(beam, cue);
+                    if (beam.PlayedCues[cueIndex] || !isLaserCue || elapsed < cueTime) continue;
+                    beam.PlayedCues[cueIndex] = true;
+                    SpawnCue(beam, cue, cueTime, now);
+                }
+
+                if (beam.TargetMarker != null) beam.TargetMarker.SetTarget(beam.Target);
+                if (beam.Beam != null)
+                {
+                    Vector3 origin = transform.position + transform.rotation * beam.BeamLocalOffset;
+                    beam.Beam.SetPose(origin, beam.CurrentDirection);
+                }
             }
         }
 
         private void HandleStarted(BossTrackingLaserPresentation presentation)
         {
-            Clear();
-            if (phaseProvider == null ||
-                !phaseProvider.TryGetAbility(presentation.AbilityId, out m_Ability)) return;
-            m_Presentation = presentation;
-            m_PlayedCues = new bool[m_Ability.PresentationCues.Count];
-            m_CurrentDirection = Vector3.ProjectOnPlane(presentation.InitialDirection, Vector3.up);
-            if (m_CurrentDirection.sqrMagnitude <= .0001f) m_CurrentDirection = transform.forward;
-            m_CurrentDirection.Normalize();
-            m_ReleaseStarted = false;
-            m_Target = ResolvePlayerTransform(presentation.TargetEntityId);
-            Update();
+            if (m_Ability == null || presentation.AbilityId != m_AbilityId ||
+                presentation.CastSequence != m_CastSequence)
+            {
+                Clear();
+                if (phaseProvider == null ||
+                    !phaseProvider.TryGetAbility(presentation.AbilityId, out m_Ability)) return;
+                m_AbilityId = presentation.AbilityId;
+                m_CastSequence = presentation.CastSequence;
+            }
+
+            RemoveBeam(presentation.BeamIndex);
+            Vector3 direction = Vector3.ProjectOnPlane(presentation.InitialDirection, Vector3.up);
+            if (direction.sqrMagnitude <= .0001f) direction = transform.forward;
+            direction.Normalize();
+            m_Beams.Add(new ActiveBeam
+            {
+                Data = presentation,
+                PlayedCues = new bool[m_Ability.PresentationCues.Count],
+                Target = ResolvePlayerTransform(presentation.TargetEntityId),
+                CurrentDirection = direction,
+                AuthoritativeDirection = direction,
+                BeamLocalOffset = Vector3.up,
+                Released = false
+            });
         }
 
-        private Vector3 ResolveDesiredDirection()
+        private void HandleDirectionUpdated(
+            uint abilityId,
+            ulong castSequence,
+            uint beamIndex,
+            Vector3 direction,
+            bool snap)
         {
-            if (m_Target == null) return m_CurrentDirection;
-            Vector3 desired = Vector3.ProjectOnPlane(m_Target.position - transform.position, Vector3.up);
-            return desired.sqrMagnitude > .0001f ? desired.normalized : m_CurrentDirection;
+            if (abilityId != m_AbilityId || castSequence != m_CastSequence) return;
+            ActiveBeam beam = FindBeam(beamIndex);
+            if (beam == null) return;
+            Vector3 planar = Vector3.ProjectOnPlane(direction, Vector3.up);
+            if (planar.sqrMagnitude <= .0001f) return;
+            beam.AuthoritativeDirection = planar.normalized;
+            if (snap)
+            {
+                beam.CurrentDirection = beam.AuthoritativeDirection;
+                beam.Released = true;
+            }
         }
 
         private void HandleCancelled(uint abilityId, ulong castSequence)
         {
-            if (m_Ability != null && abilityId == m_Presentation.AbilityId &&
-                castSequence == m_Presentation.CastSequence) Clear();
+            if (abilityId == m_AbilityId && castSequence == m_CastSequence) Clear();
         }
 
-        private void SpawnCue(BossAbilityPresentationCue cue, double now)
+        private void SpawnCue(
+            ActiveBeam beam,
+            BossAbilityPresentationCue cue,
+            float cueTime,
+            double now)
         {
             if (cue?.VfxPrefab == null) return;
             GameObject instance = Instantiate(cue.VfxPrefab);
             instance.transform.localScale = cue.LocalScale;
-            m_Instances.Add(instance);
+            beam.Instances.Add(instance);
 
             if (cue.SpawnMode == BossAbilityCueSpawnMode.TrackingLaserTargetMarker)
             {
-                m_TargetMarker = instance.GetComponent<BossTrackingLaserTargetMarkerVfxPresenter>();
-                if (m_TargetMarker != null) m_TargetMarker.Configure(m_Target, cue.LocalPosition);
+                beam.TargetMarker = instance.GetComponent<BossTrackingLaserTargetMarkerVfxPresenter>();
+                if (beam.TargetMarker != null) beam.TargetMarker.Configure(beam.Target, cue.LocalPosition);
             }
             else
             {
-                m_Beam = instance.GetComponent<BossTrackingLaserBeamVfxPresenter>();
-                if (m_Beam != null) m_Beam.Configure(m_Presentation.Size);
+                beam.BeamLocalOffset = cue.LocalPosition;
+                beam.Beam = instance.GetComponent<BossTrackingLaserBeamVfxPresenter>();
+                if (beam.Beam != null) beam.Beam.Configure(beam.Data.Size);
             }
 
             if (cue.Lifetime > 0f)
             {
+                float effectiveLifetime = BossAbilityTimeline.RemapLifetime(
+                    cue.TimeFromCastStart,
+                    cue.Lifetime,
+                    m_Ability.TelegraphDuration,
+                    beam.Data.TelegraphDuration);
                 float alreadyElapsed = Mathf.Max(
                     0f,
-                    (float)(now - m_Presentation.StartServerTime - cue.TimeFromCastStart));
-                Destroy(instance, Mathf.Max(.01f, cue.Lifetime - alreadyElapsed));
+                    (float)(now - beam.Data.StartServerTime - cueTime));
+                Destroy(instance, Mathf.Max(.01f, effectiveLifetime - alreadyElapsed));
             }
         }
 
-        private BossAbilityPresentationCue FindCue(BossAbilityCueSpawnMode spawnMode)
+        private float EffectiveCueTime(ActiveBeam beam, BossAbilityPresentationCue cue) =>
+            BossAbilityTimeline.RemapTime(
+                cue.TimeFromCastStart,
+                m_Ability.TelegraphDuration,
+                beam.Data.TelegraphDuration);
+
+        private ActiveBeam FindBeam(uint beamIndex)
         {
-            if (m_Ability == null) return null;
-            IReadOnlyList<BossAbilityPresentationCue> cues = m_Ability.PresentationCues;
-            for (int i = 0; i < cues.Count; i++)
-                if (cues[i].SpawnMode == spawnMode) return cues[i];
+            for (int i = 0; i < m_Beams.Count; i++)
+                if (m_Beams[i].Data.BeamIndex == beamIndex) return m_Beams[i];
             return null;
+        }
+
+        private void RemoveBeam(uint beamIndex)
+        {
+            for (int i = m_Beams.Count - 1; i >= 0; i--)
+            {
+                if (m_Beams[i].Data.BeamIndex != beamIndex) continue;
+                ClearBeam(m_Beams[i]);
+                m_Beams.RemoveAt(i);
+            }
         }
 
         private static Transform ResolvePlayerTransform(ulong entityId)
@@ -186,17 +249,20 @@ namespace VampireHunt.Presentation.Boss
                 : Time.unscaledTimeAsDouble;
         }
 
+        private static void ClearBeam(ActiveBeam beam)
+        {
+            for (int i = 0; i < beam.Instances.Count; i++)
+                if (beam.Instances[i] != null) Destroy(beam.Instances[i]);
+            beam.Instances.Clear();
+        }
+
         private void Clear()
         {
-            for (int i = 0; i < m_Instances.Count; i++)
-                if (m_Instances[i] != null) Destroy(m_Instances[i]);
-            m_Instances.Clear();
-            m_TargetMarker = null;
-            m_Beam = null;
-            m_Target = null;
+            for (int i = 0; i < m_Beams.Count; i++) ClearBeam(m_Beams[i]);
+            m_Beams.Clear();
             m_Ability = null;
-            m_PlayedCues = null;
-            m_ReleaseStarted = false;
+            m_AbilityId = 0;
+            m_CastSequence = 0;
         }
     }
 }
