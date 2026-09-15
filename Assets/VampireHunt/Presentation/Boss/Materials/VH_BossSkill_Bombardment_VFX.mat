@@ -29,7 +29,7 @@ Material:
         m_Offset: {x: 0.6666667, y: 0.6666667}
     m_Ints: []
     m_Floats:
-    - _EdgePower: 1
+    - _EdgePower: 2.59
     - _FlowSpeed: 0.15
     - _Intensity: 4
     m_Colors:
