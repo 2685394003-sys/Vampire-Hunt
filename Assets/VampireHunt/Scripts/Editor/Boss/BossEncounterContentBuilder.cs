@@ -333,13 +333,19 @@ namespace VampireHunt.Editor.Boss
             BossAbilityCueSpawnMode spawnMode = spec.EachLockedArea
                 ? BossAbilityCueSpawnMode.EachLockedArea
                 : BossAbilityCueSpawnMode.SingleAnchor;
+            float lockedAreaDiameter = Mathf.Max(.01f,
+                so.FindProperty("tuning").FindPropertyRelative("Radius").floatValue * 2f);
             ConfigureCue(cues.GetArrayElementAtIndex(0), $"{spec.DisplayName}·预警", 0f,
                 spec.AtlasCell == 0 ? BossAbilityAnchorId.Chest : BossAbilityAnchorId.Ground,
-                vfx, Vector3.one * (spec.EachLockedArea ? 1f : .7f),
-                spec.EachLockedArea ? 0f : spec.Telegraph + .2f, spawnMode);
+                vfx, Vector3.one * (spec.EachLockedArea ? lockedAreaDiameter : .7f),
+                spec.EachLockedArea ? 0f : spec.Telegraph + .2f, spawnMode,
+                useManualScale: spec.EachLockedArea);
             ConfigureCue(cues.GetArrayElementAtIndex(1), $"{spec.DisplayName}·释放", spec.Telegraph,
-                BossAbilityAnchorId.Ground, vfx, Vector3.one * 1.25f,
-                spec.Resolve + .35f, spawnMode);
+                BossAbilityAnchorId.Ground, vfx,
+                Vector3.one * (spec.EachLockedArea ? lockedAreaDiameter * 1.25f : 1.25f),
+                spec.Resolve + .35f, spawnMode,
+                useManualScale: spec.EachLockedArea,
+                keepAliveAfterCastEnd: spec.LogicType == typeof(BossBombardmentAbilityLogic));
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(asset);
             return asset;
@@ -875,7 +881,9 @@ namespace VampireHunt.Editor.Boss
 
         private static void ConfigureCue(SerializedProperty cue, string name, float time,
             BossAbilityAnchorId anchor, GameObject vfx, Vector3 scale, float lifetime,
-            BossAbilityCueSpawnMode spawnMode = BossAbilityCueSpawnMode.SingleAnchor)
+            BossAbilityCueSpawnMode spawnMode = BossAbilityCueSpawnMode.SingleAnchor,
+            bool useManualScale = false,
+            bool keepAliveAfterCastEnd = false)
         {
             cue.FindPropertyRelative("timeFromCastStart").floatValue = time;
             cue.FindPropertyRelative("cueName").stringValue = name;
@@ -883,9 +891,11 @@ namespace VampireHunt.Editor.Boss
             cue.FindPropertyRelative("localPosition").vector3Value = Vector3.up * .05f;
             cue.FindPropertyRelative("localEulerAngles").vector3Value = Vector3.zero;
             cue.FindPropertyRelative("localScale").vector3Value = scale;
+            cue.FindPropertyRelative("useManualScale").boolValue = useManualScale;
             cue.FindPropertyRelative("followAnchor").boolValue = anchor != BossAbilityAnchorId.Ground;
             cue.FindPropertyRelative("spawnMode").enumValueIndex = (int)spawnMode;
             cue.FindPropertyRelative("lifetime").floatValue = Mathf.Max(0f, lifetime);
+            cue.FindPropertyRelative("keepAliveAfterCastEnd").boolValue = keepAliveAfterCastEnd;
             cue.FindPropertyRelative("vfxPrefab").objectReferenceValue = vfx;
             cue.FindPropertyRelative("animatorTrigger").stringValue = string.Empty;
             cue.FindPropertyRelative("audioClip").objectReferenceValue = null;

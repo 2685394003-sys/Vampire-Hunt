@@ -28,6 +28,12 @@ MonoBehaviour:
   telegraphDuration: 1.2
   resolveDuration: 0.12
   recoverDuration: 0.6
+  multiplayerScaling:
+    Enabled: 1
+    DamageCoefficient: 1
+    QuantityCoefficient: 1
+    TelegraphCoefficient: 1
+    CooldownCoefficient: 1
   logicScript: {fileID: 11500000, guid: c9def4c33e2a8714ebe622338b4ebdd5, type: 3}
   logicTypeName: VampireHunt.Boss.Abilities.Logic.BossBombardmentAbilityLogic, Assembly-CSharp,
     Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
@@ -52,18 +58,24 @@ MonoBehaviour:
     TravelDuration: 0.45
     DissolveDuration: 0.3
     VfxHeight: 1.2
+    LaserBeamCount: 1
+    VolleyArmCount: 2
+    GridLineCount: 6
   presentationCues:
   - timeFromCastStart: 0
     cueName: "\u6E38\u8D70\xB7\u8F70\u70B8\xB7\u9884\u8B66"
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1, y: 1, z: 1}
+    localScale: {x: 6.4, y: 6.4, z: 6.4}
+    useManualScale: 1
     followAnchor: 0
     spawnMode: 1
     lifetime: 0
+    keepAliveAfterCastEnd: 0
     animatorTrigger: 
     vfxPrefab: {fileID: 4275767527653488639, guid: 7e90a88f4384ebc4493fed07bfa1cded, type: 3}
+    audioEvent: 
     audioClip: {fileID: 0}
     audioVolume: 1
   - timeFromCastStart: 1.2
@@ -71,11 +83,14 @@ MonoBehaviour:
     anchor: 5
     localPosition: {x: 0, y: 0.05, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    localScale: {x: 1, y: 1, z: 1}
+    useManualScale: 1
     followAnchor: 0
     spawnMode: 1
-    lifetime: 0.47
+    lifetime: 1
+    keepAliveAfterCastEnd: 1
     animatorTrigger: 
-    vfxPrefab: {fileID: 4275767527653488639, guid: 7e90a88f4384ebc4493fed07bfa1cded, type: 3}
+    vfxPrefab: {fileID: 5874507503202037077, guid: ef44695624ef7dc42a9943e58e05f6ec, type: 3}
+    audioEvent: 
     audioClip: {fileID: 0}
     audioVolume: 1
