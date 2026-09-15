@@ -1,0 +1,1004 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &217993167276084358
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7868515050073251760}
+  m_Layer: 0
+  m_Name: AbilityAnchor_RightHand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7868515050073251760
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 217993167276084358}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.2, y: 1.3, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9189852451154105968}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &424901609985094085
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3371437874730604884}
+  m_Layer: 0
+  m_Name: AbilityAnchor_Ground
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3371437874730604884
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 424901609985094085}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9189852451154105968}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1928710821014171830
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6539004036046939145}
+  m_Layer: 0
+  m_Name: AbilityAnchor_Chest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6539004036046939145
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1928710821014171830}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9189852451154105968}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3049482725468057693
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7748091145941996173}
+  m_Layer: 0
+  m_Name: AbilityAnchor_Head
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7748091145941996173
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3049482725468057693}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 2.1, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9189852451154105968}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4345950770810978495
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2278838077001767659}
+  m_Layer: 0
+  m_Name: AbilityAnchor_LeftHand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2278838077001767659
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4345950770810978495}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.2, y: 1.3, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9189852451154105968}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &8647565907225637275
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 630.4426
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.00002829288
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 562.0277
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_Name
+      value: VH_Boss
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6539004036046939145}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7748091145941996173}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2278838077001767659}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7868515050073251760}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3371437874730604884}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8074345362085092813}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4746593597976291573}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 730932755976496644}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3531996878260103207}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2353146040679830220}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000001}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000002}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5990140894383972731}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7271680608736971871}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000003}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5381297212528300698}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000004}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000005}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000006}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000007}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000008}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000009}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000010}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000011}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000012}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000013}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000014}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000015}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000016}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1137482579880286980}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2041100596713562046}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8597334096629814681}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7727192009711774727}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5418780529182945612}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7093883878696336080}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000017}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000018}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000019}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000020}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -800000000000000021}
+  m_SourcePrefab: {fileID: 100100000, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+--- !u!95 &2983853323149822986 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+  m_PrefabInstance: {fileID: 8647565907225637275}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8413633064298302666 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+  m_PrefabInstance: {fileID: 8647565907225637275}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8074345362085092813
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 0
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 0
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!114 &4746593597976291573
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkTransformExpanded: 0
+  AutoOwnerAuthorityTickOffset: 1
+  PositionInterpolationType: 0
+  RotationInterpolationType: 0
+  ScaleInterpolationType: 0
+  PositionLerpSmoothing: 1
+  PositionMaxInterpolationTime: 0.1
+  RotationLerpSmoothing: 1
+  RotationMaxInterpolationTime: 0.1
+  ScaleLerpSmoothing: 1
+  ScaleMaxInterpolationTime: 0.1
+  AuthorityMode: 0
+  TickSyncChildren: 0
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 1
+  SyncScaleY: 1
+  SyncScaleZ: 1
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  SwitchTransformSpaceWhenParented: 0
+  Interpolate: 1
+  SlerpPosition: 0
+--- !u!143 &730932755976496644
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 1.6741419
+  m_Radius: 0.5926819
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0.83696735, z: -0.17364502}
+--- !u!82 &3531996878260103207
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 30
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &2353146040679830220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3356bdaeb1e5f241a33c8119b730637, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityAnchorRegistry
+  bindings:
+  - id: 1
+    anchor: {fileID: 6539004036046939145}
+  - id: 2
+    anchor: {fileID: 7748091145941996173}
+  - id: 3
+    anchor: {fileID: 2278838077001767659}
+  - id: 4
+    anchor: {fileID: 7868515050073251760}
+  - id: 5
+    anchor: {fileID: 3371437874730604884}
+--- !u!114 &-800000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e23edd4f31844cd69baf49e3d1933997, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityPhaseProvider
+  phaseSet: {fileID: 11400000, guid: e30dec8e00722e64ab34a82cb27bb55e, type: 2}
+  startingPhase: 4
+--- !u!114 &-800000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aec7fd077fa441c6ae4a0b27c10b71e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityContextProvider
+  target: {fileID: 0}
+  useForwardPreviewWhenTargetIsMissing: 0
+  previewTargetDistance: 5
+  normalizedBossHealth: 1
+--- !u!114 &5990140894383972731
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd4398ea466a7f54991b6ce9eb8d1b66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossAbilityHost
+  serviceHost: {fileID: -800000000000000007}
+--- !u!114 &7271680608736971871
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 858e0ebcb0a131645ba0871bb5562f21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossAbilityStateReplicator
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-800000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2f75c5be125495893123334c58b479a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossAbilityServerDriver
+  ShowTopMostFoldoutHeaderGroup: 1
+  host: {fileID: 5990140894383972731}
+  phaseProvider: {fileID: -800000000000000001}
+  contextProvider: {fileID: -800000000000000002}
+  stateReplicator: {fileID: 7271680608736971871}
+  allowAutomaticCasts: 0
+  runSeed: 1337
+  offlinePreview: 0
+--- !u!114 &5381297212528300698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c1aaa9b7868fa6409ceae1f028c3f0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAbilityPresenter
+  stateReplicator: {fileID: 7271680608736971871}
+  phaseProvider: {fileID: -800000000000000001}
+  anchors: {fileID: 2353146040679830220}
+--- !u!114 &-800000000000000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f55260e4b1bf4ad7a443a7afbef9658e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAbilityAnimatorPresenter
+  cueSource: {fileID: 5381297212528300698}
+  animator: {fileID: 2983853323149822986}
+--- !u!114 &-800000000000000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8faa4a05f5c74c3a9cd2e1737be5b1e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAbilityVfxPresenter
+  cueSource: {fileID: 5381297212528300698}
+--- !u!114 &-800000000000000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 867db6dd782a4883a1c7921507bee1c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAbilityAudioPresenter
+  cueSource: {fileID: 5381297212528300698}
+  audioSource: {fileID: 3531996878260103207}
+--- !u!114 &-800000000000000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 936b00870f16ec840bac48c2e2ef9751, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossAbilityServiceHost
+  logMissingServices: 1
+--- !u!114 &-800000000000000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed26373d8c23e9f4f8aba10e77aa38c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossPlayerTargetQuery
+--- !u!114 &-800000000000000009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5cc4e9af3bde4a94dbe15c689394aa77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossPhysicsHitQuery
+  playerLayers:
+    serializedVersion: 2
+    m_Bits: 8
+  colliderCapacity: 64
+  triggerInteraction: 2
+--- !u!114 &-800000000000000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f0a18caaf98ad54d9a6af1b027603fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossDamageService
+--- !u!114 &-800000000000000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5de94b358674e744cb4024e1e22b4b13, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossProjectileSpawner
+  projectiles:
+  - projectileId: 1
+    prefab: {fileID: 53171000436061689, guid: 5e49305f8c9a422419881ab7b31bc85f, type: 3}
+    hitMask:
+      serializedVersion: 2
+      m_Bits: 8
+--- !u!114 &-800000000000000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6ef5b2d8890e714aa7140791a8ae1b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossStatusEffectService
+--- !u!114 &-800000000000000013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 932baa69269fe4043b3910b6966bcf1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossRunClockModifier
+  runManager: {fileID: 0}
+--- !u!114 &-800000000000000014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 246b087cc6ec5d5408ceaf97c3ead5b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossBodyStateHost
+  ShowTopMostFoldoutHeaderGroup: 1
+  offlineEntityId: 9000001
+  initialNormalizedHealth: 1
+  initialLeftHandFunctional: 1
+  initialRightHandFunctional: 1
+--- !u!114 &-800000000000000015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7160debb0a2c4d83a7c456ec8a9eb93a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossAreaTelegraphNetworkBridge
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-800000000000000016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c064cb8647a2427cb0134c9d210f75f6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossAreaTelegraphVfxPresenter
+  source: {fileID: -800000000000000015}
+  phaseProvider: {fileID: -800000000000000001}
+--- !u!114 &-800000000000000017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d84c98fe33184e47892de1aa7844e0c8, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossSweepTelegraphNetworkBridge
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-800000000000000018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd2bd47684b244bc885617c06787e999, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossSweepWaveVfxPresenter
+  source: {fileID: -800000000000000017}
+  phaseProvider: {fileID: -800000000000000001}
+--- !u!114 &-800000000000000019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossTrackingLaserNetworkBridge
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-800000000000000020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5102, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.Boss.BossTrackingLaserVfxPresenter
+  source: {fileID: -800000000000000019}
+  phaseProvider: {fileID: -800000000000000001}
+--- !u!114 &-800000000000000021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d85a0d844cd49a3b1cefb3d0dfe5109, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Integration.BossFacingService
+--- !u!114 &1137482579880286980
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 022edcec28dcb1c408a67c44c3d189ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Navigation.BossRoamingMovement
+  config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
+  characterController: {fileID: 730932755976496644}
+--- !u!114 &2041100596713562046
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 239ea92b275a4094284d0a7a775a77cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossEncounterStateReplicator
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &8597334096629814681
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80e74b7df7b8900478b565f2d777680f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossEncounterDirector
+  ShowTopMostFoldoutHeaderGroup: 1
+  config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
+  stateReplicator: {fileID: 2041100596713562046}
+  abilityDriver: {fileID: -800000000000000003}
+  roamingMovement: {fileID: 1137482579880286980}
+  bodyState: {fileID: -800000000000000014}
+  runManager: {fileID: 0}
+  runSeed: 72631
+--- !u!114 &7727192009711774727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10bb527f8694ef74e927b2e3a08a6203, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossVitalsReceiver
+  ShowTopMostFoldoutHeaderGroup: 1
+  director: {fileID: 8597334096629814681}
+  bodyState: {fileID: -800000000000000014}
+  abilityDriver: {fileID: -800000000000000003}
+--- !u!114 &5418780529182945612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abd810f721fc3e0479cc573c1455f6d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.BossHandCoordinator
+  ShowTopMostFoldoutHeaderGroup: 1
+  handPrefab: {fileID: 6406686544024085330, guid: cc4764a7be788d3438d6496db3043fe1, type: 3}
+  leftAnchor: {fileID: 2278838077001767659}
+  rightAnchor: {fileID: 7868515050073251760}
+  bodyState: {fileID: -800000000000000014}
+  handHealth: 100
+--- !u!114 &7093883878696336080
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8413633064298302666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c23a32d23630b0c4b9383010611078d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Presentation.HUD.BossHudBinder
+  config: {fileID: 11400000, guid: 3018034fbed52bf48b8f73302b382311, type: 2}
+  stateSource: {fileID: 2041100596713562046}
+--- !u!4 &9189852451154105968 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3321f4a1a7bdc134a8d9906a0b60fbb1, type: 3}
+  m_PrefabInstance: {fileID: 8647565907225637275}
+  m_PrefabAsset: {fileID: 0}

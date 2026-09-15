@@ -1,0 +1,48 @@
+{
+ "SoundBanksInfo": {
+  "Platform": "Mac",
+  "BasePlatform": "Mac",
+  "SchemaVersion": "16",
+  "SoundBankVersion": "172",
+  "SoundBanks": [
+   {
+    "Id": "2013398331",
+    "Type": "Event",
+    "GUID": "{21ACE4C8-5BFE-4D82-95B8-507CA771FCA4}",
+    "Language": "SFX",
+    "Hash": "{B38C11A7-7326-A325-194C-A2DA599F55E8}",
+    "ObjectPath": "Play_TESTSFX",
+    "ShortName": "Play_TESTSFX",
+    "Path": "Event/Play_TESTSFX.bnk",
+    "Media": [
+     {
+      "Id": "974171657",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Loose",
+      "ShortName": "佐助大叫.wav",
+      "Path": "Media/974171657.wem",
+      "CachePath": "F1/{F1CA1CA6-2B53-0458-0B97-C2A75A25804C}.wem"
+     }
+    ],
+    "Events": [
+     {
+      "Id": "2013398331",
+      "Name": "Play_TESTSFX",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_TESTSFX",
+      "GUID": "{21ACE4C8-5BFE-4D82-95B8-507CA771FCA4}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.308254",
+      "DurationMax": "1.308254",
+      "MediaRefs": [
+       {
+        "Id": "974171657"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "FileHash": "{00B1F723-FB4F-4E96-31F9-074D9EC31B8F}"
+ }
+}

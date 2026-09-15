@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 6910aad8d9c0fc145b0d87e72e770cdf
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 8404be70184654265930450def6a9037, type: 3}
+  generateWrapperCode: 1
+  wrapperCodePath: Assets/Core/Scripts/Runtime/Framework/GameplayKitInputSystem_Actions.cs
+  wrapperClassName: 
+  wrapperCodeNamespace: Blocks.Gameplay.Core

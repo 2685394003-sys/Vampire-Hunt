@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1911711f77a14b2bb74adeaf337ca7da, type: 3}
+  m_Name: VH_Boss_LaserSweep
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityAsset
+  abilityId: 2070
+  displayName: "\u6FC0\u5149"
+  description: "\u670D\u52A1\u5668\u6743\u5A01\u6280\u80FD\u3002\u6570\u636E\u3001\u903B\u8F91\u548C\u8868\u73B0\u5F15\u7528\u5747\u53EF\u72EC\u7ACB\u66FF\u6362\u3002"
+  icon: {fileID: 0}
+  baseWeight: 1
+  cooldown: 4
+  minDistance: 0
+  maxDistance: 100
+  minNormalizedHealth: 0
+  maxNormalizedHealth: 1
+  requiresTarget: 1
+  oneShot: 0
+  telegraphDuration: 0.8
+  resolveDuration: 3
+  recoverDuration: 0.8
+  logicScript: {fileID: 11500000, guid: ed397b74e4414ba4e9cae8573f9c6953, type: 3}
+  logicTypeName: VampireHunt.Boss.Abilities.Logic.BossLaserSweepAbilityLogic, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  tuning:
+    Damage: 17
+    Knockback: 6
+    Radius: 0
+    Range: 16
+    Width: 1.2
+    Height: 2
+    Repetitions: 1
+    Interval: 0.4
+    ProjectileId: 1
+    ProjectileCount: 1
+    ProjectileSpeed: 1
+    ProjectileScale: 1
+    RotationSpeed: 30
+    Duration: 3
+    StatusId: 0
+    StatusDuration: 1
+    ClockDrainRate: 2
+  presentationCues:
+  - timeFromCastStart: 0
+    cueName: "\u6FC0\u5149\xB7\u9501\u5B9A\u73A9\u5BB6\u4E09\u89D2"
+    anchor: 2
+    localPosition: {x: 0, y: 2.5, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 1, y: 1, z: 1}
+    followAnchor: 0
+    spawnMode: 5
+    lifetime: 3.8
+    animatorTrigger: 
+    vfxPrefab: {fileID: 610000000000000001, guid: 4d85a0d844cd49a3b1cefb3d0dfe5107, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1
+  - timeFromCastStart: 0.8
+    cueName: "\u6FC0\u5149\xB7\u8FFD\u8E2A\u957F\u65B9\u4F53\u6FC0\u5149"
+    anchor: 1
+    localPosition: {x: 0, y: 1, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 1, y: 1, z: 1}
+    followAnchor: 0
+    spawnMode: 6
+    lifetime: 3
+    animatorTrigger: 
+    vfxPrefab: {fileID: 620000000000000001, guid: 4d85a0d844cd49a3b1cefb3d0dfe5108, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1

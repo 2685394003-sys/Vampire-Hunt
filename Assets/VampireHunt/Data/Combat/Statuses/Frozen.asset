@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bc58403f2e64d6eac37d8165f570829, type: 3}
+  m_Name: Frozen
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.StatusEffectDefinitionAsset
+  statusId: 3
+  element: 2
+  stackPolicy: 0
+  maxStacks: 1
+  defaultDuration: 2
+  effectModules:
+  - {fileID: 11400000, guid: 69aae28b6afc4de5b16f538dc6e57f91, type: 2}
+  - {fileID: 11400000, guid: 6cdd15be9d2f4018e49286b0f918a2c4, type: 2}

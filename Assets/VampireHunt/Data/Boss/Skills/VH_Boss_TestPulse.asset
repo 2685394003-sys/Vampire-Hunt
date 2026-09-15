@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1911711f77a14b2bb74adeaf337ca7da, type: 3}
+  m_Name: VH_Boss_TestPulse
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityAsset
+  abilityId: 9001
+  displayName: Demo Blood Pulse
+  description: Presentation-only demo. It proves asset loading, server timeline replication
+    and Boss-relative cues.
+  icon: {fileID: 0}
+  baseWeight: 1
+  cooldown: 1.5
+  minDistance: 0
+  maxDistance: 100
+  minNormalizedHealth: 0
+  maxNormalizedHealth: 1
+  requiresTarget: 0
+  oneShot: 0
+  telegraphDuration: 0.75
+  resolveDuration: 0.25
+  recoverDuration: 0.75
+  logicScript: {fileID: 11500000, guid: e844699874b676f488277721f0ac4e98, type: 3}
+  logicTypeName: VampireHunt.Boss.Abilities.Logic.BossNoOpAbilityLogic, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  presentationCues:
+  - timeFromCastStart: 0
+    cueName: Telegraph - Chest Blood Charge
+    anchor: 1
+    localPosition: {x: 0, y: 0, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.75, y: 0.75, z: 0.75}
+    followAnchor: 1
+    lifetime: 0.9
+    animatorTrigger: 
+    vfxPrefab: {fileID: 161863005674262765, guid: 0922e9195ee62404d97773f61ff068c3, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1
+  - timeFromCastStart: 0.75
+    cueName: Resolve - Ground Blood Pulse
+    anchor: 5
+    localPosition: {x: 0, y: 0.1, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 2.5, y: 2.5, z: 2.5}
+    followAnchor: 0
+    lifetime: 1.1
+    animatorTrigger: 
+    vfxPrefab: {fileID: 161863005674262765, guid: 0922e9195ee62404d97773f61ff068c3, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1

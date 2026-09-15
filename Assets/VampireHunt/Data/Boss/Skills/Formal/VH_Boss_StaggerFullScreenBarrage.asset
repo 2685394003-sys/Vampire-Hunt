@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1911711f77a14b2bb74adeaf337ca7da, type: 3}
+  m_Name: VH_Boss_StaggerFullScreenBarrage
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityAsset
+  abilityId: 2001
+  displayName: "\u8E09\u8DC4\xB7\u5168\u5C4F\u5F39\u5E55"
+  description: "\u670D\u52A1\u5668\u6743\u5A01\u6280\u80FD\u3002\u6570\u636E\u3001\u903B\u8F91\u548C\u8868\u73B0\u5F15\u7528\u5747\u53EF\u72EC\u7ACB\u66FF\u6362\u3002"
+  icon: {fileID: 0}
+  baseWeight: 1
+  cooldown: 0
+  minDistance: 0
+  maxDistance: 100
+  minNormalizedHealth: 0
+  maxNormalizedHealth: 1
+  requiresTarget: 0
+  oneShot: 0
+  telegraphDuration: 0.5
+  resolveDuration: 2
+  recoverDuration: 0.5
+  logicScript: {fileID: 11500000, guid: 3412d470642d6f043ab611c241e353b9, type: 3}
+  logicTypeName: VampireHunt.Boss.Abilities.Logic.BossRadialVolleyAbilityLogic, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  tuning:
+    Damage: 10
+    Knockback: 0
+    Radius: 0
+    Range: 8
+    Width: 1
+    Height: 1
+    Repetitions: 1
+    Interval: 0.08
+    ProjectileId: 1
+    ProjectileCount: 40
+    ProjectileSpeed: 6
+    ProjectileScale: 0.65
+    RotationSpeed: 65
+    Duration: 2
+    StatusId: 0
+    StatusDuration: 1
+    ClockDrainRate: 2
+  presentationCues:
+  - timeFromCastStart: 0
+    cueName: "\u8E09\u8DC4\xB7\u5168\u5C4F\u5F39\u5E55\xB7\u9884\u8B66"
+    anchor: 5
+    localPosition: {x: 0, y: 0.05, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.7, y: 0.7, z: 0.7}
+    followAnchor: 0
+    lifetime: 0.7
+    animatorTrigger: 
+    vfxPrefab: {fileID: 2189668589748153124, guid: 327d8d6bc9a678741b6a48f9926473e6, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1
+  - timeFromCastStart: 0.5
+    cueName: "\u8E09\u8DC4\xB7\u5168\u5C4F\u5F39\u5E55\xB7\u91CA\u653E"
+    anchor: 5
+    localPosition: {x: 0, y: 0.05, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    followAnchor: 0
+    lifetime: 2.35
+    animatorTrigger: 
+    vfxPrefab: {fileID: 2189668589748153124, guid: 327d8d6bc9a678741b6a48f9926473e6, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1

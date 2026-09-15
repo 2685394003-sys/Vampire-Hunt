@@ -32,6 +32,8 @@
 # Unity YAML files
 *.anim                  unity-yaml
 *.asset                 unity-yaml
+# TerrainData uses Unity's native binary serialization even though it has an .asset extension.
+"Assets/New Terrain.asset" binary !eol !linguist-language !unity-yaml
 *.brush                 unity-yaml
 *.controller            unity-yaml
 *.flare                 unity-yaml

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7eae613200d64a8ab5e9291406da740d, type: 3}
+  m_Name: VH_MeleeEnemy
+  m_EditorClassIdentifier: 
+  stableId: enemy.melee.basic
+  networkPrefab: {fileID: 6459075909094421060, guid: b849db44122fe844c9354247d693852c, type: 3}
+  maxHealth: 50
+  moveSpeed: 2.5
+  detectionRange: 30
+  attackRange: 1.8
+  attackDamage: 10
+  attackKnockback: 3
+  spawnDuration: 0.35
+  telegraphDuration: 0.45
+  activeDuration: 0.1
+  recoveryDuration: 0.8
+  scarletReward: 20
+  spawnCost: 1
+  lootTable: {fileID: 11400000, guid: 84f592c0d3e14f462a5b6c7d8e9fa0b1, type: 2}

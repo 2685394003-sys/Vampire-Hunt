@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 3be67f77680dfda4dbeaf77ce540eec8
+timeCreated: 1436653997
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 127325
+  packageName: Particle Pack
+  packageVersion: 3.1
+  assetPath: Assets/TextMesh Pro/Resources/TMP Settings.asset
+  uploadId: 691001

@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1911711f77a14b2bb74adeaf337ca7da, type: 3}
+  m_Name: VH_Boss_Frenzy
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossAbilityAsset
+  abilityId: 2060
+  displayName: "\u72C2\u66B4"
+  description: "\u670D\u52A1\u5668\u6743\u5A01\u6280\u80FD\u3002\u6570\u636E\u3001\u903B\u8F91\u548C\u8868\u73B0\u5F15\u7528\u5747\u53EF\u72EC\u7ACB\u66FF\u6362\u3002"
+  icon: {fileID: 0}
+  baseWeight: 1
+  cooldown: 0
+  minDistance: 0
+  maxDistance: 100
+  minNormalizedHealth: 0
+  maxNormalizedHealth: 0.2
+  requiresTarget: 0
+  oneShot: 1
+  telegraphDuration: 1.5
+  resolveDuration: 0.1
+  recoverDuration: 0.6
+  logicScript: {fileID: 11500000, guid: a0a989ac03a5d70488a8e44f17ab45d7, type: 3}
+  logicTypeName: VampireHunt.Boss.Abilities.Logic.BossFrenzyAbilityLogic, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  tuning:
+    Damage: 0
+    Knockback: 0
+    Radius: 0
+    Range: 1
+    Width: 1
+    Height: 1
+    Repetitions: 1
+    Interval: 0.2
+    ProjectileId: 1
+    ProjectileCount: 1
+    ProjectileSpeed: 1
+    ProjectileScale: 1
+    RotationSpeed: 0
+    Duration: 1
+    StatusId: 0
+    StatusDuration: 1
+    ClockDrainRate: 2
+  presentationCues:
+  - timeFromCastStart: 0
+    cueName: "\u72C2\u66B4\xB7\u9884\u8B66"
+    anchor: 5
+    localPosition: {x: 0, y: 0.05, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.7, y: 0.7, z: 0.7}
+    followAnchor: 0
+    lifetime: 1.7
+    animatorTrigger: 
+    vfxPrefab: {fileID: 3350505351997959296, guid: ce3c90119b17ec040946f571d460d458, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1
+  - timeFromCastStart: 1.5
+    cueName: "\u72C2\u66B4\xB7\u91CA\u653E"
+    anchor: 5
+    localPosition: {x: 0, y: 0.05, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 1.25, y: 1.25, z: 1.25}
+    followAnchor: 0
+    lifetime: 0.45
+    animatorTrigger: 
+    vfxPrefab: {fileID: 3350505351997959296, guid: ce3c90119b17ec040946f571d460d458, type: 3}
+    audioClip: {fileID: 0}
+    audioVolume: 1

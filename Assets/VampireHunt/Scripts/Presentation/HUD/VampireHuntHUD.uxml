@@ -1,0 +1,223 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/VampireHunt/Scripts/Presentation/HUD/VampireHuntHUD.uss?fileID=7433441132597879392&amp;guid=048bcc2190334e148f7c092fa3f83b94&amp;type=3#VampireHuntHUD"/>
+    <ui:VisualElement name="hud-root" picking-mode="Ignore">
+        <ui:VisualElement name="low-health-vignette" picking-mode="Ignore"/>
+
+        <ui:VisualElement name="run-header" class="hud-panel run-header" picking-mode="Ignore">
+            <ui:Label name="run-phase" text="探索阶段" class="eyebrow"/>
+            <ui:Label name="run-timer" text="00:00" class="run-timer"/>
+            <ui:Label name="objective-text" text="寻找敌人并收集猩红" class="objective-text"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="boss-panel" class="boss-panel" picking-mode="Ignore">
+            <ui:VisualElement class="boss-title-row">
+                <ui:Label text="契约目标" class="eyebrow boss-eyebrow"/>
+                <ui:Label name="boss-stage" text="阶段 1 / 3" class="boss-stage"/>
+                <ui:Label name="boss-name" text="BOSS" class="boss-name"/>
+                <ui:Label name="boss-status" text="游走" class="boss-status"/>
+                <ui:Label name="boss-health-value" text="0 / 0" class="boss-health-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="boss-guard-row" class="boss-guard-row">
+                <ui:Label text="格挡" class="boss-guard-label"/>
+                <ui:ProgressBar name="boss-guard-bar" low-value="0" high-value="100" value="100" class="vital-bar boss-guard-bar"/>
+                <ui:Label name="boss-guard-value" text="0 / 0" class="boss-guard-value"/>
+            </ui:VisualElement>
+            <ui:ProgressBar name="boss-health-bar" low-value="0" high-value="100" value="100" class="vital-bar boss-health-bar"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="pact-summary" class="hud-panel pact-summary" picking-mode="Ignore">
+            <ui:Label text="血契构筑" class="eyebrow"/>
+            <ui:VisualElement class="pact-summary-row">
+                <ui:Label name="pact-count" text="0" class="pact-count"/>
+                <ui:Label text="份血契" class="pact-count-suffix"/>
+            </ui:VisualElement>
+            <ui:Label name="build-name" text="尚未缔结血契" class="build-name"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="player-vitals" class="hud-panel player-vitals" picking-mode="Ignore">
+            <ui:Label text="血族状态" class="eyebrow"/>
+            <ui:VisualElement class="vital-row">
+                <ui:Label text="生命" class="vital-name health-name"/>
+                <ui:ProgressBar name="player-health-bar" low-value="0" high-value="100" value="100" class="vital-bar health-bar"/>
+                <ui:Label name="health-value" text="100 / 100" class="vital-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="vital-row">
+                <ui:Label text="体力" class="vital-name stamina-name"/>
+                <ui:ProgressBar name="player-stamina-bar" low-value="0" high-value="100" value="100" class="vital-bar stamina-bar"/>
+                <ui:Label name="stamina-value" text="100 / 100" class="vital-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="vital-row">
+                <ui:Label text="猩红" class="vital-name scarlet-name"/>
+                <ui:ProgressBar name="player-scarlet-bar" low-value="0" high-value="100" value="0" class="vital-bar scarlet-bar"/>
+                <ui:Label name="scarlet-value" text="0 / 100" class="vital-value"/>
+            </ui:VisualElement>
+            <ui:Label name="level-up-hint" text="按 Z 手动升级 · 需要 100 猩红" class="level-up-hint"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="ability-tray" class="ability-tray" picking-mode="Ignore">
+            <ui:VisualElement name="primary-ability-slot" class="ability-slot">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="普攻" class="ability-name"/>
+                <ui:Label text="LMB" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="secondary-ability-slot" class="ability-slot">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="重击" class="ability-name"/>
+                <ui:Label text="RMB" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="dash-ability-slot" class="ability-slot ability-slot--accent">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="血影冲刺" class="ability-name"/>
+                <ui:Label text="SHIFT" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="artifact-ability-slot" class="ability-slot">
+                <ui:VisualElement class="ability-cooldown-shade"/>
+                <ui:Label text="神器" class="ability-name"/>
+                <ui:Label text="Q" class="ability-key"/>
+                <ui:Label class="ability-cooldown"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="item-tray" class="item-tray" picking-mode="Ignore">
+            <ui:Label text="道具栏" class="item-tray-title"/>
+            <ui:VisualElement class="item-slot-row">
+                <ui:VisualElement name="item-slot-0" class="item-slot item-slot--empty">
+                    <ui:Label text="1" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-0" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-0" class="item-slot-icon">
+                        <ui:Label name="item-fallback-0" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-0" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="item-slot-1" class="item-slot item-slot--empty">
+                    <ui:Label text="2" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-1" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-1" class="item-slot-icon">
+                        <ui:Label name="item-fallback-1" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-1" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="item-slot-2" class="item-slot item-slot--empty">
+                    <ui:Label text="3" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-2" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-2" class="item-slot-icon">
+                        <ui:Label name="item-fallback-2" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-2" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="item-slot-3" class="item-slot item-slot--empty">
+                    <ui:Label text="4" class="item-slot-key"/>
+                    <ui:Label name="item-quantity-3" text="" class="item-slot-quantity"/>
+                    <ui:VisualElement name="item-icon-3" class="item-slot-icon">
+                        <ui:Label name="item-fallback-3" text="" class="item-slot-fallback"/>
+                    </ui:VisualElement>
+                    <ui:Label name="item-name-3" text="空" class="item-slot-name"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="notification-container" class="notification-container" picking-mode="Ignore"/>
+
+        <ui:VisualElement name="pact-selection-overlay" class="pact-selection-overlay" picking-mode="Position">
+            <ui:Label text="升级选择" class="pact-draft-eyebrow"/>
+            <ui:Label text="缔结主契与副契" class="pact-draft-title"/>
+            <ui:Label name="pact-draft-subtitle" text="选择一份血契和一份副契后确认" class="pact-draft-subtitle"/>
+            <ui:Label text="血契 · 强化自身" class="draft-row-title pact-row-title"/>
+            <ui:VisualElement class="pact-card-row">
+                <ui:VisualElement name="pact-card-0" class="pact-card">
+                    <ui:Label name="pact-name-0" text="血契" class="pact-card-name"/>
+                    <ui:Label name="pact-description-0" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="pact-stack-0" text="尚未拥有" class="pact-card-stack"/>
+                    <ui:Button name="pact-select-0" text="选择" class="pact-select-button"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="pact-card-1" class="pact-card">
+                    <ui:Label name="pact-name-1" text="血契" class="pact-card-name"/>
+                    <ui:Label name="pact-description-1" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="pact-stack-1" text="尚未拥有" class="pact-card-stack"/>
+                    <ui:Button name="pact-select-1" text="选择" class="pact-select-button"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="pact-card-2" class="pact-card">
+                    <ui:Label name="pact-name-2" text="血契" class="pact-card-name"/>
+                    <ui:Label name="pact-description-2" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="pact-stack-2" text="尚未拥有" class="pact-card-stack"/>
+                    <ui:Button name="pact-select-2" text="选择" class="pact-select-button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label text="副契 · 强化之后生成的敌人" class="draft-row-title affix-row-title"/>
+            <ui:VisualElement class="pact-card-row affix-card-row">
+                <ui:VisualElement name="affix-card-0" class="pact-card affix-card">
+                    <ui:Label name="affix-name-0" text="副契" class="pact-card-name affix-card-name"/>
+                    <ui:Label name="affix-description-0" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="affix-stack-0" text="敌群：尚未生效" class="pact-card-stack"/>
+                    <ui:Button name="affix-select-0" text="选择" class="pact-select-button affix-select-button"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="affix-card-1" class="pact-card affix-card">
+                    <ui:Label name="affix-name-1" text="副契" class="pact-card-name affix-card-name"/>
+                    <ui:Label name="affix-description-1" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="affix-stack-1" text="敌群：尚未生效" class="pact-card-stack"/>
+                    <ui:Button name="affix-select-1" text="选择" class="pact-select-button affix-select-button"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="affix-card-2" class="pact-card affix-card">
+                    <ui:Label name="affix-name-2" text="副契" class="pact-card-name affix-card-name"/>
+                    <ui:Label name="affix-description-2" text="效果说明" class="pact-card-description"/>
+                    <ui:Label name="affix-stack-2" text="敌群：尚未生效" class="pact-card-stack"/>
+                    <ui:Button name="affix-select-2" text="选择" class="pact-select-button affix-select-button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="draft-action-row">
+                <ui:Button name="pact-reroll" text="刷新两排选项" class="pact-reroll-button"/>
+                <ui:Button name="pact-confirm" text="确认升级" class="pact-confirm-button"/>
+            </ui:VisualElement>
+            <ui:Label name="pact-reroll-hint" text="刷新费用计入本次升级总消耗" class="pact-reroll-hint"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="shop-overlay" class="shop-overlay" picking-mode="Position">
+            <ui:VisualElement class="shop-window">
+                <ui:VisualElement class="shop-header">
+                    <ui:VisualElement>
+                        <ui:Label text="游荡英灵" class="shop-eyebrow"/>
+                        <ui:Label name="shop-title" text="英灵商店" class="shop-title"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="shop-wallet">
+                        <ui:Label name="shop-coin" text="魔币  0" class="shop-coin"/>
+                        <ui:Button name="shop-close" text="关闭" class="shop-close"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="shop-card-row">
+                    <ui:VisualElement name="shop-card-0" class="shop-card">
+                        <ui:Label name="shop-name-0" text="商品" class="shop-card-name"/>
+                        <ui:Label name="shop-description-0" text="商品说明" class="shop-card-description"/>
+                        <ui:Label name="shop-quantity-0" text="数量 ×1" class="shop-card-quantity"/>
+                        <ui:Label name="shop-price-0" text="10 魔币" class="shop-card-price"/>
+                        <ui:Button name="shop-buy-0" text="购买" class="shop-buy"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="shop-card-1" class="shop-card">
+                        <ui:Label name="shop-name-1" text="商品" class="shop-card-name"/>
+                        <ui:Label name="shop-description-1" text="商品说明" class="shop-card-description"/>
+                        <ui:Label name="shop-quantity-1" text="数量 ×1" class="shop-card-quantity"/>
+                        <ui:Label name="shop-price-1" text="10 魔币" class="shop-card-price"/>
+                        <ui:Button name="shop-buy-1" text="购买" class="shop-buy"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="shop-card-2" class="shop-card">
+                        <ui:Label name="shop-name-2" text="商品" class="shop-card-name"/>
+                        <ui:Label name="shop-description-2" text="商品说明" class="shop-card-description"/>
+                        <ui:Label name="shop-quantity-2" text="数量 ×1" class="shop-card-quantity"/>
+                        <ui:Label name="shop-price-2" text="10 魔币" class="shop-card-price"/>
+                        <ui:Button name="shop-buy-2" text="购买" class="shop-buy"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Button name="shop-refresh" text="刷新商品（5 魔币）" class="shop-refresh"/>
+                <ui:Label name="shop-result" text="" class="shop-result"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="message-overlay" class="message-overlay">
+            <ui:Label name="message-label" text="重塑血躯" class="message-label"/>
+            <ui:VisualElement name="message-divider" class="message-divider"/>
+            <ui:Label name="countdown-label" text="5" class="countdown-label"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

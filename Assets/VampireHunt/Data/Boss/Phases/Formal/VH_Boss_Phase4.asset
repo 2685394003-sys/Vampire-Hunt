@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3cc916aaf261413bb1d1f2a4e500ed35, type: 3}
+  m_Name: VH_Boss_Phase4
+  m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Unity.Boss.BossPhaseAsset
+  phaseNumber: 4
+  displayName: "\u6E38\u8D70\u72B6\u6001\u62DB\u5F0F\u5E93"
+  abilities:
+  - enabled: 1
+    ability: {fileID: 11400000, guid: 053ea225cb2d83044b5e87a1a5f412b5, type: 2}
+    weightMultiplier: 1
+    maxUses: 0
+    initialCooldown: 1
+  - enabled: 1
+    ability: {fileID: 11400000, guid: 1708ab65185be4b46826d9c8cbadce37, type: 2}
+    weightMultiplier: 1
+    maxUses: 0
+    initialCooldown: 1.5
+  - enabled: 1
+    ability: {fileID: 11400000, guid: b0bacfea1117cb849abc7e2c64d6e6ac, type: 2}
+    weightMultiplier: 0
+    maxUses: 0
+    initialCooldown: 0
+  - enabled: 1
+    ability: {fileID: 11400000, guid: ffe567f5569a81f419be5e840969c371, type: 2}
+    weightMultiplier: 0
+    maxUses: 0
+    initialCooldown: 0
+  - enabled: 1
+    ability: {fileID: 11400000, guid: 42f6e4323a890074691be0bcd899f88f, type: 2}
+    weightMultiplier: 0
+    maxUses: 0
+    initialCooldown: 0
+  - enabled: 1
+    ability: {fileID: 11400000, guid: 06343c265701d76468586f0329b3e4ab, type: 2}
+    weightMultiplier: 0
+    maxUses: 0
+    initialCooldown: 0
