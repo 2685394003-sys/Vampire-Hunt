@@ -1,0 +1,345 @@
+{
+ "SoundBanksInfo": {
+  "Platform": "Windows",
+  "BasePlatform": "Windows",
+  "SchemaVersion": "16",
+  "SoundBankVersion": "172",
+  "SoundBanks": [
+   {
+    "Id": "790967653",
+    "Type": "User",
+    "GUID": "{761A30D0-7364-488D-9BD0-9609AFF9501F}",
+    "Language": "SFX",
+    "Hash": "{413EAC71-D6CC-50AD-6AB7-092FD17BE9FA}",
+    "ObjectPath": "\\SoundBanks\\Default Work Unit\\Bank_Player",
+    "ShortName": "Bank_Player",
+    "Path": "Bank_Player.bnk",
+    "Media": [
+     {
+      "Id": "6900021",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Player_Sound_Attack_03.wav",
+      "CachePath": "8E/{8EC69F90-646C-4E3B-C121-AFD7C4F97B07}.wem"
+     },
+     {
+      "Id": "90888783",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\_silence_placeholder.wav",
+      "CachePath": "34/{341A4EBD-DEC3-BC6C-E05E-7812F6EEF388}.wem"
+     },
+     {
+      "Id": "238398679",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Player_Layser_Fire.wav",
+      "CachePath": "25/{25B29863-0CFB-FD87-B3C6-7B64B86C79C2}.wem"
+     },
+     {
+      "Id": "294457716",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Player_Missile_Fire.wav",
+      "CachePath": "85/{853FD9C8-6170-B747-A4C9-9119CB2157E7}.wem"
+     },
+     {
+      "Id": "322228625",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Player_Missile_Explode.wav",
+      "CachePath": "5D/{5D131550-C9BD-BEA5-89AB-9E22E0788E76}.wem"
+     },
+     {
+      "Id": "454290976",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Player_Sound_Attack_02.wav",
+      "CachePath": "3C/{3C9CBA73-4B47-591D-AC54-C47321F684BD}.wem"
+     },
+     {
+      "Id": "536152908",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\Play_Player_SwordWave_Fire.wav",
+      "CachePath": "D8/{D84C39D7-71E3-6A13-EE4A-1BC35BB038BB}.wem"
+     },
+     {
+      "Id": "636167408",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\Play_Player_Move_Stop.wav",
+      "CachePath": "77/{77DAAE50-A187-0629-5B67-4BAE2C4E85F3}.wem"
+     },
+     {
+      "Id": "752618204",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\Play_Player_SwordWave_Hit.wav",
+      "CachePath": "ED/{ED99D660-2A41-4FCD-3FF4-4EE87FFFA282}.wem"
+     },
+     {
+      "Id": "854851691",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\Play_Player_Hurt.wav",
+      "CachePath": "30/{30433FC2-4AEA-6BA8-7CF9-EECB5DD39C12}.wem"
+     },
+     {
+      "Id": "888701996",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Player_Rifle_Fire.wav",
+      "CachePath": "E2/{E2D62271-2D17-FB03-67AF-39F56DF43FEA}.wem"
+     },
+     {
+      "Id": "920039104",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Player_Sound_Attack_01.wav",
+      "CachePath": "3B/{3B6031B1-37A1-DE80-7AD6-E52FD44E1E33}.wem"
+     },
+     {
+      "Id": "1005976622",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Player_Missile_Hit.wav",
+      "CachePath": "85/{851F42E8-DF8B-5C99-1FDE-C02977586023}.wem"
+     }
+    ],
+    "Events": [
+     {
+      "Id": "2175711460",
+      "Name": "Play_Player_Dash",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Dash",
+      "GUID": "{0F2F23A1-1346-4B65-A29F-5B83699666DF}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "1835085974",
+      "Name": "Play_Player_Death",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Death",
+      "GUID": "{E10E492F-6BDC-416A-802B-832296ADA24B}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "887999531",
+      "Name": "Play_Player_Hurt",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Hurt",
+      "GUID": "{1199EBEA-7C06-4E31-A00D-ECB68A541D95}",
+      "DurationType": "OneShot",
+      "DurationMin": "2.0745125",
+      "DurationMax": "2.0745125",
+      "MediaRefs": [
+       {
+        "Id": "854851691"
+       }
+      ]
+     },
+     {
+      "Id": "4249207015",
+      "Name": "Play_Player_Land",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Land",
+      "GUID": "{9D8DEA81-7152-4336-A759-688BC63E1990}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "1519839800",
+      "Name": "Play_Player_Laser_Fire",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Laser_Fire",
+      "GUID": "{AD8E3EF3-0C9B-4A49-A500-B836D5DAAFED}",
+      "DurationType": "OneShot",
+      "DurationMin": "2",
+      "DurationMax": "2",
+      "MediaRefs": [
+       {
+        "Id": "238398679"
+       }
+      ]
+     },
+     {
+      "Id": "1294658991",
+      "Name": "Play_Player_LightAtk1",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_LightAtk1",
+      "GUID": "{A61EFE04-5945-44F9-8E37-B7AFDE78655E}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.563356",
+      "DurationMax": "1.563356",
+      "MediaRefs": [
+       {
+        "Id": "6900021"
+       },
+       {
+        "Id": "454290976"
+       },
+       {
+        "Id": "920039104"
+       }
+      ]
+     },
+     {
+      "Id": "2616938914",
+      "Name": "Play_Player_Missile_Explode",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Missile_Explode",
+      "GUID": "{A37E42BA-2FAD-4058-9A7A-A42BCCDA1D75}",
+      "DurationType": "OneShot",
+      "DurationMin": "2.3928344",
+      "DurationMax": "2.3928344",
+      "MediaRefs": [
+       {
+        "Id": "322228625"
+       }
+      ]
+     },
+     {
+      "Id": "3667971875",
+      "Name": "Play_Player_Missile_Fire",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Missile_Fire",
+      "GUID": "{8184EFAC-5F7F-4212-9064-A1CD26909BA9}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.1104308",
+      "DurationMax": "1.1104308",
+      "MediaRefs": [
+       {
+        "Id": "294457716"
+       }
+      ]
+     },
+     {
+      "Id": "4012753326",
+      "Name": "Play_Player_Missile_Hit",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Missile_Hit",
+      "GUID": "{10461FD9-AB37-4E5A-95F0-A724C33EB406}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.2788209",
+      "DurationMax": "1.2788209",
+      "MediaRefs": [
+       {
+        "Id": "1005976622"
+       }
+      ]
+     },
+     {
+      "Id": "1613540383",
+      "Name": "Play_Player_Move",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Move",
+      "GUID": "{3FDC7F0D-F5B4-42DD-90E4-B58B1354EC8B}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "415253162",
+      "Name": "Play_Player_Move_Stop",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Move_Stop",
+      "GUID": "{6B104E40-896B-4729-8CDA-063C49D44D2D}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.89154196",
+      "DurationMax": "0.89154196",
+      "MediaRefs": [
+       {
+        "Id": "636167408"
+       }
+      ]
+     },
+     {
+      "Id": "4126353675",
+      "Name": "Play_Player_Revive",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Revive",
+      "GUID": "{6DA8C751-E398-48E3-90A2-78E64BAE410C}",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "989106701",
+      "Name": "Play_Player_Rifle_Fire",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_Rifle_Fire",
+      "GUID": "{97A496B0-265B-41E6-809C-18426F81345E}",
+      "DurationType": "OneShot",
+      "DurationMin": "2.067415",
+      "DurationMax": "2.067415",
+      "MediaRefs": [
+       {
+        "Id": "888701996"
+       }
+      ]
+     },
+     {
+      "Id": "1735473547",
+      "Name": "Play_Player_SwordWave_Fire",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_SwordWave_Fire",
+      "GUID": "{661ACEC1-7E4B-4FEB-9EFB-5FA9A46B3F90}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.58",
+      "DurationMax": "1.58",
+      "MediaRefs": [
+       {
+        "Id": "536152908"
+       }
+      ]
+     },
+     {
+      "Id": "1407865782",
+      "Name": "Play_Player_SwordWave_Hit",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Player_SwordWave_Hit",
+      "GUID": "{D0DA5D36-7515-4F80-8029-D4505B1DC946}",
+      "DurationType": "OneShot",
+      "DurationMin": "1.2077777",
+      "DurationMax": "1.2077777",
+      "MediaRefs": [
+       {
+        "Id": "752618204"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "FileHash": "{C88426A3-C656-39F4-0F8E-5EE7B4B34834}"
+ }
+}

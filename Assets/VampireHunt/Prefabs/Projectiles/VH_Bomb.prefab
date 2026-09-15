@@ -128,8 +128,8 @@ MonoBehaviour:
   blastVfxPrefab: {fileID: 4275767527653488639, guid: 5a04d8412f495304f9183797002dff01, type: 3}
   blastVfxLifetime: 1
   blastVfxBaseDiameter: 1
-  hitEventName: 
-  explosionEventName: 
+  hitEventName: Play_Player_Missile_Hit
+  explosionEventName: Play_Player_Missile_Explode
   targetMask:
     serializedVersion: 2
     m_Bits: 256

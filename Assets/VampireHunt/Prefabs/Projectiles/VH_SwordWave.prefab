@@ -368,7 +368,7 @@ MonoBehaviour:
   targetMask:
     serializedVersion: 2
     m_Bits: 256
-  hitEventName: 
+  hitEventName: Play_Player_SwordWave_Hit
   pierceCost: {fileID: 11400000, guid: e07329a85e124839902c4d413fecdbe9, type: 2}
   defaultMaximumDistance: 12
   maximumLifetime: 2

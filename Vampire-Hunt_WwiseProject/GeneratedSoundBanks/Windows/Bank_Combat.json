@@ -8,26 +8,344 @@
    {
     "Id": "1248370110",
     "Type": "User",
-    "GUID": "{59654FF1-33DF-459A-B654-F7DAC3131980}",
+    "GUID": "{34A82B4C-BBD5-417F-AEBC-5A36A6A76365}",
     "Language": "SFX",
-    "Hash": "{6691D12D-C20C-3766-C78A-A707960D6E8C}",
+    "Hash": "{E3677FCE-1ED5-3BED-D478-B2FA936379BA}",
     "ObjectPath": "\\SoundBanks\\Default Work Unit\\Bank_Combat",
     "ShortName": "Bank_Combat",
     "Path": "Bank_Combat.bnk",
+    "Media": [
+     {
+      "Id": "90888783",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\_silence_placeholder.wav",
+      "CachePath": "34/{341A4EBD-DEC3-BC6C-E05E-7812F6EEF388}.wem"
+     },
+     {
+      "Id": "107029013",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Enemy_Hurt_01.wav",
+      "CachePath": "E9/{E94FF706-A698-4AC8-F102-7F236578008C}.wem"
+     },
+     {
+      "Id": "165241597",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Enemy_Death.wav",
+      "CachePath": "6F/{6FD92DF4-8848-62A2-BA79-00ECDDA8FF52}.wem"
+     },
+     {
+      "Id": "330034112",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Enemy_Hurt_03.wav",
+      "CachePath": "15/{150E62CC-BBAC-CEA0-9A2A-C6A023117E96}.wem"
+     },
+     {
+      "Id": "395285326",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Boss_LaserRain.wav",
+      "CachePath": "20/{20005E51-ABEC-B59E-9554-38FA932B5395}.wem"
+     },
+     {
+      "Id": "433730275",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Boss_Danmukuspawn.wav",
+      "CachePath": "F8/{F8A5D95A-58FE-21C5-8A91-242EF1067D01}.wem"
+     },
+     {
+      "Id": "540103592",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Boss_Defeated.wav",
+      "CachePath": "50/{50A55EB6-7DBD-92B3-EC5E-D04D2B78EE49}.wem"
+     },
+     {
+      "Id": "720311970",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Enemy_Melee_Attack.wav",
+      "CachePath": "0F/{0F84B947-F968-BEAB-A39B-AF63FB7FEEEB}.wem"
+     },
+     {
+      "Id": "752078607",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Play_Enemy_Ranged_Shoot.wav",
+      "CachePath": "CA/{CAC15F45-804B-CF0F-5F91-5D89BDEBE61F}.wem"
+     },
+     {
+      "Id": "830088657",
+      "Language": "SFX",
+      "Streaming": "false",
+      "Location": "Memory",
+      "ShortName": "SFX\\SFX_Enemy_Hurt_02.wav",
+      "CachePath": "C2/{C26BDC4E-5AED-2F9E-E0A3-B4A74EF528A0}.wem"
+     }
+    ],
     "Events": [
+     {
+      "Id": "4271695790",
+      "Name": "Play_Boss_BattleStart",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_BattleStart",
+      "GUID": "{043E47C9-273E-4E8C-8216-6B38BF54B4AB}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "4004162068",
+      "Name": "Play_Boss_DanmakuSpawn",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_DanmakuSpawn",
+      "GUID": "{11AF31FA-DA26-418B-98B5-23EAEB21D306}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "1.9520634",
+      "DurationMax": "1.9520634",
+      "MediaRefs": [
+       {
+        "Id": "433730275"
+       }
+      ]
+     },
+     {
+      "Id": "115077278",
+      "Name": "Play_Boss_Defeated",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_Defeated",
+      "GUID": "{D74284F7-C5E2-4659-BE84-DD81A0739424}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "1.1887301",
+      "DurationMax": "1.1887301",
+      "MediaRefs": [
+       {
+        "Id": "540103592"
+       }
+      ]
+     },
+     {
+      "Id": "3767185226",
+      "Name": "Play_Boss_FullChargeSlash",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_FullChargeSlash",
+      "GUID": "{53C040F9-EDCA-4966-B8EC-478C0A9E87F4}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "194626488",
+      "Name": "Play_Boss_GuardBroken",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_GuardBroken",
+      "GUID": "{3091DF97-2E76-4799-8E8E-55A0F6010A6C}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "2001824852",
+      "Name": "Play_Boss_HandBreak",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_HandBreak",
+      "GUID": "{BC449FEF-794D-4C14-8C83-5A3E0CF3659E}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "2785867903",
+      "Name": "Play_Boss_HandRestore",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_HandRestore",
+      "GUID": "{C6BA96E8-A915-45A5-BEE6-961256C727FA}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "148678419",
+      "Name": "Play_Boss_Hurt",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_Hurt",
+      "GUID": "{D58B62F2-0CFC-475F-BF8B-F2F40724991D}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "3857576827",
+      "Name": "Play_Boss_LaserRain",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_LaserRain",
+      "GUID": "{F682E533-028E-4C58-8236-B97D0C6E2EE7}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "1.9608617",
+      "DurationMax": "1.9608617",
+      "MediaRefs": [
+       {
+        "Id": "395285326"
+       }
+      ]
+     },
+     {
+      "Id": "3354873209",
+      "Name": "Play_Boss_PhaseChange",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_PhaseChange",
+      "GUID": "{DD3BCEA9-E818-4E83-878C-7F9B955AF0F7}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "1485563741",
+      "Name": "Play_Boss_Stagger",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_Stagger",
+      "GUID": "{3A4492BB-FA7C-4C48-95B7-A238171C022D}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "2069736275",
+      "Name": "Play_Boss_SweepSlash",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Boss_SweepSlash",
+      "GUID": "{AD8BD4AF-D572-4F67-816A-E2AC09146C7B}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.1",
+      "DurationMax": "0.1",
+      "MediaRefs": [
+       {
+        "Id": "90888783"
+       }
+      ]
+     },
+     {
+      "Id": "3046156865",
+      "Name": "Play_Enemy_Death",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Enemy_Death",
+      "GUID": "{303C0DA0-6782-4482-A4A2-4B35F1D02C28}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.40378684",
+      "DurationMax": "0.40378684",
+      "MediaRefs": [
+       {
+        "Id": "165241597"
+       }
+      ]
+     },
      {
       "Id": "2960920018",
       "Name": "Play_Enemy_Hurt",
       "ObjectPath": "\\Events\\Default Work Unit\\Play_Enemy_Hurt",
-      "GUID": "{A97F90B7-0A18-4B57-B5B9-70E265A1088B}",
-      "MaxAttenuation": "0",
+      "GUID": "{9D4D7086-96F1-4010-B63F-88CF346CB3F2}",
+      "MaxAttenuation": "30",
       "DurationType": "OneShot",
-      "DurationMin": "0",
-      "DurationMax": "0"
+      "DurationMin": "1.563356",
+      "DurationMax": "1.563356",
+      "MediaRefs": [
+       {
+        "Id": "107029013"
+       },
+       {
+        "Id": "330034112"
+       },
+       {
+        "Id": "830088657"
+       }
+      ]
+     },
+     {
+      "Id": "4216744018",
+      "Name": "Play_Enemy_Melee_Attack",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Enemy_Melee_Attack",
+      "GUID": "{58660634-47C6-4497-9724-4A6801B68778}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.7621769",
+      "DurationMax": "0.7621769",
+      "MediaRefs": [
+       {
+        "Id": "720311970"
+       }
+      ]
+     },
+     {
+      "Id": "2605248744",
+      "Name": "Play_Enemy_Ranged_Shoot",
+      "ObjectPath": "\\Events\\Default Work Unit\\Play_Enemy_Ranged_Shoot",
+      "GUID": "{3E76CC3F-76A1-40BB-8349-5834F814E6D3}",
+      "MaxAttenuation": "30",
+      "DurationType": "OneShot",
+      "DurationMin": "0.7490249",
+      "DurationMax": "0.7490249",
+      "MediaRefs": [
+       {
+        "Id": "752078607"
+       }
+      ]
      }
     ]
    }
   ],
-  "FileHash": "{1FD06783-A42A-28A8-B115-241EBB75FE03}"
+  "FileHash": "{4D948C6A-45F1-1F76-A545-041295AB2CE1}"
  }
 }

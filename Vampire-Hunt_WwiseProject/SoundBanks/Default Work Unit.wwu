@@ -8,9 +8,71 @@
 					<ObjectExclusionList/>
 					<GameSyncExclusionList/>
 				</SoundBank>
-				<SoundBank Name="Bank_Combat" ID="{59654FF1-33DF-459A-B654-F7DAC3131980}">
+				<SoundBank Name="Bank_Player" ID="{761A30D0-7364-488D-9BD0-9609AFF9501F}">
 					<ObjectInclusionList>
-						<ObjectRef Name="Play_Enemy_Hurt" ID="{A97F90B7-0A18-4B57-B5B9-70E265A1088B}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Missile_Explode" ID="{A37E42BA-2FAD-4058-9A7A-A42BCCDA1D75}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Death" ID="{E10E492F-6BDC-416A-802B-832296ADA24B}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Rifle_Fire" ID="{97A496B0-265B-41E6-809C-18426F81345E}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Missile_Fire" ID="{8184EFAC-5F7F-4212-9064-A1CD26909BA9}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Move" ID="{3FDC7F0D-F5B4-42DD-90E4-B58B1354EC8B}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Land" ID="{9D8DEA81-7152-4336-A759-688BC63E1990}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_LightAtk1" ID="{A61EFE04-5945-44F9-8E37-B7AFDE78655E}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Move_Stop" ID="{6B104E40-896B-4729-8CDA-063C49D44D2D}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Revive" ID="{6DA8C751-E398-48E3-90A2-78E64BAE410C}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Laser_Fire" ID="{AD8E3EF3-0C9B-4A49-A500-B836D5DAAFED}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Dash" ID="{0F2F23A1-1346-4B65-A29F-5B83699666DF}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Hurt" ID="{1199EBEA-7C06-4E31-A00D-ECB68A541D95}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_Missile_Hit" ID="{10461FD9-AB37-4E5A-95F0-A724C33EB406}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_SwordWave_Hit" ID="{D0DA5D36-7515-4F80-8029-D4505B1DC946}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Player_SwordWave_Fire" ID="{661ACEC1-7E4B-4FEB-9EFB-5FA9A46B3F90}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+					</ObjectInclusionList>
+					<ObjectExclusionList/>
+					<GameSyncExclusionList/>
+				</SoundBank>
+				<SoundBank Name="Bank_Combat" ID="{34A82B4C-BBD5-417F-AEBC-5A36A6A76365}">
+					<ObjectInclusionList>
+						<ObjectRef Name="Play_Enemy_Hurt" ID="{9D4D7086-96F1-4010-B63F-88CF346CB3F2}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Enemy_Ranged_Shoot" ID="{3E76CC3F-76A1-40BB-8349-5834F814E6D3}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_DanmakuSpawn" ID="{11AF31FA-DA26-418B-98B5-23EAEB21D306}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Enemy_Death" ID="{303C0DA0-6782-4482-A4A2-4B35F1D02C28}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Enemy_Melee_Attack" ID="{58660634-47C6-4497-9724-4A6801B68778}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_HandRestore" ID="{C6BA96E8-A915-45A5-BEE6-961256C727FA}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_Defeated" ID="{D74284F7-C5E2-4659-BE84-DD81A0739424}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_Hurt" ID="{D58B62F2-0CFC-475F-BF8B-F2F40724991D}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_GuardBroken" ID="{3091DF97-2E76-4799-8E8E-55A0F6010A6C}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_FullChargeSlash" ID="{53C040F9-EDCA-4966-B8EC-478C0A9E87F4}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_HandBreak" ID="{BC449FEF-794D-4C14-8C83-5A3E0CF3659E}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_Stagger" ID="{3A4492BB-FA7C-4C48-95B7-A238171C022D}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_LaserRain" ID="{F682E533-028E-4C58-8236-B97D0C6E2EE7}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_PhaseChange" ID="{DD3BCEA9-E818-4E83-878C-7F9B955AF0F7}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_BattleStart" ID="{043E47C9-273E-4E8C-8216-6B38BF54B4AB}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Boss_SweepSlash" ID="{AD8BD4AF-D572-4F67-816A-E2AC09146C7B}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+					</ObjectInclusionList>
+					<ObjectExclusionList/>
+					<GameSyncExclusionList/>
+				</SoundBank>
+				<SoundBank Name="Bank_UI" ID="{E362A286-B14E-41D6-86B7-516593628CD4}">
+					<ObjectInclusionList>
+						<ObjectRef Name="Play_UI_PactSelected" ID="{8FE797CD-C688-400D-93B0-48046C0D06C0}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_Reroll" ID="{7A44BD68-AC6C-402E-B90D-969ECE66094B}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_BloodContractWarn" ID="{C4D651D6-BB70-40D6-9C59-AF678D4917B4}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_BloodFull" ID="{67E96BAD-C62F-4143-9FB4-71E975F6ACC9}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_LevelUpReady" ID="{9788652D-596C-42AB-8193-01BE479984DE}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ShopOpen" ID="{F301B23A-0C9B-42B4-9F20-0E3BAC48994D}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ShopPurchase" ID="{8EB8F8E0-4B80-42D8-AB80-4E40F7A128FD}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ShopClose" ID="{68B39E70-CF0B-43A5-BC9E-4C827D92ECED}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Familiar_Attack" ID="{4BF82062-6EB2-4439-ABE4-73D4183DDB6C}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Combat_Reaction_Thunder" ID="{3C3C4AE9-7342-44F8-8D7D-2086032907B2}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_Victory" ID="{266FFD5F-6F45-45CC-83B1-8A92782976FB}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Combat_Reaction_Blast" ID="{25033FE0-7B3F-4AE2-BEBB-4AE0F75E9267}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ScarletPickup" ID="{20FF8C11-2B95-4BCD-B5B6-74EF3749816D}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ShopDenied" ID="{60C34A63-6815-4BFD-AB30-54E883E1CEE7}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_Defeat" ID="{25D42EB8-8358-4C37-9F60-85A92AEC5A68}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Combat_Reaction_Shatter" ID="{BA20C7DC-BBDD-4C5C-ABD5-5B6283D9347C}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_Familiar_Summon" ID="{C5214A6A-9BB3-4E82-A087-6A0CFC327F71}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_LowHealthWarn" ID="{9CF2DCFD-1EB1-4EC9-B7BC-BAE9249A548C}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ButtonClick" ID="{20DF6F95-8055-4F34-9CF3-C911B41F69B8}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
+						<ObjectRef Name="Play_UI_ItemPickup" ID="{2C365B5E-6933-4F35-9BA7-20AB72CE722E}" WorkUnitID="{B4E02A25-C1D5-45C4-A5EB-7C91F07BFB93}" Origin="Manual" Filter="7"/>
 					</ObjectInclusionList>
 					<ObjectExclusionList/>
 					<GameSyncExclusionList/>

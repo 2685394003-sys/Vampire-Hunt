@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 810000000000000015}
   - component: {fileID: 810000000000000016}
   - component: {fileID: 219119476408945916}
+  - component: {fileID: 5744691887872489462}
   m_Layer: 8
   m_Name: VH_MeleeEnemy
   m_TagString: Untagged
@@ -289,6 +290,33 @@ MonoBehaviour:
   hitScale: 0.3
   hitInterval: 0.05
   hitSkipLoopingSystems: 1
+  detonateEventName: Play_Combat_Reaction_Blast
+  shatterEventName: Play_Combat_Reaction_Shatter
+  lightningChainEventName: Play_Combat_Reaction_Thunder
+--- !u!114 &5744691887872489462
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810000000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b1e4d206094bd448a32f3edce427f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AK.Wwise.Unity.MonoBehaviour::AkGameObj
+  m_listeners:
+    initialListenerList: []
+    useDefaultListeners: 1
+  isEnvironmentAware: 1
+  isStaticObject: 0
+  usePositionOffsetData: 0
+  m_positionOffsetData:
+    KeepMe: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+  scalingFactor: 1
+  m_posOffsetData: {fileID: 0}
+  listenerMask: 1
 --- !u!1 &810000000000000009
 GameObject:
   m_ObjectHideFlags: 0

@@ -693,7 +693,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.SwordWaveAbilityExecutor
   swordWavePrefab: {fileID: 820000000000000003, guid: 07ea4f50e3cb442b80b441f87aa0173d, type: 3}
-  fireEventName: 
+  fireEventName: Play_Player_SwordWave_Fire
   combatIntentPolicy: 0
 --- !u!114 &-700000000000000008
 MonoBehaviour:
@@ -1069,7 +1069,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VampireHunt.Infrastructure.Netcode.ProjectileWeaponAbilityExecutor
   abilityId: 120
   projectilePrefab: {fileID: 820000000000000003, guid: f47e95268f80d0140a34be4fe58cc6b6, type: 3}
-  fireEventName: 
+  fireEventName: Play_Player_Rifle_Fire
   combatIntentPolicy: 0
 --- !u!114 &209588781645992051
 MonoBehaviour:
@@ -1101,7 +1101,7 @@ MonoBehaviour:
   releaseTimeout: 0.15
   maxTurnAngle: 90
   angleBreakCooldown: 1
-  fireEventName: 
+  fireEventName: Play_Player_Laser_Fire
   stopEventName: 
   combatIntentPolicy: 0
 --- !u!114 &5891633180362050200
@@ -1136,7 +1136,7 @@ MonoBehaviour:
   spreadAngle: 12
   distanceSpread: 2.5
   gravity: 9.8
-  fireEventName: 
+  fireEventName: Play_Player_Missile_Fire
   combatIntentPolicy: 0
 --- !u!114 &-700000000000000026
 MonoBehaviour:
